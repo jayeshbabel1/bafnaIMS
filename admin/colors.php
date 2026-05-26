@@ -1,0 +1,28 @@
+<?php
+// Default color palette — overridden by admin settings in DB
+return [
+    '--bg'            => '#F2F5F9',
+    '--surface'       => '#FFFFFF',
+    '--surface2'      => '#EEF2F7',
+    '--surface3'      => '#E6ECF2',
+    '--accent'        => '#2C6E8A',
+    '--accent2'       => '#1A4D65',
+    '--accent-light'  => '#E3EFF4',
+    '--accent-mid'    => '#4DA8C9',
+    '--stone'         => '#C8D3DC',
+    '--stone-dark'    => '#8FA3B1',
+    '--text'          => '#1A2837',
+    '--text2'         => '#4A6070',
+    '--text3'         => '#8FA3B1',
+    '--border'        => '#DDE4EB',
+    '--gold'          => '#B8975A',
+    '--gold-bg'       => '#F5EDD8',
+    '--success'       => '#3D8B6E',
+    '--success-bg'    => '#D8EFE6',
+    '--danger'        => '#E84040',
+    '--danger-bg'     => '#FFF0F0',
+    '--nav-bg'        => '#FFFFFF',
+    '--topbar-bg'     => 'rgba(242,245,249,0.92)',
+    '--btn-radius'    => '12px',
+    '--card-radius'   => '12px',
+];
