@@ -1,0 +1,38 @@
+/* ── Auth Layout ──────────────────────────────────────────────────────────── */
+.auth-body{background:var(--bg);}
+.auth-page{padding:32px 24px 100px;max-width:420px;margin:0 auto;}
+.back-btn{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--text2);margin-bottom:24px;padding:6px 0;}
+.auth-logo-block{display:flex;flex-direction:column;align-items:center;text-align:center;margin-bottom:24px;}
+.logo-icon{width:64px;height:64px;border-radius:20px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;margin-bottom:12px;}
+.icon-white{color:#fff;}
+.logo-title{font-size:28px;font-weight:600;color:var(--text);margin-bottom:4px;}
+.logo-sub{font-size:13px;color:var(--text3);}
+.auth-title{font-size:22px;font-weight:600;color:var(--text);margin-bottom:6px;}
+.auth-sub{font-size:13px;color:var(--text2);margin-bottom:24px;line-height:1.5;}
+.auth-form{background:var(--surface);border:1px solid var(--border);border-radius:var(--card-radius);padding:24px;}
+.auth-footer{text-align:center;font-size:13px;color:var(--text2);margin-top:12px;}
+.auth-link{color:var(--accent);font-weight:600;}
+.form-meta{display:flex;justify-content:flex-end;margin-top:-6px;margin-bottom:16px;}
+
+/* ── Marble Strip ─────────────────────────────────────────────────────────── */
+.marble-strip{display:flex;gap:8px;border-radius:14px;overflow:hidden;margin-bottom:24px;height:64px;}
+.marble-strip-item{flex:1;overflow:hidden;}
+.marble-strip-item svg{width:100%;height:100%;}
+
+/* ── Step indicator ───────────────────────────────────────────────────────── */
+.step-indicator{margin-bottom:20px;}
+.step-label{font-size:12px;font-weight:600;color:var(--text3);margin-bottom:6px;}
+.progress-bar{height:4px;background:var(--border);border-radius:2px;overflow:hidden;}
+.progress-fill{height:100%;background:var(--accent);border-radius:2px;transition:width .3s ease;}
+
+/* ── Role Options ─────────────────────────────────────────────────────────── */
+.role-option{display:flex;align-items:center;gap:10px;padding:10px 14px;border:1.5px solid var(--border);border-radius:10px;margin-bottom:6px;cursor:pointer;transition:all .15s;font-size:13px;font-weight:500;}
+.role-option input{display:none;}
+.role-option.selected,.role-option:has(input:checked){border-color:var(--accent);background:var(--accent-light);color:var(--accent);}
+.role-check{width:20px;height:20px;border-radius:50%;border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:transparent;transition:all .15s;}
+.role-option.selected .role-check,.role-option:has(input:checked) .role-check{background:var(--accent);border-color:var(--accent);color:#fff;}
+
+/* ── Exp Chips ────────────────────────────────────────────────────────────── */
+.chip-row{display:flex;flex-wrap:wrap;gap:8px;}
+.exp-chip{padding:7px 14px;border:1.5px solid var(--border);border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;transition:all .15s;color:var(--text2);}
+.exp-chip.active,.exp-chip:has(input:checked){background:var(--accent);border-color:var(--accent);color:#fff;}

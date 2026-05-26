@@ -17,7 +17,6 @@
 <?php if ($e): ?><div class="toast toast-error"   id="admin-toast"><?= h($e) ?></div><?php endif; ?>
 
 <div class="admin-shell">
-  <!-- Sidebar -->
   <aside class="admin-sidebar">
     <div class="admin-logo">
       <div class="admin-logo-icon">
@@ -33,18 +32,18 @@
     </div>
 
     <nav class="admin-nav">
-      <?php $ap = $_GET['page'] ?? 'dashboard';
+      <?php
+      $ap = $_GET['page'] ?? 'dashboard';
       $navItems = [
-        ['page'=>'dashboard',    'icon'=>'home',     'label'=>'Dashboard'],
-        ['page'=>'products',     'icon'=>'grid',     'label'=>'Products'],
-        ['page'=>'inquiries',    'icon'=>'msg',      'label'=>'Inquiries'],
-        ['page'=>'users',        'icon'=>'users',    'label'=>'Users'],
-        ['page'=>'colors',       'icon'=>'palette',  'label'=>'Color Scheme'],
+        ['page'=>'dashboard', 'icon'=>'home',    'label'=>'Dashboard'],
+        ['page'=>'products',  'icon'=>'grid',    'label'=>'Products'],
+        ['page'=>'inquiries', 'icon'=>'msg',     'label'=>'Inquiries'],
+        ['page'=>'users',     'icon'=>'users',   'label'=>'Users'],
+        ['page'=>'colors',    'icon'=>'palette', 'label'=>'Color Scheme'],
       ];
       foreach ($navItems as $n): ?>
       <a href="index.php?page=<?= $n['page'] ?>" class="admin-nav-item <?= $ap===$n['page']?'active':'' ?>">
-        <?= icon($n['icon'],18) ?>
-        <span><?= $n['label'] ?></span>
+        <?= icon($n['icon'],18) ?><span><?= $n['label'] ?></span>
       </a>
       <?php endforeach; ?>
     </nav>
@@ -58,7 +57,6 @@
     </div>
   </aside>
 
-  <!-- Main -->
   <main class="admin-main">
     <div class="admin-topbar">
       <h1 class="admin-page-title serif"><?= h($adminTitle ?? 'Dashboard') ?></h1>
