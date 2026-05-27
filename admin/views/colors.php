@@ -3,7 +3,7 @@ $adminTitle = 'Color Scheme';
 include __DIR__ . '/../_layout_top.php';
 $defaults = require __DIR__ . '/../../config/colors.php';
 $db = getDB();
-$rows = $db->query("SELECT key,value FROM settings WHERE key LIKE '--%'")->fetchAll();
+$rows = $db->query("SELECT `key`,`value` FROM settings WHERE `key` LIKE '--%'")->fetchAll();
 $saved = array_column($rows, 'value', 'key');
 $current = array_merge($defaults, $saved);
 

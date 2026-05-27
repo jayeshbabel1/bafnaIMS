@@ -172,9 +172,18 @@ $g   = fn($k) => h($p[$k] ?? '');
             <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:9px;color:var(--text3);">No file</div>
             <?php endif; ?>
             <form method="POST" action="index.php" style="display:contents;">
-              <input type="hidden" name="action"   value="delete_photo"/>
+            <!--  <input type="hidden" name="action"   value="delete_photo"/> -->
               <input type="hidden" name="photo_id" value="<?= $ph['id'] ?>"/>
-              <button type="submit" class="photo-grid-del" title="Delete" data-confirm="Delete this photo?">×</button>
+            <!--  <button type="submit" class="photo-grid-del" title="Delete" data-confirm="Delete this photo?">×</button> -->
+              <button type="submit"
+        name="action"
+        value="delete_photo"
+        formaction="index.php"
+        class="photo-grid-del"
+        title="Delete"
+        data-confirm="Delete this photo?">
+    ×
+</button>
             </form>
           </div>
           <?php endforeach; ?>

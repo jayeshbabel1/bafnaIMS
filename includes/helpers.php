@@ -1,8 +1,6 @@
 <?php
 function h(string $s): string { return htmlspecialchars($s, ENT_QUOTES, 'UTF-8'); }
-
 function redirect(string $url): never { header("Location: $url"); exit; }
-
 function flash(string $key, string $msg): void  { $_SESSION['flash'][$key] = $msg; }
 function getFlash(string $key): ?string {
     $m = $_SESSION['flash'][$key] ?? null;
@@ -14,27 +12,55 @@ function getFlash(string $key): ?string {
 function getSetting(string $key, string $default = ''): string {
     static $cache = null;
     if ($cache === null) {
-        $rows  = getDB()->query("SELECT key,value FROM settings")->fetchAll();
+        $rows  = getDB()->query("SELECT `key`,`value` FROM settings")->fetchAll();
         $cache = array_column($rows, 'value', 'key');
     }
     return $cache[$key] ?? $default;
 }
 function setSetting(string $key, string $value): void {
-    getDB()->prepare("INSERT OR REPLACE INTO settings (key,value) VALUES (?,?)")->execute([$key, $value]);
+    getDB()->prepare("INSERT INTO settings (`key`,`value`) VALUES (?,?) ON DUPLICATE KEY UPDATE `value`=VALUES(`value`)")->execute([$key, $value]);
 }
 
 // ── Color CSS variables ────────────────────────────────────────────────────────
 function getCSSVariables(): string {
-    $defaults = require __DIR__ . '/../config/colors.php';
-    $db       = getDB();
-    $rows     = $db->query("SELECT key,value FROM settings WHERE key LIKE '--%'")->fetchAll();
-    $overrides = array_column($rows, 'value', 'key');
-    $vars = array_merge($defaults, $overrides);
-    $css  = ":root {\n";
-    foreach ($vars as $k => $v) {
-        if (str_starts_with($k, '--')) $css .= "  $k: " . h($v) . ";\n";
+
+    $file = __DIR__ . '/../config/colors.php';
+
+    if (!file_exists($file)) {
+        die("Missing colors.php : ".$file);
     }
-    $css .= "}\n";
+
+    $defaults = require $file;
+
+    if (!is_array($defaults)) {
+        die("colors.php did not return array");
+    }
+
+    $rows = getDB()->query("
+        SELECT `key`,`value`
+        FROM settings
+        WHERE `key` LIKE '--%'
+    ")->fetchAll(PDO::FETCH_ASSOC);
+
+    $overrides = array_column($rows,'value','key');
+
+    // keep defaults + overwrite only existing DB values
+    $vars = $defaults;
+
+    foreach($overrides as $k=>$v){
+        if(!empty($v)){
+            $vars[$k]=$v;
+        }
+    }
+
+    $css=":root{\n";
+
+    foreach($vars as $k=>$v){
+        $css.="{$k}:{$v};\n";
+    }
+
+    $css.="}";
+
     return $css;
 }
 

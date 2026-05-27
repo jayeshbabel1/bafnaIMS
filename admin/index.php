@@ -1,10 +1,31 @@
 <?php
+
+ini_set('display_errors',1);
+ini_set('display_startup_errors',1);
+error_reporting(E_ALL);
 session_start();
+//require_once __DIR__ . '/vendor/autoload.php';
+
+$autoload = __DIR__ . '/../vendor/autoload.php';
+
+if (!file_exists($autoload)) {
+    die('Not found');
+}
+
+require_once $autoload;
+
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
+
 define('ADMIN_PANEL', true);
+
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/helpers.php';
 require_once __DIR__ . '/../includes/auth.php';
+
 
 // ── CSV Export (before any output) ───────────────────────────────────────────
 if (isset($_GET['action']) && $_GET['action'] === 'export_csv' && isAdmin()) {
@@ -86,6 +107,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         importCSV($_FILES['excel_file'] ?? null);
         redirect('index.php?page=products');
     }
+  	if ($_POST['action'] === 'sync_photos') {
+    syncPhotosFromDirectory();
+      redirect('index.php?page=products');
+    }
+ 	 if ($_POST['action']=='sync_measurements'){
+    syncMeasurementSheets();
+     redirect('index.php?page=products');
+     }
+
+		if ($_POST['action']=='sync_dna'){
+    syncDNAReports();
+          redirect('index.php?page=products');
+        }
+  
+ 	 if($_POST['action']=='export'){
+    exportExcel();
+    redirect('index.php?page=products');
+	}
+
+if($_POST['action']=='import'){
+    importExcel($_FILES['xls_file'] ?? null);
+   redirect('index.php?page=products');
+}
 
     if ($action === 'import_photos') {
         importPhotos($_FILES['photo_zip'] ?? null);
@@ -185,25 +229,438 @@ function saveProduct(array $data, array $files): void {
     }
 
     // Handle photo uploads
-    if (!empty($files['photos']['name'][0])) {
-        $maxOrder = $db->prepare("SELECT COALESCE(MAX(sort_order),0) as m FROM product_photos WHERE product_id=?");
-        $maxOrder->execute([$pid]);
-        $order = (int)$maxOrder->fetch()['m'] + 1;
-        foreach ($files['photos']['tmp_name'] as $i => $tmp) {
-            if (!$tmp || $files['photos']['error'][$i]) continue;
-            $orig = basename($files['photos']['name'][$i]);
-            $ext  = strtolower(pathinfo($orig, PATHINFO_EXTENSION));
-            $fn   = 'p'.$pid.'_'.time().'_'.$i.'.'.$ext;
-            if (move_uploaded_file($tmp, PHOTOS_DIR.'/'.$fn)) {
-                $db->prepare("INSERT INTO product_photos (product_id,filename,sort_order) VALUES (?,?,?)")
-                   ->execute([$pid, $fn, $order++]);
-            }
-        }
-    }
+   
+if (isset($files['photos']) && !empty($files['photos']['name'])) {
 
+    $names  = is_array($files['photos']['name'])
+        ? $files['photos']['name']
+        : [$files['photos']['name']];
+
+    $tmps = is_array($files['photos']['tmp_name'])
+        ? $files['photos']['tmp_name']
+        : [$files['photos']['tmp_name']];
+
+    $errors = is_array($files['photos']['error'])
+        ? $files['photos']['error']
+        : [$files['photos']['error']];
+
+    // get next sort order
+    $st = $db->prepare("
+        SELECT COALESCE(MAX(sort_order),0)
+        FROM product_photos
+        WHERE product_id=?
+    ");
+
+    $st->execute([$pid]);
+
+    $order = ((int)$st->fetchColumn()) + 1;
+
+    foreach ($names as $i => $origName) {
+
+        if (($errors[$i] ?? 1) !== UPLOAD_ERR_OK)
+            continue;
+
+        if (empty($tmps[$i]))
+            continue;
+
+        $fn = basename(trim($origName));
+
+        // avoid duplicate DB row
+        $chk = $db->prepare("
+            SELECT id
+            FROM product_photos
+            WHERE product_id=?
+            AND filename=?
+        ");
+
+        $chk->execute([
+            $pid,
+            $fn
+        ]);
+
+        if ($chk->fetch()) {
+            continue;
+        }
+
+        // move with original filename
+        if (!move_uploaded_file(
+            $tmps[$i],
+            PHOTOS_DIR.'/'.$fn
+        )) {
+            continue;
+        }
+
+        $db->prepare("
+            INSERT INTO product_photos
+            (
+                product_id,
+                filename,
+                sort_order
+            )
+            VALUES (?,?,?)
+        ")->execute([
+            $pid,
+            $fn,
+            $order++
+        ]);
+    }
+}
+syncPhotosFromDirectory();
     flash('toast', 'Product saved successfully.');
 }
 
+
+// ── Photo Import (multi-file by quarry prefix) ────────────────────────────────
+function importPhotos(?array $files): void
+{
+    if (!$files || empty($files['name'])) {
+        flash('error','No files uploaded.');
+        return;
+    }
+
+    $db = getDB();
+    $count = 0;
+
+    $names  = is_array($files['name']) ? $files['name'] : [$files['name']];
+    $tmps   = is_array($files['tmp_name']) ? $files['tmp_name'] : [$files['tmp_name']];
+    $errors = is_array($files['error']) ? $files['error'] : [$files['error']];
+
+    foreach ($names as $idx => $origName) {
+
+        if (($errors[$idx] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK)
+            continue;
+
+        // keep exact filename
+        $fn = basename(trim($origName));
+
+        // extension check
+        $ext = strtolower(pathinfo($fn, PATHINFO_EXTENSION));
+
+        if (!in_array($ext, ['jpg','jpeg','png','webp']))
+            continue;
+
+        // Extract Q23048 from:
+        // Q23048-IMG.jpeg
+        // Q23048-IMG-1.jpeg
+        // Q23048-IMG-2.jpg
+
+        if (!preg_match('/^(Q\d+)/i', $fn, $m))
+            continue;
+
+        $quarry = strtoupper($m[1]);
+
+        // product lookup
+        $st = $db->prepare("
+            SELECT id
+            FROM products
+            WHERE quarry_number=?
+            LIMIT 1
+        ");
+
+        $st->execute([$quarry]);
+
+        $prod = $st->fetch(PDO::FETCH_ASSOC);
+
+        if (!$prod)
+            continue;
+
+        // avoid duplicate db row
+        $chk = $db->prepare("
+            SELECT id
+            FROM product_photos
+            WHERE product_id=?
+            AND filename=?
+        ");
+
+        $chk->execute([
+            $prod['id'],
+            $fn
+        ]);
+
+        if ($chk->fetch())
+            continue;
+
+        // ensure directory exists
+        if (!is_dir(PHOTOS_DIR))
+            mkdir(PHOTOS_DIR,0777,true);
+
+        $dest = rtrim(PHOTOS_DIR,'/').'/'.$fn;
+
+        // remove existing file if present
+        if (file_exists($dest))
+            unlink($dest);
+
+        // save exact filename
+        if (!move_uploaded_file($tmps[$idx], $dest))
+            continue;
+
+        // order
+        $ord = $db->prepare("
+            SELECT COALESCE(MAX(sort_order),0) m
+            FROM product_photos
+            WHERE product_id=?
+        ");
+
+        $ord->execute([$prod['id']]);
+
+        $order = ((int)$ord->fetchColumn()) + 1;
+
+        // insert row
+        $db->prepare("
+            INSERT INTO product_photos
+            (
+                product_id,
+                filename,
+                sort_order
+            )
+            VALUES (?,?,?)
+        ")->execute([
+            $prod['id'],
+            $fn,
+            $order
+        ]);
+
+        $count++;
+    }
+
+    flash(
+        'toast',
+        $count.' photo(s) imported successfully.'
+    );
+}
+
+
+//--------- sync photo directory -----------------------------------
+
+function syncPhotosFromDirectory(): void
+{
+    $db = getDB();
+    $count = 0;
+
+    if (!is_dir(PHOTOS_DIR)) {
+        flash('error','Photo directory not found.');
+        return;
+    }
+
+    $files = scandir(PHOTOS_DIR);
+
+    foreach ($files as $file) {
+
+        // skip . and ..
+        if ($file === '.' || $file === '..')
+            continue;
+
+        $fullPath = PHOTOS_DIR.'/'.$file;
+
+        if (!is_file($fullPath))
+            continue;
+
+        // extension check
+        $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+
+        if (!in_array($ext, ['jpg','jpeg','png','webp']))
+            continue;
+
+        /*
+        Supports:
+        Q23048-IMG.jpeg
+        Q23048-IMG-1.jpeg
+        Q23048-IMG-2.jpg
+        */
+
+        if (!preg_match('/^(Q\d+)/i', $file, $m))
+            continue;
+
+        $quarry = strtoupper($m[1]);
+
+        // product lookup
+        $st = $db->prepare("
+            SELECT id
+            FROM products
+            WHERE quarry_number=?
+            LIMIT 1
+        ");
+
+        $st->execute([$quarry]);
+
+        $prod = $st->fetch(PDO::FETCH_ASSOC);
+
+        if (!$prod)
+            continue;
+
+        // avoid duplicate DB entry
+        $chk = $db->prepare("
+            SELECT id
+            FROM product_photos
+            WHERE product_id=?
+            AND filename=?
+        ");
+
+        $chk->execute([
+            $prod['id'],
+            $file
+        ]);
+
+        if ($chk->fetch())
+            continue;
+
+        // next sort order
+        $ord = $db->prepare("
+            SELECT COALESCE(MAX(sort_order),0)
+            FROM product_photos
+            WHERE product_id=?
+        ");
+
+        $ord->execute([$prod['id']]);
+
+        $order = ((int)$ord->fetchColumn()) + 1;
+
+        // save record
+        $db->prepare("
+            INSERT INTO product_photos
+            (
+                product_id,
+                filename,
+                sort_order
+            )
+            VALUES (?,?,?)
+        ")->execute([
+            $prod['id'],
+            $file,
+            $order
+        ]);
+
+        $count++;
+    }
+
+    flash(
+        'toast',
+        $count.' photos synced successfully.'
+    );
+}
+
+//----------- Sync Measurement Sheet ---------------------------------
+function syncMeasurementSheets(): void
+{
+    $db = getDB();
+    $count = 0;
+
+    if (!is_dir(MEASUREMENT_DIR)) {
+        flash('error','Measurement folder missing');
+        return;
+    }
+
+    foreach (scandir(MEASUREMENT_DIR) as $file) {
+
+        if ($file=='.' || $file=='..')
+            continue;
+
+        $full = MEASUREMENT_DIR.'/'.$file;
+
+        if (!is_file($full))
+            continue;
+
+        if (strtolower(pathinfo($file,PATHINFO_EXTENSION))!='pdf')
+            continue;
+
+        // Q23048-MS.pdf
+        if (!preg_match('/^(Q\d+)-MS/i',$file,$m))
+            continue;
+
+        $quarry = strtoupper($m[1]);
+
+        $st = $db->prepare("
+            UPDATE products
+            SET measurement_sheet=?
+            WHERE quarry_number=?
+        ");
+
+        $st->execute([
+            $file,
+            $quarry
+        ]);
+
+        $count += $st->rowCount();
+    }
+
+    flash(
+        'toast',
+        $count.' measurement sheet(s) synced'
+    );
+}
+
+//------- Sync Dna reports --------------------------------
+function syncDNAReports(): void
+{
+    $db = getDB();
+    $count = 0;
+
+    if (!is_dir(DNA_DIR)) {
+        flash('error','DNA folder missing');
+        return;
+    }
+
+    foreach (scandir(DNA_DIR) as $file) {
+
+        if ($file=='.' || $file=='..')
+            continue;
+
+        $full = DNA_DIR.'/'.$file;
+
+        if (!is_file($full))
+            continue;
+
+        if (strtolower(pathinfo($file,PATHINFO_EXTENSION))!='pdf')
+            continue;
+
+        // Q23048-DNA.pdf
+        if (!preg_match('/^(Q\d+)-DNA/i',$file,$m))
+            continue;
+
+        $quarry = strtoupper($m[1]);
+
+        $st = $db->prepare("
+            UPDATE products
+            SET dna_report=?
+            WHERE quarry_number=?
+        ");
+
+        $st->execute([
+            $file,
+            $quarry
+        ]);
+
+        $count += $st->rowCount();
+    }
+
+    flash(
+        'toast',
+        $count.' DNA report(s) synced'
+    );
+}
+
+// ── CSV ────────────────────────────────────────────────────────────────
+function exportCSV(): void {
+    $db = getDB();
+    $products = $db->query("SELECT * FROM products ORDER BY id ASC")->fetchAll();
+
+    header('Content-Type: text/csv; charset=UTF-8');
+    header('Content-Disposition: attachment; filename="bafna_products_'.date('Ymd').'.csv"');
+    $out = fopen('php://output', 'w');
+    fprintf($out, chr(0xEF).chr(0xBB).chr(0xBF)); // UTF-8 BOM
+
+    $headers = ['name','category','subcategory','color_subcategory','quarry_number',
+                'total_quantity','quantity_available','quantity_on_hold','pieces',
+                'thickness','sizes','cutter_size','origin','finish','description',
+                'in_stock','featured','measurement_sheet','dna_report'];
+    fputcsv($out, $headers);
+
+    foreach ($products as $p) {
+        $row = array_map(fn($k) => $p[$k] ?? '', $headers);
+        fputcsv($out, $row);
+    }
+    fclose($out);
+}
 // ── CSV Import ────────────────────────────────────────────────────────────────
 function importCSV(?array $file): void {
     if (!$file || $file['error']) { flash('error','File upload failed.'); return; }
@@ -282,65 +739,396 @@ function importCSV(?array $file): void {
     flash('toast', "Import complete. $count products processed.");
 }
 
-// ── Photo Import (multi-file by quarry prefix) ────────────────────────────────
-function importPhotos(?array $files): void {
-    if (!$files) { flash('error','No files uploaded.'); return; }
-    $db    = getDB();
-    $count = 0;
 
-    // Handle multiple files (name[], tmp_name[], etc.)
-    $names    = is_array($files['name'])     ? $files['name']     : [$files['name']];
-    $tmps     = is_array($files['tmp_name']) ? $files['tmp_name'] : [$files['tmp_name']];
-    $errors   = is_array($files['error'])    ? $files['error']    : [$files['error']];
+// ── EXCEL Export (.xlsx) ─────────────────────────────────────
+function exportExcel(): void {
 
-    foreach ($names as $idx => $origName) {
-        if ($errors[$idx] ?? UPLOAD_ERR_NO_FILE) continue;
-        $ext  = strtolower(pathinfo($origName, PATHINFO_EXTENSION));
-        if (!in_array($ext, ['jpg','jpeg','png','webp'])) continue;
+    try {
 
-        // Parse quarry number from filename: Q20205-1.jpg => Q20205
-        $base   = pathinfo($origName, PATHINFO_FILENAME);   // e.g. QM-0421-1
-        $quarry = preg_replace('/-\d+$/', '', $base);       // strip trailing -N
-        if (!$quarry) continue;
+        // Prevent accidental output
+        if (ob_get_length()) {
+            ob_end_clean();
+        }
 
-        $st = $db->prepare("SELECT id FROM products WHERE quarry_number=?");
-        $st->execute([$quarry]);
-        $prod = $st->fetch();
-        if (!$prod) continue; // No matching product
+        $db = getDB();
 
-        $fn = 'p'.$prod['id'].'_'.time().'_'.$idx.'.'.$ext;
-        if (!move_uploaded_file($tmps[$idx], PHOTOS_DIR.'/'.$fn)) continue;
+        $products = $db->query(
+            "SELECT * FROM products ORDER BY id ASC"
+        )->fetchAll(PDO::FETCH_ASSOC);
 
-        $ord = $db->prepare("SELECT COALESCE(MAX(sort_order),0) as m FROM product_photos WHERE product_id=?");
-        $ord->execute([$prod['id']]);
-        $order = (int)$ord->fetch()['m'] + 1;
 
-        $db->prepare("INSERT INTO product_photos (product_id,filename,sort_order) VALUES (?,?,?)")
-           ->execute([$prod['id'], $fn, $order]);
-        $count++;
+        $headers = [
+            'name',
+            'category',
+            'subcategory',
+            'color_subcategory',
+            'quarry_number',
+            'total_quantity',
+            'quantity_available',
+            'quantity_on_hold',
+            'pieces',
+            'thickness',
+            'sizes',
+            'cutter_size',
+            'origin',
+            'finish',
+            'description',
+            'in_stock',
+            'featured',
+            'measurement_sheet',
+            'dna_report'
+        ];
+
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+
+
+        // Header row
+        foreach ($headers as $col => $header) {
+
+            $column =
+                Coordinate::stringFromColumnIndex(
+                    $col + 1
+                );
+
+            $sheet->setCellValue(
+                $column . '1',
+                $header
+            );
+        }
+
+
+        // Data rows
+        $rowNo = 2;
+
+        foreach ($products as $p) {
+
+            foreach ($headers as $col => $key) {
+
+                $column =
+                    Coordinate::stringFromColumnIndex(
+                        $col + 1
+                    );
+
+                $sheet->setCellValue(
+                    $column . $rowNo,
+                    $p[$key] ?? ''
+                );
+            }
+
+            $rowNo++;
+        }
+
+
+        // Auto width
+        $lastCol =
+            Coordinate::stringFromColumnIndex(
+                count($headers)
+            );
+
+        foreach (range('A', $lastCol) as $col) {
+
+            $sheet
+                ->getColumnDimension($col)
+                ->setAutoSize(true);
+        }
+
+
+        // Download headers
+        header(
+            'Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        );
+
+        header(
+            'Content-Disposition: attachment; filename="bafna_products_'
+            .date('Ymd').
+            '.xlsx"'
+        );
+
+        header('Cache-Control: max-age=0');
+        header('Pragma: public');
+        header('Expires: 0');
+
+
+        $writer = new Xlsx($spreadsheet);
+
+        $writer->save('php://output');
+
+        exit;
+
+    } catch (Throwable $e) {
+
+        die(
+            '<pre>'
+            .'Excel Export Error:'."\n\n"
+            .$e->getMessage()."\n\n"
+            .'File: '.$e->getFile()."\n"
+            .'Line: '.$e->getLine()
+            .'</pre>'
+        );
     }
-    flash('toast', "$count photo(s) linked to products.");
 }
+// ── EXCEL Import (.xlsx/.xls/.csv) ──────────────────────────
+function importExcel(?array $file): void {
 
-// ── CSV Export ────────────────────────────────────────────────────────────────
-function exportCSV(): void {
-    $db = getDB();
-    $products = $db->query("SELECT * FROM products ORDER BY id ASC")->fetchAll();
-
-    header('Content-Type: text/csv; charset=UTF-8');
-    header('Content-Disposition: attachment; filename="bafna_products_'.date('Ymd').'.csv"');
-    $out = fopen('php://output', 'w');
-    fprintf($out, chr(0xEF).chr(0xBB).chr(0xBF)); // UTF-8 BOM
-
-    $headers = ['name','category','subcategory','color_subcategory','quarry_number',
-                'total_quantity','quantity_available','quantity_on_hold','pieces',
-                'thickness','sizes','cutter_size','origin','finish','description',
-                'in_stock','featured','measurement_sheet','dna_report'];
-    fputcsv($out, $headers);
-
-    foreach ($products as $p) {
-        $row = array_map(fn($k) => $p[$k] ?? '', $headers);
-        fputcsv($out, $row);
+    if (!$file || $file['error']) {
+        flash('error','File upload failed.');
+        return;
     }
-    fclose($out);
+
+    $ext = strtolower(
+        pathinfo($file['name'], PATHINFO_EXTENSION)
+    );
+
+    if (!in_array($ext,['xlsx','xls','csv'])) {
+        flash(
+            'error',
+            'Only .xlsx, .xls or .csv allowed'
+        );
+        return;
+    }
+
+    $dest = EXCEL_DIR.'/'.time().'_'.$file['name'];
+
+    if (!move_uploaded_file(
+        $file['tmp_name'],
+        $dest
+    )) {
+        flash('error','Could not save upload');
+        return;
+    }
+
+    try {
+
+        $spreadsheet =
+            IOFactory::load($dest);
+
+        $sheet =
+            $spreadsheet->getActiveSheet();
+
+        // simpler structure
+        $rows = $sheet->toArray();
+
+        if (count($rows) < 2) {
+            flash('error','No rows found');
+            return;
+        }
+
+        // normalize exported headers
+        $headers = array_map(
+            function($h){
+
+                return strtolower(
+                    trim($h)
+                );
+
+            },
+            array_shift($rows)
+        );
+
+
+        $db = getDB();
+        $count=0;
+
+
+        foreach($rows as $row){
+
+            if(
+                empty(
+                    array_filter($row)
+                )
+            ){
+                continue;
+            }
+
+            $data = array_combine(
+                $headers,
+                $row
+            );
+
+            if(!$data){
+                continue;
+            }
+
+            $g=function($k) use($data){
+
+                return trim(
+                    (string)($data[$k] ?? '')
+                );
+            };
+
+            $gf=function($k) use($data){
+
+                return (float)(
+                    $data[$k] ?? 0
+                );
+            };
+
+            $gi=function($k) use($data){
+
+                return (int)(
+                    $data[$k] ?? 0
+                );
+            };
+
+
+            $name=$g('name');
+
+            if(!$name){
+                continue;
+            }
+
+            $quarry=
+                $g('quarry_number');
+
+
+            $fields=[
+
+                'name'=>$name,
+
+                'category'=>
+                    $g('category'),
+
+                'subcategory'=>
+                    $g('subcategory'),
+
+                'color_subcategory'=>
+                    $g('color_subcategory'),
+
+                'quarry_number'=>
+                    $quarry,
+
+                'total_quantity'=>
+                    $gf('total_quantity'),
+
+                'quantity_available'=>
+                    $gf('quantity_available'),
+
+                'quantity_on_hold'=>
+                    $gf('quantity_on_hold'),
+
+                'pieces'=>
+                    $gi('pieces'),
+
+                'thickness'=>
+                    $g('thickness'),
+
+                'sizes'=>
+                    $g('sizes'),
+
+                'cutter_size'=>
+                    $g('cutter_size'),
+
+                'origin'=>
+                    $g('origin'),
+
+                'finish'=>
+                    $g('finish'),
+
+                'description'=>
+                    $g('description'),
+
+                'in_stock'=>
+                    $gi('in_stock') ?: 1,
+
+                'featured'=>
+                    $gi('featured'),
+
+                'measurement_sheet'=>
+                    $g('measurement_sheet'),
+
+                'dna_report'=>
+                    $g('dna_report')
+            ];
+
+
+            // Upsert
+            $existing=null;
+
+            if($quarry){
+
+                $st=$db->prepare(
+                    "SELECT id
+                     FROM products
+                     WHERE quarry_number=?"
+                );
+
+                $st->execute([$quarry]);
+
+                $existing=
+                    $st->fetch(
+                        PDO::FETCH_ASSOC
+                    );
+            }
+
+
+            if($existing){
+
+                $set=implode(
+                    ',',
+                    array_map(
+                        fn($k)=>"$k=?",
+                        array_keys($fields)
+                    )
+                );
+
+                $vals=array_values(
+                    $fields
+                );
+
+                $vals[]=
+                    $existing['id'];
+
+                $db->prepare(
+                    "UPDATE products
+                     SET $set
+                     WHERE id=?"
+                )->execute(
+                    $vals
+                );
+
+            }else{
+
+                $cols=implode(
+                    ',',
+                    array_keys($fields)
+                );
+
+                $ph=implode(
+                    ',',
+                    array_fill(
+                        0,
+                        count($fields),
+                        '?'
+                    )
+                );
+
+                $db->prepare(
+                    "INSERT INTO products
+                    ($cols)
+                    VALUES
+                    ($ph)"
+                )->execute(
+                    array_values(
+                        $fields
+                    )
+                );
+            }
+
+            $count++;
+        }
+
+        flash(
+            'toast',
+            "Import complete. $count products processed."
+        );
+
+    } catch(Throwable $e){
+
+        flash(
+            'error',
+            $e->getMessage()
+        );
+    }
 }

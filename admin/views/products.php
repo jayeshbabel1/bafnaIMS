@@ -26,17 +26,71 @@ $products = $st->fetchAll();
     </label>
   </form>
 
-  <!-- Export -->
+  <!-- Export CSV -->
   <a href="index.php?action=export_csv" class="btn-admin-secondary btn-admin-sm"><?= icon('download',14) ?> Export CSV</a>
+  
+  
+  
+  <!-- Export Excel -->
+<form method="post"><input type="hidden" name="action" value="export"><button type="submit" class="btn-admin-secondary btn-admin-sm"><?= icon('download',14) ?>Export Excel</button></form>
+
+
+<!-- Import Excel -->
+<form method="POST" action="index.php" enctype="multipart/form-data" style="display:flex;gap:8px;align-items:center;">
+    <input type="hidden" name="action" value="import"/>
+    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:8px 14px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-weight:600;background:var(--surface);color:var(--text);">
+      <?= icon('upload',14) ?> Import Excel
+      <input type="file" name="xls_file"  style="display:none" onchange="this.form.submit()"/>
+    </label>
+  </form>
+  
+   <!-- Sync photos from PHOTOS_DIR -->
+<form method="POST" action="index.php" style="display:flex;gap:8px;align-items:center;">
+    <input type="hidden" name="action" value="sync_photos"/>
+    <button type="submit" style="display:flex; align-items:center; gap:6px; cursor:pointer;padding:8px 14px; border:1.5px dashed var(--accent);border-radius:8px;font-size:12px;font-weight:600;background:var(--accent-light);color:var(--accent);"><?= icon('image',14) ?> Sync Photos Folder </button></form>
+  
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+
+<form method="POST" action="index.php">
+<input type="hidden" name="action" value="sync_measurements">
+
+<button type="submit"
+style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:8px 14px;border:1.5px dashed var(--accent);border-radius:8px;font-size:12px;font-weight:600;background:var(--accent-light);color:var(--accent);">
+
+<?= icon('file',14) ?>
+Sync Measurement PDFs
+
+</button>
+</form>
+
+
+<form method="POST" action="index.php">
+<input type="hidden" name="action" value="sync_dna">
+
+<button type="submit"
+style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:8px 14px;border:1.5px dashed var(--accent);border-radius:8px;font-size:12px;font-weight:600;background:var(--accent-light);color:var(--accent);">
+
+<?= icon('file',14) ?>
+Sync DNA PDFs
+
+</button>
+</form>
+
+</div>
+  
 
   <!-- Image folder import -->
   <form method="POST" action="index.php" enctype="multipart/form-data" style="display:flex;gap:8px;align-items:center;">
     <input type="hidden" name="action" value="import_photos"/>
     <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:8px 14px;border:1.5px dashed var(--accent);border-radius:8px;font-size:12px;font-weight:600;background:var(--accent-light);color:var(--accent);">
-      <?= icon('image',14) ?> Upload Photos (ZIP or multi-select)
-      <input type="file" name="photo_zip" accept=".zip,image/*" multiple style="display:none" onchange="this.form.submit()"/>
+      <?= icon('image',14) ?> Upload Photos (ZIP or multiple)
+      <input type="file" name="photo_zip[]" accept=".zip,image/*" multiple style="display:none" onchange="this.form.submit()"/>
     </label>
   </form>
+  
+
+
+
 
   <!-- Search -->
   <form method="GET" action="index.php" style="display:flex;gap:8px;margin-left:auto;">

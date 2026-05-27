@@ -1,50 +1,42 @@
 <?php
 define('APP_NAME',    'Bafna Marbles');
-define('APP_VERSION', '2.0');
-define('BASE_URL',    ''); // e.g. http://localhost/bafna-marbles
-define('BASE_PATH',   __DIR__ . '/..');
+define('APP_VERSION', '2.0.0');
+define('BASE_PATH',   dirname(__DIR__));
+define('BASE_URL',    (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS']==='on' ? 'https' : 'http').'://'.($_SERVER['HTTP_HOST'] ?? 'localhost'));
 
-define('DB_PATH',     BASE_PATH . '/database/bafna.sqlite');
-define('UPLOAD_PATH', BASE_PATH . '/assets/uploads');
+// ── MySQL Database ─────────────────────────────────────────────────────────
+define('DB_HOST',     'localhost');
+define('DB_PORT',     '3306');
+define('DB_NAME',     'bmarble_ims');
+define('DB_USER',     'bmarble_imsu');
+define('DB_PASS',     'ydfLSUJIy84F');
+define('DB_CHARSET',  'utf8mb4');
 
-define('PHOTOS_DIR',        UPLOAD_PATH . '/photos');
-define('MEASUREMENT_DIR',   UPLOAD_PATH . '/measurement_sheets');
-define('DNA_DIR',           UPLOAD_PATH . '/dna_reports');
-define('EXCEL_DIR',         UPLOAD_PATH . '/excel_imports');
+// ── Upload Directories ─────────────────────────────────────────────────────
+define('PHOTOS_DIR',      BASE_PATH . '/assets/uploads/photos');
+define('MEASUREMENT_DIR', BASE_PATH . '/assets/uploads/measurement_sheets');
+define('DNA_DIR',         BASE_PATH . '/assets/uploads/dna_reports');
+define('EXCEL_DIR',       BASE_PATH . '/assets/uploads/excel');
 
-// Mail config (update for production)
-define('MAIL_FROM',    'noreply@bafnamarbles.com');
+define('SESSION_TTL',  86400 * 7); // 7 days
+
+define('MAIL_FROM',      'noreply@bafnamarbles.com');
 define('MAIL_FROM_NAME', 'Bafna Marbles');
-define('SMTP_HOST',    'smtp.mailtrap.io'); // Replace with real SMTP
-define('SMTP_PORT',    587);
-define('SMTP_USER',    '');
-define('SMTP_PASS',    '');
 
-// Session timeout in seconds (8 hours)
-define('SESSION_TTL', 28800);
+define('CATEGORIES',         ['Marble','Travertine','Onyx','Quartzite']);
+define('COLOR_SUBCATEGORIES',['White','Grey','Beige','Exotic']);
 
-// Max file sizes (bytes)
-define('MAX_PHOTO_SIZE',   5 * 1024 * 1024);   // 5 MB
-define('MAX_DOC_SIZE',     10 * 1024 * 1024);  // 10 MB
-
-define('ALLOWED_PHOTO_TYPES', ['image/jpeg','image/jpg','image/png','image/webp']);
-define('ALLOWED_DOC_TYPES',   ['application/pdf','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','text/csv','application/vnd.ms-excel']);
-
-// Roles
 define('ROLES', [
-    'architect'          => 'Architect',
-    'interior_designer'  => 'Interior Designer',
-    'landscape_architect'=> 'Landscape Architect',
-    'design_consultant'  => 'Design Consultant',
+    'architect'         => 'Architect',
+    'interior_designer' => 'Interior Designer',
+    'contractor'        => 'Contractor',
+    'developer'         => 'Developer / Builder',
+    'retailer'          => 'Stone Retailer',
+    'other'             => 'Other Professional',
 ]);
+define('EXPERIENCE_OPTIONS', ['0–2 years','3–5 years','6–10 years','10+ years']);
 
-// Product categories
-define('CATEGORIES', [
-    'Marble','Granite','Travertine','Onyx','Slate','Limestone','Quartzite','Sandstone'
-]);
-
-// Color subcategories
-define('COLOR_SUBCATEGORIES', ['Grey','Beige','White','Black','Green','Pink','Exotic']);
-
-// Experience options
-define('EXPERIENCE_OPTIONS', ['0�2 years','3�5 years','6�10 years','10+ years']);
+// ── Ensure upload directories exist ───────────────────────────────────────
+foreach ([PHOTOS_DIR, MEASUREMENT_DIR, DNA_DIR, EXCEL_DIR] as $_dir) {
+    if (!is_dir($_dir)) @mkdir($_dir, 0755, true);
+}

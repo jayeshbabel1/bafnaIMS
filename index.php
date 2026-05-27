@@ -1,4 +1,5 @@
-﻿<?php
+<?php
+
 require_once __DIR__ . '/config/config.php';
 require_once __DIR__ . '/includes/db.php';
 require_once __DIR__ . '/includes/helpers.php';
@@ -114,7 +115,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($st->fetch()) {
             $db->prepare("DELETE FROM shortlist WHERE user_id=? AND product_id=?")->execute([$_SESSION['user_id'], $pid]);
         } else {
-            $db->prepare("INSERT OR IGNORE INTO shortlist (user_id,product_id) VALUES (?,?)")->execute([$_SESSION['user_id'], $pid]);
+            $db->prepare("INSERT IGNORE INTO shortlist (user_id,product_id) VALUES (?,?)")->execute([$_SESSION['user_id'], $pid]);
         }
         redirect($returnUrl);
     }
