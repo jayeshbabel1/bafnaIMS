@@ -11,29 +11,49 @@ $recInq = $db->query("SELECT i.*,u.name as uname,p.name as pname FROM inquiries 
 $recProd= $db->query("SELECT * FROM products ORDER BY created_at DESC LIMIT 5")->fetchAll();
 ?>
 
-<div class="stats-grid">
-  <div class="stat-card">
-    <div class="stat-icon" style="background:var(--accent-light);color:var(--accent);"><?= icon('grid',22) ?></div>
-    <div class="stat-val"><?= $pCount ?></div>
-    <div class="stat-label">Total Products</div>
+<div class="dashboard-grid">
+  <div class="dash-card">
+    <div class="dash-left">
+      <div class="dash-icon accent"><?= icon('grid',22) ?></div>
+      <div class="dash-info">
+        <div class="dash-value"><?= $pCount ?></div>
+        <div class="dash-label">Total Products</div>
+      </div>
+    </div>
   </div>
-  <div class="stat-card">
-    <div class="stat-icon" style="background:var(--success-bg);color:var(--success);"><?= icon('verified',22) ?></div>
-    <div class="stat-val"><?= $inStock ?></div>
-    <div class="stat-label">In Stock</div>
+
+  <div class="dash-card">
+    <div class="dash-left">
+      <div class="dash-icon success"><?= icon('verified',22) ?></div>
+      <div class="dash-info">
+        <div class="dash-value"><?= $inStock ?></div>
+        <div class="dash-label">In Stock</div>
+      </div>
+    </div>
   </div>
-  <div class="stat-card">
-    <div class="stat-icon" style="background:var(--accent-light);color:var(--accent);"><?= icon('users',22) ?></div>
-    <div class="stat-val"><?= $uCount ?></div>
-    <div class="stat-label">Registered Users</div>
+
+  <div class="dash-card">
+    <div class="dash-left">
+      <div class="dash-icon accent"><?= icon('users',22) ?></div>
+      <div class="dash-info">
+        <div class="dash-value"><?= $uCount ?></div>
+        <div class="dash-label">Users</div>
+      </div>
+    </div>
   </div>
-  <div class="stat-card">
-    <div class="stat-icon" style="background:<?= $iPend ? 'var(--gold-bg)' : 'var(--surface2)' ?>;color:<?= $iPend ? 'var(--gold)' : 'var(--text3)' ?>;"><?= icon('msg',22) ?></div>
-    <div class="stat-val"><?= $iCount ?></div>
-    <div class="stat-label">Total Inquiries <span class="badge badge-gold" style="font-size:10px;"><?= $iPend ?> pending</span></div>
+
+  <div class="dash-card">
+    <div class="dash-left">
+      <div class="dash-icon warning" style="background:<?= $iPend ? 'var(--gold-bg)' : 'var(--surface2)' ?>;color:<?= $iPend ? 'var(--gold)' : 'var(--text3)' ?>;"><?= icon('msg',22) ?></div>
+      <div class="dash-info">
+        <div class="dash-value"><?= $iCount ?></div>
+        <div class="dash-label">
+          Inquiries <span class="dash-badge"><?= $iPend ?> pending</span>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
-
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
   <!-- Recent Inquiries -->
   <div>

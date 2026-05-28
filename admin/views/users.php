@@ -23,7 +23,7 @@ $users = $st->fetchAll();
 <div class="admin-table-wrap">
   <table class="admin-table">
     <thead>
-      <tr><th>Name</th><th>Email</th><th>Role</th><th>Firm</th><th>City</th><th>Verified</th><th>Joined</th><th>Action</th></tr>
+      <tr><th>Name</th><th>Email</th><th>Role</th><th>Firm</th><th>City</th><th>Verified</th><th>Joined</th><th>Action</th><th>Password Reset</th></tr>
     </thead>
     <tbody>
       <?php if (empty($users)): ?>
@@ -61,6 +61,15 @@ $users = $st->fetchAll();
           ?>
           <span style="font-size:11px;color:var(--text3);"><?= $ic ?> inq.</span>
         </td>
+        <td><!-- Password reset email button -->
+  		  <form method="POST" action="index.php" style="display:inline;">
+      <input type="hidden" name="action" value="send_password_reset"/>
+      <input type="hidden" name="user_id" value="<?= $u['id'] ?>"/>
+      <button type="submit" class="btn-admin-secondary btn-admin-sm
+              style="border:none;cursor:pointer;font-size:10px;"><?= icon('mail',13) ?>
+        Reset Email
+      </button>
+    </form></td>
       </tr>
       <?php endforeach; endif; ?>
     </tbody>

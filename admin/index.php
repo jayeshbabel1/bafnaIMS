@@ -1,11 +1,5 @@
 <?php
-
-ini_set('display_errors',1);
-ini_set('display_startup_errors',1);
-error_reporting(E_ALL);
 session_start();
-//require_once __DIR__ . '/vendor/autoload.php';
-
 $autoload = __DIR__ . '/../vendor/autoload.php';
 
 if (!file_exists($autoload)) {
@@ -102,6 +96,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         flash('toast', 'Photo deleted.');
         redirect('index.php?page=product_edit&id='.($ph['product_id'] ?? 0));
     }
+  
+  if ($_POST['action'] == 'send_password_reset') {
+    $userId = (int)($_POST['user_id'] ?? 0);
+    $st = getDB()->prepare("SELECT email FROM users WHERE id=?");
+    $st->execute([$userId]);
+    $user = $st->fetch();
+    if (!$user) {
+        flash('error', 'User not found');
+        redirect('index.php?page=users');
+        exit;
+    }
+    // reuse your existing function
+    requestPasswordReset($user['email']);
+    flash('toast', 'Password reset email sent');
+    redirect('index.php?page=users');
+    exit;
+}
+  
 
     if ($action === 'import_excel') {
         importCSV($_FILES['excel_file'] ?? null);
@@ -112,12 +124,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       redirect('index.php?page=products');
     }
  	 if ($_POST['action']=='sync_measurements'){
-    syncMeasurementSheets();
+    syncMeasurementSheetsfromdirectory();
      redirect('index.php?page=products');
      }
 
 		if ($_POST['action']=='sync_dna'){
-    syncDNAReports();
+    syncDNAReportsfromdirectory();
           redirect('index.php?page=products');
         }
   
@@ -126,32 +138,93 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     redirect('index.php?page=products');
 	}
 
-if($_POST['action']=='import'){
-    importExcel($_FILES['xls_file'] ?? null);
-   redirect('index.php?page=products');
-}
-
-    if ($action === 'import_photos') {
+		if($_POST['action']=='import'){
+ 	   importExcel($_FILES['xls_file'] ?? null);
+ 	  redirect('index.php?page=products');
+		}
+   
+     if ($action === 'import_photos') {
         importPhotos($_FILES['photo_zip'] ?? null);
         redirect('index.php?page=products');
     }
+  
+  if ($action === 'reply_inquiry') {
 
-    if ($action === 'reply_inquiry') {
+    try {
+
         $iid   = (int)($_POST['inquiry_id'] ?? 0);
         $reply = trim($_POST['reply'] ?? '');
-        getDB()->prepare("UPDATE inquiries SET admin_reply=?, status='replied' WHERE id=?")
-               ->execute([$reply, $iid]);
-        flash('toast', 'Reply sent.');
+
+        if (!$iid || $reply === '') {
+            flash('error', 'Invalid request');
+            redirect('index.php?page=inquiries');
+        }
+
+        $db = getDB();
+
+        // safer query (no subject dependency unless it exists)
+        $st = $db->prepare("
+            SELECT 
+                u.email,
+                u.name AS user_name,
+                p.name AS product_name,
+                p.quarry_number
+            FROM inquiries i
+            JOIN users u ON u.id = i.user_id
+            LEFT JOIN products p ON p.id = i.product_id
+            WHERE i.id = ?
+        ");
+
+        $st->execute([$iid]);
+        $data = $st->fetch(PDO::FETCH_ASSOC);
+
+        if (!$data) {
+            flash('error', 'Inquiry not found');
+            redirect('index.php?page=inquiries');
+        }
+
+        // update
+        $db->prepare("
+            UPDATE inquiries 
+            SET admin_reply = ?, status = 'replied' 
+            WHERE id = ?
+        ")->execute([$reply, $iid]);
+
+        // subject build
+        $productLabel = trim(($data['product_name'] ?? '') . ' - ' . ($data['quarry_number'] ?? ''));
+        $subject = "Reply: " . $productLabel;
+
+        $message = "
+            Hello " . htmlspecialchars($data['user_name'] ?? 'User') . ",<br><br>
+            <b> We got your enqiry about <b>Product:</b> {$productLabel}<br><br>
+            <b>Reply:</b><br>" . nl2br(htmlspecialchars($reply)) . "
+            <br><br>Regards,<br>Support Team
+        ";
+
+        $headers  = "MIME-Version: 1.0\r\n";
+        $headers .= "Content-type:text/html;charset=UTF-8\r\n";
+        $headers .= "From: no-reply@yourdomain.com\r\n";
+
+        mail($data['email'], $subject, $message, $headers);
+
+        flash('toast', 'Reply sent successfully.');
+        redirect('index.php?page=inquiries');
+
+    } catch (Throwable $e) {
+        error_log("reply_inquiry error: " . $e->getMessage());
+        flash('error', 'Something went wrong while sending reply.');
         redirect('index.php?page=inquiries');
     }
+}
 
-    if ($action === 'update_user_status') {
-        $uid      = (int)($_POST['user_id']  ?? 0);
-        $verified = (int)($_POST['verified'] ?? 0);
-        getDB()->prepare("UPDATE users SET verified=? WHERE id=?")->execute([$verified, $uid]);
-        flash('toast', 'User updated.');
-        redirect('index.php?page=users');
-    }
+}
+  
+// ── AJAX Sync endpoint ─────────────────────────────────────────────────────
+if (isset($_GET["ajax_sync"]) && isAdmin()) {
+    header("Content-Type: application/json");
+    $step = (int)($_GET["ajax_sync"]);
+    echo json_encode(runSyncStep($step));
+    exit;
 }
 
 // ── Routing ───────────────────────────────────────────────────────────────────
@@ -164,11 +237,7 @@ if (!isAdmin()) {
     exit;
 }
 
-$pages = ['dashboard','products','product_edit','colors','users','inquiries'];
-$file  = in_array($page, $pages)
-       ? __DIR__ . '/views/' . $page . '.php'
-       : __DIR__ . '/views/dashboard.php';
-include $file;
+
 
 // ════════════════════════════════════════════════════════════════════════════
 // ── Functions
@@ -310,6 +379,8 @@ syncPhotosFromDirectory();
 }
 
 
+
+
 // ── Photo Import (multi-file by quarry prefix) ────────────────────────────────
 function importPhotos(?array $files): void
 {
@@ -428,7 +499,32 @@ function importPhotos(?array $files): void
         $count.' photo(s) imported successfully.'
     );
 }
-
+function parseQuarryFromFilename(string $stem): string {
+    // Pattern 1: Q228-IMG_jpg  or  Q23048-IMG-1  → everything before -IMG (case-insensitive)
+    if (preg_match('/^(.+?)-IMG/i', $stem, $m)) {
+        return trim($m[1]);
+    }
+    // Pattern 2: QM-0421-1  → strip trailing hyphen + digits only
+    $stripped = preg_replace('/-\d+$/', '', $stem);
+    // Sanity check: result must still contain something meaningful
+    if ($stripped !== '' && $stripped !== $stem) {
+        return trim($stripped);
+    }
+    // Pattern 3: no suffix at all — use the whole stem as quarry number
+    return trim($stem);
+}
+// ── Sync Step Runner ──────────────────────────────────────────────────────────
+// Called via AJAX: ?ajax_sync=1|2|3
+// Returns JSON: { step, label, found, synced, skipped, errors[], done }
+function runSyncStep(int $step): array {
+    set_time_limit(120);
+    switch ($step) {
+        case 1: return syncImages();
+        case 2: return syncMeasurementSheets();
+        case 3: return syncDnaReports();
+        default: return ['step'=>$step,'done'=>true,'error'=>'Unknown step'];
+    }
+}
 
 //--------- sync photo directory -----------------------------------
 
@@ -539,8 +635,8 @@ function syncPhotosFromDirectory(): void
     );
 }
 
-//----------- Sync Measurement Sheet ---------------------------------
-function syncMeasurementSheets(): void
+//----------- Sync Measurement Sheet from directory ---------------------------------
+function syncMeasurementSheetsfromdirectory(): void
 {
     $db = getDB();
     $count = 0;
@@ -590,7 +686,7 @@ function syncMeasurementSheets(): void
 }
 
 //------- Sync Dna reports --------------------------------
-function syncDNAReports(): void
+function syncDNAReportsfromdirectory(): void
 {
     $db = getDB();
     $count = 0;
@@ -1132,3 +1228,209 @@ function importExcel(?array $file): void {
         );
     }
 }
+
+
+// ── Step 1: Sync Photos from /assets/uploads/photos/ ─────────────────────────
+function syncImages(): array {
+    $db      = getDB();
+    $result  = ['step'=>1,'label'=>'Photos','found'=>0,'synced'=>0,'skipped'=>0,'errors'=>[],'done'=>false];
+
+    if (!is_dir(PHOTOS_DIR)) {
+        $result['errors'][] = 'Photos directory not found: ' . PHOTOS_DIR;
+        $result['done'] = true;
+        return $result;
+    }
+
+    $allowed = ['jpg','jpeg','png','webp'];
+    $files   = array_diff(scandir(PHOTOS_DIR), ['.','..']);
+
+    foreach ($files as $file) {
+        $fullPath = PHOTOS_DIR . '/' . $file;
+        if (!is_file($fullPath)) continue;
+
+        $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+        if (!in_array($ext, $allowed)) continue;
+
+        $result['found']++;
+
+        // Parse quarry number using shared helper
+        $stem   = pathinfo($file, PATHINFO_FILENAME);
+        $quarry = parseQuarryFromFilename($stem);
+
+        if (!$quarry) {
+            $result['skipped']++;
+            $result['errors'][] = "Cannot parse quarry from: $file";
+            continue;
+        }
+
+        // Find product by quarry number
+        $st = $db->prepare("SELECT id FROM products WHERE quarry_number = ?");
+        $st->execute([$quarry]);
+        $prod = $st->fetch();
+
+        if (!$prod) {
+            $result['skipped']++;
+            $result['errors'][] = "No product for quarry '$quarry' ($file)";
+            continue;
+        }
+
+        // Skip if already linked
+        $chk = $db->prepare("SELECT id FROM product_photos WHERE product_id=? AND filename=?");
+        $chk->execute([$prod['id'], $file]);
+        if ($chk->fetch()) {
+            $result['skipped']++;
+            continue;
+        }
+
+        // Get next sort order
+        $ord = $db->prepare("SELECT COALESCE(MAX(sort_order),0) as m FROM product_photos WHERE product_id=?");
+        $ord->execute([$prod['id']]);
+        $order = (int)$ord->fetch()['m'] + 1;
+
+        $db->prepare("INSERT INTO product_photos (product_id,filename,sort_order) VALUES (?,?,?)")
+           ->execute([$prod['id'], $file, $order]);
+
+        $result['synced']++;
+    }
+
+    $result['done'] = true;
+    return $result;
+}
+
+// ── Step 2: Sync Measurement Sheets from /assets/uploads/measurement_sheets/ ─
+// File naming: Q23048-MS.pdf  or  Q23048-MS-1.pdf
+function syncMeasurementSheets(): array {
+    $db     = getDB();
+    $result = ['step'=>2,'label'=>'Measurement Sheets','found'=>0,'synced'=>0,'skipped'=>0,'errors'=>[],'done'=>false];
+
+    if (!is_dir(MEASUREMENT_DIR)) {
+        $result['errors'][] = 'Measurement sheets directory not found.';
+        $result['done'] = true;
+        return $result;
+    }
+
+    $files = array_diff(scandir(MEASUREMENT_DIR), ['.','..']);
+
+    foreach ($files as $file) {
+        $fullPath = MEASUREMENT_DIR . '/' . $file;
+        if (!is_file($fullPath)) continue;
+
+        $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+        if ($ext !== 'pdf') continue;
+
+        $result['found']++;
+        $stem   = pathinfo($file, PATHINFO_FILENAME); // e.g. Q23048-MS or Q23048-MS-2
+
+        // Strip -MS suffix and optional trailing number to get quarry
+        // Q23048-MS.pdf → Q23048
+        // Q23048-MS-1.pdf → Q23048
+        if (preg_match('/^(.+?)-MS/i', $stem, $m)) {
+            $quarry = trim($m[1]);
+        } else {
+            // Fallback: strip trailing -N
+            $quarry = preg_replace('/-\d+$/', '', $stem);
+        }
+
+        if (!$quarry) {
+            $result['skipped']++;
+            $result['errors'][] = "Cannot parse quarry from: $file";
+            continue;
+        }
+
+        $st = $db->prepare("SELECT id, measurement_sheet FROM products WHERE quarry_number = ?");
+        $st->execute([$quarry]);
+        $prod = $st->fetch();
+
+        if (!$prod) {
+            $result['skipped']++;
+            $result['errors'][] = "No product for quarry '$quarry' ($file)";
+            continue;
+        }
+
+        // Already linked to this exact file?
+        if ($prod['measurement_sheet'] === $file) {
+            $result['skipped']++;
+            continue;
+        }
+
+        $db->prepare("UPDATE products SET measurement_sheet = ? WHERE id = ?")
+           ->execute([$file, $prod['id']]);
+
+        $result['synced']++;
+    }
+
+    $result['done'] = true;
+    return $result;
+}
+
+// ── Step 3: Sync DNA Reports from /assets/uploads/dna_reports/ ───────────────
+// File naming: Q23048-DNA.pdf  or  Q23048-DNA-1.pdf
+function syncDnaReports(): array {
+    $db     = getDB();
+    $result = ['step'=>3,'label'=>'DNA / Lot Reports','found'=>0,'synced'=>0,'skipped'=>0,'errors'=>[],'done'=>false];
+
+    if (!is_dir(DNA_DIR)) {
+        $result['errors'][] = 'DNA reports directory not found.';
+        $result['done'] = true;
+        return $result;
+    }
+
+    $files = array_diff(scandir(DNA_DIR), ['.','..']);
+
+    foreach ($files as $file) {
+        $fullPath = DNA_DIR . '/' . $file;
+        if (!is_file($fullPath)) continue;
+
+        $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+        if ($ext !== 'pdf') continue;
+
+        $result['found']++;
+        $stem = pathinfo($file, PATHINFO_FILENAME);
+
+        // Q23048-DNA.pdf → Q23048
+        if (preg_match('/^(.+?)-DNA/i', $stem, $m)) {
+            $quarry = trim($m[1]);
+        } else {
+            $quarry = preg_replace('/-\d+$/', '', $stem);
+        }
+
+        if (!$quarry) {
+            $result['skipped']++;
+            $result['errors'][] = "Cannot parse quarry from: $file";
+            continue;
+        }
+
+        $st = $db->prepare("SELECT id, dna_report FROM products WHERE quarry_number = ?");
+        $st->execute([$quarry]);
+        $prod = $st->fetch();
+
+        if (!$prod) {
+            $result['skipped']++;
+            $result['errors'][] = "No product for quarry '$quarry' ($file)";
+            continue;
+        }
+
+        if ($prod['dna_report'] === $file) {
+            $result['skipped']++;
+            continue;
+        }
+
+        $db->prepare("UPDATE products SET dna_report = ? WHERE id = ?")
+           ->execute([$file, $prod['id']]);
+
+        $result['synced']++;
+    }
+
+    $result['done'] = true;
+    return $result;
+}
+
+
+
+
+
+$pages = ['dashboard','products','product_edit','colors','users','inquiries','sync'];
+$file  = in_array($page, $pages)
+       ? __DIR__ . '/views/' . $page . '.php'
+       : __DIR__ . '/views/dashboard.php';
+include $file;

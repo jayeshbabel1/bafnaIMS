@@ -20,13 +20,10 @@
   <aside class="admin-sidebar">
     <div class="admin-logo">
       <div class="admin-logo-icon">
-        <svg width="22" height="22" viewBox="0 0 36 36" fill="none">
-          <polygon points="18,4 32,28 4,28" fill="rgba(255,255,255,0.2)" stroke="white" stroke-width="1.5"/>
-          <polygon points="18,10 26,24 10,24" fill="rgba(255,255,255,0.35)" stroke="white" stroke-width="1"/>
-        </svg>
+                <img width="40" height="40" src="https://i0.wp.com/www.bafnamarble.com/wp-content/uploads/2023/11/cropped-logo-01.png?fit=317%2C250&amp;ssl=1" class="custom-logo" alt="Bafna Marble &amp; Granite" decoding="async" srcset="https://i0.wp.com/www.bafnamarble.com/wp-content/uploads/2023/11/cropped-logo-01.png?w=317&amp;ssl=1 317w, https://i0.wp.com/www.bafnamarble.com/wp-content/uploads/2023/11/cropped-logo-01.png?resize=300%2C237&amp;ssl=1 300w" sizes="100vw">
       </div>
       <div>
-        <p class="admin-logo-name">Bafna Marbles</p>
+        <p class="admin-logo-name">Bafna Marbles Pvt. Ltd.</p>
         <p class="admin-logo-sub">Admin Panel</p>
       </div>
     </div>
@@ -37,6 +34,8 @@
       $navItems = [
         ['page'=>'dashboard', 'icon'=>'home',    'label'=>'Dashboard'],
         ['page'=>'products',  'icon'=>'grid',    'label'=>'Products'],
+        ['page'=>'sync',      'icon'=>'refresh', 'label'=>'Sync Product Data'],
+
         ['page'=>'inquiries', 'icon'=>'msg',     'label'=>'Inquiries'],
         ['page'=>'users',     'icon'=>'users',   'label'=>'Users'],
         ['page'=>'colors',    'icon'=>'palette', 'label'=>'Color Scheme'],
