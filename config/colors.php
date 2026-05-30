@@ -1,37 +1,28 @@
 <?php
-// Modern Professional Light Palette
+// Default color palette — overridden by admin settings in DB
 return [
-    '--bg'            => '#F5F7FA',
+    '--bg'            => '#F2F5F9',
     '--surface'       => '#FFFFFF',
-    '--surface2'      => '#F0F3F7',
-    '--surface3'      => '#E6EBF2',
-
-    '--accent'        => '#2563EB', // Primary Blue
-    '--accent2'       => '#1E40AF',
-    '--accent-light'  => '#DBEAFE',
-    '--accent-mid'    => '#60A5FA',
-
-    '--stone'         => '#CBD5E1',
-    '--stone-dark'    => '#64748B',
-
-    '--text'          => '#0F172A',
-    '--text2'         => '#334155',
-    '--text3'         => '#64748B',
-
-    '--border'        => '#E2E8F0',
-
-    '--gold'          => '#2563EB',
-    '--gold-bg'       => '#DBEAFE',
-
-    '--success'       => '#16A34A',
-    '--success-bg'    => '#DCFCE7',
-
-    '--danger'        => '#DC2626',
-    '--danger-bg'     => '#FEE2E2',
-
-    '--nav-bg'        => '#0F172A',
-    '--topbar-bg'     => 'rgba(255,255,255,0.96)',
-
-    '--btn-radius'    => '8px',
-    '--card-radius'   => '16px',
+    '--surface2'      => '#EEF2F7',
+    '--surface3'      => '#E6ECF2',
+    '--accent'        => '#2C6E8A',
+    '--accent2'       => '#1A4D65',
+    '--accent-light'  => '#E3EFF4',
+    '--accent-mid'    => '#4DA8C9',
+    '--stone'         => '#C8D3DC',
+    '--stone-dark'    => '#8FA3B1',
+    '--text'          => '#1A2837',
+    '--text2'         => '#4A6070',
+    '--text3'         => '#8FA3B1',
+    '--border'        => '#DDE4EB',
+    '--gold'          => '#B8975A',
+    '--gold-bg'       => '#F5EDD8',
+    '--success'       => '#3D8B6E',
+    '--success-bg'    => '#D8EFE6',
+    '--danger'        => '#E84040',
+    '--danger-bg'     => '#FFF0F0',
+    '--nav-bg'        => '#FFFFFF',
+    '--topbar-bg'     => 'rgba(242,245,249,0.92)',
+    '--btn-radius'    => '12px',
+    '--card-radius'   => '12px',
 ];
