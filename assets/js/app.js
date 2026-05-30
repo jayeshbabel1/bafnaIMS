@@ -1,9 +1,11 @@
-// ── Toast auto-dismiss ──────────────────────────────────────────────────────
+/* ── Toast auto-dismiss ─────────────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', () => {
   const toast = document.getElementById('app-toast') || document.getElementById('admin-toast');
-  if (toast) setTimeout(() => toast.style.opacity = '0', 3500);
+  if (toast) {
+    setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity .5s'; }, 3200);
+  }
 
-  // Password toggle
+  /* ── Password toggle ─────────────────────────────────────────────────── */
   document.querySelectorAll('.pwd-toggle').forEach(btn => {
     btn.addEventListener('click', () => {
       const inp = document.getElementById(btn.dataset.target);
@@ -16,7 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Password strength
+  /* ── Password strength ───────────────────────────────────────────────── */
   const pwdInput = document.getElementById('regPwd') || document.getElementById('newPwd');
   const strength = document.getElementById('pwdStrength');
   if (pwdInput && strength) {
@@ -31,7 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Role option click
+  /* ── Role option click ───────────────────────────────────────────────── */
   document.querySelectorAll('.role-option').forEach(el => {
     el.addEventListener('click', () => {
       document.querySelectorAll('.role-option').forEach(o => o.classList.remove('selected'));
@@ -39,7 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Exp chip click
+  /* ── Exp chip click ──────────────────────────────────────────────────── */
   document.querySelectorAll('.exp-chip').forEach(el => {
     el.addEventListener('click', () => {
       document.querySelectorAll('.exp-chip').forEach(o => o.classList.remove('active'));
@@ -48,14 +50,12 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
-// ── Quick chip for inquiry ───────────────────────────────────────────────────
+/* ── Quick chip for inquiry ─────────────────────────────────────────────── */
 function addChip(btn, text) {
   const ta = document.getElementById('inqMessage');
   if (!ta) return;
   const sep = ta.value && !ta.value.endsWith(' ') && !ta.value.endsWith('\n') ? '. ' : '';
   ta.value += sep + text;
   ta.focus();
-  btn.style.background = 'var(--accent-light)';
-  btn.style.borderColor = 'var(--accent)';
-  btn.style.color = 'var(--accent)';
+  btn.classList.add('used');
 }

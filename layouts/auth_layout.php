@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0"/>
-<meta name="theme-color" content="#F2F5F9"/>
+<meta name="theme-color" content="#0F0D0A"/>
 <title><?= h($pageTitle ?? APP_NAME) ?></title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
@@ -25,5 +25,3 @@ $_success = getFlash('success');
 <?php elseif ($_error): ?>
 <div class="toast toast-error" id="app-toast"><?= h($_error) ?></div>
 <?php endif; ?>
-
-<!-- AUTH PAGE CONTENT STARTS BELOW -->
