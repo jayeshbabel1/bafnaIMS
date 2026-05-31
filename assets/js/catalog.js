@@ -1,6 +1,6 @@
 /* ── Catalog AJAX engine ────────────────────────────────────────────────── */
 (function () {
-  const content   = document.getElementById('catalogContent');
+  const content = document.getElementById('catalogContent');
   if (!content) return;
 
   /* ── Build query string from current state ─────────────────────────── */
@@ -21,58 +21,58 @@
   /* ── Fetch and render a page ────────────────────────────────────────── */
   async function loadPage(page, push = true) {
     const grid = document.getElementById('productsGrid');
-    if (grid) { grid.classList.add('refreshing'); }
-
+    const loader = document.getElementById('ajaxLoader');
+    if (grid) grid.classList.add('refreshing');
+if(loader){loader.style.display = 'flex';}
     try {
       const resp = await fetch(buildUrl(page));
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
       const data = await resp.json();
 
-      // Fade out → swap → fade in
-      content.style.opacity = '0';
       content.style.transition = 'opacity .18s';
+      content.style.opacity    = '0';
       await new Promise(r => setTimeout(r, 180));
-      content.innerHTML = data.html;
+
+      content.innerHTML     = data.html;
       content.style.opacity = '1';
 
-      // Re-bind shortlist AJAX on new cards
+      // Re-bind shortlist AJAX on new cards (direct binding still needed here)
       bindShortlist();
-      // Re-bind pagination buttons
-      bindPagination();
 
-      // Scroll to top of grid area smoothly
-      content.scrollIntoView({ behavior: 'smooth', block: 'start' });
+content.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
-      // Update browser URL without reload
       if (push) {
         const params = new URLSearchParams(window.location.search);
         if (page > 1) params.set('p', page); else params.delete('p');
-        window.history.pushState({ page }, '', 'index.php?' + params.toString());
+        window.history.pushState({ catalogPage: page }, '', 'index.php?' + params.toString());
       }
 
     } catch (e) {
       content.style.opacity = '1';
       console.error('Catalog load error:', e);
     }
+finally {
+
+  if(loader){
+      loader.style.display = 'none';
+  }}
   }
 
-  /* ── Bind pagination buttons ────────────────────────────────────────── */
-  function bindPagination() {
-    document.querySelectorAll('#paginationWrap .pag-btn:not(.disabled)').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const pg = parseInt(btn.dataset.page);
-        if (!isNaN(pg) && pg > 0) loadPage(pg);
-      });
-    });
-  }
+  /* ── Event delegation for pagination (works on both initial and AJAX-loaded buttons) */
+ content.addEventListener('click', function (e) {
+    const btn = e.target.closest('.pag-btn');
+    if (!btn || btn.classList.contains('disabled')) return;
+    const pg = parseInt(btn.dataset.page, 10);
+    if (!isNaN(pg) && pg > 0) loadPage(pg);
+});
 
   /* ── Handle browser back/forward ─────────────────────────────────────── */
   window.addEventListener('popstate', (e) => {
-    const pg = e.state?.page || 1;
+    const pg = e.state?.catalogPage || 1;
     loadPage(pg, false);
   });
 
-  /* ── Initial bind ───────────────────────────────────────────────────── */
-  bindPagination();
+  /* ── Initial shortlist bind ─────────────────────────────────────────── */
   bindShortlist();
 
   /* ── Search debounce ────────────────────────────────────────────────── */

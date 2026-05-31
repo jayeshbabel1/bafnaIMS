@@ -7,7 +7,7 @@
 <title><?= h($pageTitle ?? APP_NAME) ?></title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet"/>
 <style><?= getCSSVariables() ?></style>
 <link rel="stylesheet" href="assets/css/style.css"/>
 <?php if (!empty($extraCSS)) foreach ($extraCSS as $f): ?>
@@ -46,7 +46,7 @@ $_success = getFlash('success');
     </div>
     <div>
       <p class="ds-brand"><?= APP_NAME ?></p>
-      <p class="ds-sub">Trade Platform</p>
+      <p class="ds-sub">Exquisite Rocks Defining Sovereign</p>
     </div>
   </div>
 

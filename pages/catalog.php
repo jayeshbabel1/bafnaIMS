@@ -7,7 +7,7 @@ $cat     = $_GET['cat']   ?? '';
 $color   = $_GET['color'] ?? '';
 $search  = trim($_GET['q'] ?? '');
 $curPage = max(1, (int)($_GET['p'] ?? 1));
-$perPage = 16;
+$perPage = 8;
 $isAjax  = !empty($_GET['ajax']);
 
 $filters = [];
@@ -46,7 +46,6 @@ function renderPagination(int $cur, int $total): string {
     $h .= '</div>';
     return $h;
 }
-
 /* ── Product grid HTML helper ────────────────────────────────────────────── */
 function renderProductGrid(array $products): string {
     if (empty($products)) {
@@ -101,6 +100,33 @@ if ($isAjax) {
 ?>
 <?php include BASE_PATH . '/layouts/header.php'; ?>
 
+<style>
+  .ajax-loader{
+    position:fixed;
+    inset:0;
+    background:rgba(255,255,255,.72);
+    backdrop-filter:blur(2px);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    z-index:99999;
+}
+
+.loader-spinner{
+    width:52px;
+    height:52px;
+    border:4px solid #e5e5e5;
+    border-top-color:var(--accent);
+    border-radius:50%;
+    animation:spin .7s linear infinite;
+}
+
+@keyframes spin{
+    to{
+        transform:rotate(360deg);
+    }
+}
+</style>
 <div class="page-content">
 
   <!-- ── TOPBAR ─────────────────────────────────────────────────────────── -->
@@ -118,7 +144,7 @@ if ($isAjax) {
       </div>
     </div>
     <div class="topbar-actions">
-      <a href="index.php?page=profile" class="topbar-icon-btn"><?= icon('bell',17) ?></a>
+         <a href="index.php?page=profile" class="topbar-icon-btn"><?= icon('settings',17) ?></a>
     </div>
   </div>
 
@@ -204,15 +230,19 @@ if ($isAjax) {
       <span style="margin-left:auto;" class="badge badge-green">● Live</span>
     </div>
   </div>
-
+<div id="ajaxLoader" class="ajax-loader">
+    <div class="loader-spinner"></div>
+</div>
   <!-- ── PRODUCTS AREA ──────────────────────────────────────────────────── -->
   <div id="catalogContent"
        data-cat="<?= h($cat) ?>"
        data-color="<?= h($color) ?>"
        data-q="<?= h($search) ?>">
     <?= renderProductGrid($products) ?>
+     <? $curPage= (int)($_GET['p'] ?? 1); ?>
     <?= renderPagination($curPage, $totalPages) ?>
   </div>
+ 
 
 </div><!-- .page-content -->
 

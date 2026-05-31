@@ -29,7 +29,7 @@ return [
     '--danger'        => '#DC2626',
     '--danger-bg'     => '#FEE2E2',
 
-    '--nav-bg'        => '#0F172A',
+    '--nav-bg'        => '#213b7a',
     '--topbar-bg'     => 'rgba(255,255,255,0.96)',
 
     '--btn-radius'    => '8px',

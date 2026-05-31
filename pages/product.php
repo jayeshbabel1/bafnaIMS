@@ -71,6 +71,7 @@ $specs = [
            onclick="switchPhoto(this)">
         <?php if ($imgSrc): ?>
         <img src="<?= h($imgSrc) ?>" alt="" style="width:100%;height:100%;object-fit:cover;"/>
+       
         <?php else: ?>
         <?= marbleSVG(array_reverse($pal), 48, 48, 'th'.$i) ?>
         <?php endif; ?>
@@ -97,8 +98,8 @@ $specs = [
       <?php if ($p['color_subcategory']): ?><span class="badge badge-dark"><?= h($p['color_subcategory']) ?></span><?php endif; ?>
     </div>
     <div class="gold-bar"></div>
-    <h1 class="detail-title"><?= h($p['name']) ?></h1>
-    <p class="detail-lot">Lot № <?= h($p['quarry_number']) ?> · <?= h($p['origin']) ?></p>
+    <h1 class="detail-title"><?= h($p['name']) ?></h1><p>
+    <p class="detail-lot">Quarry Number <?= h($p['quarry_number']) ?> · <?= h($p['origin']) ?></p>
     <?php if ($p['description']): ?>
     <p class="detail-desc"><?= h($p['description']) ?></p>
     <?php endif; ?>
@@ -106,17 +107,17 @@ $specs = [
     <!-- Quantity tiles -->
     <div class="qty-strip">
       <div class="qty-tile">
-        <div class="qty-tile-label">Total</div>
+        <div class="qty-tile-label">Total Quantity </div>
         <div class="qty-tile-value"><?= number_format((float)$p['total_quantity']) ?></div>
         <div class="qty-tile-unit">sqft</div>
       </div>
       <div class="qty-tile">
-        <div class="qty-tile-label">Available</div>
+        <div class="qty-tile-label">Available Quantity </div>
         <div class="qty-tile-value" style="color:var(--gold);"><?= number_format((float)$p['quantity_available']) ?></div>
         <div class="qty-tile-unit">sqft</div>
       </div>
       <div class="qty-tile">
-        <div class="qty-tile-label">On Hold</div>
+        <div class="qty-tile-label">Quantity On Hold </div>
         <div class="qty-tile-value"><?= number_format((float)$p['quantity_on_hold']) ?></div>
         <div class="qty-tile-unit">sqft</div>
       </div>

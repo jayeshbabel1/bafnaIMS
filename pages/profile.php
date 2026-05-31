@@ -169,7 +169,7 @@ $rpSt = $db->prepare("SELECT COUNT(*) as c FROM inquiries WHERE user_id=? AND st
               </div>
             </div>
           </div>
-          <button type="submit" class="btn-primary" style="max-width:220px;">Update Password</button>
+          <button type="submit" class="btn-primary btn-gold" style="max-width:220px;">Update Password</button>
         </form>
       </div>
 
