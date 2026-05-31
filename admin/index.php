@@ -19,6 +19,7 @@ require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/helpers.php';
 require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/notifications.php';
 
 
 // ── CSV Export (before any output) ───────────────────────────────────────────
@@ -96,6 +97,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         flash('toast', 'Photo deleted.');
         redirect('index.php?page=product_edit&id='.($ph['product_id'] ?? 0));
     }
+  
+    if ($action === 'clear_notifications') {
+            getDB()->exec("DELETE FROM notifications");
+            flash('toast', 'All notifications cleared.');
+           redirect('index.php?page=notifications');
+        }
   
   if ($_POST['action'] == 'send_password_reset') {
     $userId = (int)($_POST['user_id'] ?? 0);
@@ -206,7 +213,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $headers .= "From: no-reply@yourdomain.com\r\n";
 
         mail($data['email'], $subject, $message, $headers);
-
+      createNotification(
+              'Inquiry Replied',
+              'Reply sent for product "' . ($data['product_name'] ?? '') . '".',
+              'inquiry'
+          );
         flash('toast', 'Reply sent successfully.');
         redirect('index.php?page=inquiries');
 
@@ -374,7 +385,16 @@ if (isset($files['photos']) && !empty($files['photos']['name'])) {
         ]);
     }
 }
-syncPhotosFromDirectory();
+	syncPhotosFromDirectory();
+     $isNew = ($pid === 0 || $pid === (int)($data['product_id'] ?? 0) && !$pid);
+    //      Actually check if new insert:
+          if (!(int)($data['product_id'] ?? 0)) {
+              createNotification(
+                  'New Product Added',
+                  'Product "' . trim($data['name'] ?? '') . '" has been added to the catalog.',
+                  'product'
+              );
+          }
     flash('toast', 'Product saved successfully.');
 }
 
@@ -1429,7 +1449,7 @@ function syncDnaReports(): array {
 
 
 
-$pages = ['dashboard','products','product_edit','colors','users','inquiries','sync'];
+$pages = ['dashboard','products','product_edit','colors','users','inquiries','sync','notifications'];
 $file  = in_array($page, $pages)
        ? __DIR__ . '/views/' . $page . '.php'
        : __DIR__ . '/views/dashboard.php';

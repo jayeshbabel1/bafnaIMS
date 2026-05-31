@@ -84,8 +84,8 @@ $rpSt = $db->prepare("SELECT COUNT(*) as c FROM inquiries WHERE user_id=? AND st
           ['icon'=>'user',  'label'=>'Edit Profile',  'url'=>'index.php?page=profile&section=settings'],
           ['icon'=>'heart', 'label'=>'My Shortlist',  'url'=>'index.php?page=shortlist'],
           ['icon'=>'msg',   'label'=>'My Inquiries',  'url'=>'index.php?page=inquiries'],
-          ['icon'=>'bell',  'label'=>'Notifications', 'url'=>'#'],
-          ['icon'=>'info',  'label'=>'Help & Support', 'url'=>'#'],
+          ['icon'=>'bell', 'label'=>'Notifications', 'url'=>'index.php?page=notifications'],
+          ['icon'=>'info', 'label'=>'Help & Support', 'url'=>'index.php?page=support'],
         ];
         foreach ($menuItems as $item): ?>
         <a href="<?= h($item['url']) ?>" class="profile-menu-item">

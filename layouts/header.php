@@ -65,10 +65,19 @@ $_success = getFlash('success');
       <?= icon('msg',18) ?><span>Inquiries</span>
       <?php if ($ic): ?><span class="ds-nav-badge"><?= $ic ?></span><?php endif; ?>
     </a>
+    <a href="index.php?page=notifications"
+       class="ds-nav-item <?= $curPage==='notifications' ? 'active' : '' ?>">
+      <?= icon('bell',18) ?><span>Notifications</span>
+    </a>
+     <a href="index.php?page=support"
+       class="ds-nav-item <?= $curPage==='support' ? 'active' : '' ?>">
+      <?= icon('info',18) ?><span>Support</span>
+    </a>
     <a href="index.php?page=profile"
        class="ds-nav-item <?= $curPage==='profile' ? 'active' : '' ?>">
       <?= icon('user',18) ?><span>Profile</span>
     </a>
+   
   </nav>
 
   <div class="ds-footer">

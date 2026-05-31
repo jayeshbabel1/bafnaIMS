@@ -4,6 +4,7 @@ require_once __DIR__ . '/config/config.php';
 require_once __DIR__ . '/includes/db.php';
 require_once __DIR__ . '/includes/helpers.php';
 require_once __DIR__ . '/includes/auth.php';
+require_once __DIR__ . '/includes/notifications.php';
 
 startSecureSession();
 
@@ -169,8 +170,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // ── Page routing ──────────────────────────────────────────────────────────────
-$publicPages    = ['login','register','forgot_password','reset_password'];
-$protectedPages = ['catalog','product','shortlist','inquiries','profile','inquiry_form'];
+$publicPages    = ['login','register','forgot_password','reset_password','support'];
+$protectedPages = ['catalog','product','shortlist','inquiries','profile','inquiry_form','support','notifications'];
 
 if (!in_array($page, $publicPages) && !in_array($page, $protectedPages)) {
     $page = isLoggedIn() ? 'catalog' : 'login';
