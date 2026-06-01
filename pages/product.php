@@ -1,11 +1,15 @@
 <?php
+/**
+ * pages/product.php — Task 3: Image zoom on hero + gallery
+ */
 $id = (int)($_GET['id'] ?? 0);
 $p  = getProduct($id);
 if (!$p) { flash('error','Product not found.'); redirect('index.php?page=catalog'); }
 
 $pageTitle = h($p['name']) . ' — ' . APP_NAME;
 $showNav   = false;
-$extraJS   = ['product.js'];
+$extraJS   = ['product.js', 'zoom.js'];
+$extraCSS  = ['zoom.css'];
 
 $pal    = $p['palette_arr'];
 $photos = $p['photos'];
@@ -32,8 +36,13 @@ $specs = [
   <!-- ── HERO ─────────────────────────────────────────────────────────────── -->
   <div class="detail-hero" id="heroWrap">
     <?php if ($photos && file_exists(PHOTOS_DIR.'/'.$photos[0]['filename'])): ?>
-    <img id="heroImg" src="assets/uploads/photos/<?= h($photos[0]['filename']) ?>"
-         alt="<?= h($p['name']) ?>" class="detail-hero-img" onclick="openLightbox(this.src)"/>
+    <div class="zoom-container" id="heroZoomContainer">
+      <img id="heroImg"
+           src="assets/uploads/photos/<?= h($photos[0]['filename']) ?>"
+           alt="<?= h($p['name']) ?>"
+           class="detail-hero-img zoom-target"
+           data-zoom-id="hero"/>
+    </div>
     <?php else: ?>
     <div class="detail-hero-svg" id="heroSvg"><?= marbleSVG($pal, 430, 340, 'dh'.$id) ?></div>
     <?php endif; ?>
@@ -55,6 +64,15 @@ $specs = [
       </div>
     </div>
 
+    <!-- Zoom controls for hero -->
+    <?php if ($photos && file_exists(PHOTOS_DIR.'/'.$photos[0]['filename'])): ?>
+    <div class="zoom-controls zoom-controls--hero" id="heroZoomControls" data-target="hero">
+      <button class="zoom-btn" data-action="in"  title="Zoom in"><?= icon('zoom', 15) ?></button>
+      <button class="zoom-btn" data-action="out" title="Zoom out"><?= icon('search', 15) ?></button>
+      <button class="zoom-btn zoom-btn--reset" data-action="reset" title="Reset">1:1</button>
+    </div>
+    <?php endif; ?>
+
     <!-- Status badge -->
     <div class="detail-status">
       <?= $p['in_stock'] ? '<span class="badge badge-green">● In Stock</span>' : '<span class="badge badge-gray">Out of Stock</span>' ?>
@@ -67,11 +85,11 @@ $specs = [
       <?php foreach ($photos as $i => $ph):
         $imgSrc = file_exists(PHOTOS_DIR.'/'.$ph['filename']) ? 'assets/uploads/photos/'.h($ph['filename']) : null;
       ?>
-      <div class="detail-thumb <?= $i===0?'active':'' ?>" data-src="<?= $imgSrc ? h($imgSrc) : '' ?>"
+      <div class="detail-thumb <?= $i===0?'active':'' ?>"
+           data-src="<?= $imgSrc ? h($imgSrc) : '' ?>"
            onclick="switchPhoto(this)">
         <?php if ($imgSrc): ?>
         <img src="<?= h($imgSrc) ?>" alt="" style="width:100%;height:100%;object-fit:cover;"/>
-       
         <?php else: ?>
         <?= marbleSVG(array_reverse($pal), 48, 48, 'th'.$i) ?>
         <?php endif; ?>
@@ -98,7 +116,7 @@ $specs = [
       <?php if ($p['color_subcategory']): ?><span class="badge badge-dark"><?= h($p['color_subcategory']) ?></span><?php endif; ?>
     </div>
     <div class="gold-bar"></div>
-    <h1 class="detail-title"><?= h($p['name']) ?></h1><p>
+    <h1 class="detail-title"><?= h($p['name']) ?></h1>
     <p class="detail-lot">Quarry Number <?= h($p['quarry_number']) ?> · <?= h($p['origin']) ?></p>
     <?php if ($p['description']): ?>
     <p class="detail-desc"><?= h($p['description']) ?></p>
@@ -107,17 +125,17 @@ $specs = [
     <!-- Quantity tiles -->
     <div class="qty-strip">
       <div class="qty-tile">
-        <div class="qty-tile-label">Total Quantity </div>
+        <div class="qty-tile-label">Total Quantity</div>
         <div class="qty-tile-value"><?= number_format((float)$p['total_quantity']) ?></div>
         <div class="qty-tile-unit">sqft</div>
       </div>
       <div class="qty-tile">
-        <div class="qty-tile-label">Available Quantity </div>
+        <div class="qty-tile-label">Available</div>
         <div class="qty-tile-value" style="color:var(--gold);"><?= number_format((float)$p['quantity_available']) ?></div>
         <div class="qty-tile-unit">sqft</div>
       </div>
       <div class="qty-tile">
-        <div class="qty-tile-label">Quantity On Hold </div>
+        <div class="qty-tile-label">On Hold</div>
         <div class="qty-tile-value"><?= number_format((float)$p['quantity_on_hold']) ?></div>
         <div class="qty-tile-unit">sqft</div>
       </div>
@@ -147,7 +165,7 @@ $specs = [
       </div>
     </div>
 
-    <!-- Photo gallery -->
+    <!-- Photo gallery with zoom support -->
     <?php if ($photos): ?>
     <p class="spec-section-title">Photo Gallery</p>
     <div class="photo-gallery" style="margin-bottom:18px;">
@@ -157,7 +175,8 @@ $specs = [
       ?>
       <div class="gallery-item" onclick="openLightbox('<?= h($imgSrc) ?>')">
         <img src="<?= h($imgSrc) ?>" alt="" loading="lazy"/>
-        <div class="gallery-overlay"><?= icon('zoom',18) ?>
+        <div class="gallery-overlay">
+          <?= icon('zoom',18) ?>
           <a href="<?= h($imgSrc) ?>" download class="gallery-dl" onclick="event.stopPropagation()"><?= icon('download',14) ?></a>
         </div>
       </div>
@@ -214,10 +233,21 @@ $specs = [
   </div><!-- .detail-body -->
 </div><!-- .detail-page -->
 
-<!-- Lightbox -->
-<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+<!-- ── LIGHTBOX with zoom ────────────────────────────────────────────────── -->
+<div class="lightbox" id="lightbox" onclick="lightboxBgClick(event)">
   <button class="lightbox-close" onclick="closeLightbox()"><?= icon('close',22) ?></button>
-  <img class="lightbox-img" id="lightboxImg" src="" alt=""/>
+
+  <!-- Zoom controls inside lightbox -->
+  <div class="zoom-controls zoom-controls--lightbox" data-target="lightbox">
+    <button class="zoom-btn" data-action="in"    title="Zoom in">+</button>
+    <button class="zoom-btn" data-action="out"   title="Zoom out">−</button>
+    <button class="zoom-btn zoom-btn--reset" data-action="reset" title="Reset">1:1</button>
+  </div>
+
+  <div class="zoom-container zoom-container--lightbox" id="lightboxZoomContainer">
+    <img class="lightbox-img zoom-target" id="lightboxImg" src="" alt="" data-zoom-id="lightbox"/>
+  </div>
+
   <a class="lightbox-dl" id="lightboxDl" href="#" download><?= icon('download',17) ?> Download</a>
 </div>
 

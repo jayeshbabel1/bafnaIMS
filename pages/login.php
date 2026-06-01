@@ -16,12 +16,11 @@ $presets = [
   <!-- Hero section -->
   <div class="auth-hero">
     <div class="auth-hero-logo">
-      <div class="auth-hero-logo-icon">
-        <svg width="22" height="22" viewBox="0 0 36 36" fill="none">
-          <polygon points="18,4 32,28 4,28" fill="rgba(255,255,255,.18)" stroke="white" stroke-width="1.5"/>
-          <polygon points="18,10 26,24 10,24" fill="rgba(255,255,255,.35)" stroke="white" stroke-width="1"/>
-        </svg>
-      </div>
+      
+        <img width="40" height="40"
+               src="https://i0.wp.com/www.bafnamarble.com/wp-content/uploads/2023/11/cropped-logo-01.png?fit=317%2C250&ssl=1"
+               class="custom-logo" alt="<?= h(APP_NAME) ?>" decoding="async"/>
+     
       <span class="auth-hero-brand"><?= APP_NAME ?></span>
     </div>
 
@@ -33,7 +32,7 @@ $presets = [
     </div>
 
     <div class="gold-bar"></div>
-    <h1 class="auth-hero-title">Premium Stone<br/>Trade Platform</h1>
+    <h1 class="auth-hero-title">Premium Stone<br/>Management Platform</h1>
     <p class="auth-hero-sub">Exclusive access for architects,<br/>interior designers &amp; trade professionals.</p>
   </div>
 
@@ -51,7 +50,7 @@ $presets = [
 
       <div class="input-wrap">
         <label class="input-label">Email Address</label>
-        <input type="email" name="email" class="input-field" placeholder="you@studio.com"
+        <input type="email" name="email" class="input-field" placeholder=""
                value="<?= h($_POST['email'] ?? '') ?>" autocomplete="email" required/>
       </div>
 
@@ -59,7 +58,7 @@ $presets = [
         <label class="input-label">Password</label>
         <div class="password-wrap">
           <input type="password" name="password" id="loginPwd" class="input-field"
-                 placeholder="••••••••" autocomplete="current-password" required/>
+                 placeholder="" autocomplete="current-password" required/>
           <button type="button" class="pwd-toggle" data-target="loginPwd"><?= icon('eye',16) ?></button>
         </div>
       </div>

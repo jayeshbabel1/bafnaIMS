@@ -1,0 +1,161 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   assets/css/zoom.css — Task 3: Image Zoom Styles
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Zoom container ─────────────────────────────────────────────────────── */
+.zoom-container {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface2);
+}
+
+.zoom-container--lightbox {
+  max-width: 90vw;
+  max-height: 78vh;
+  border-radius: 6px;
+  background: transparent;
+}
+
+/* ── Zoom target image ──────────────────────────────────────────────────── */
+.zoom-target {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  transform-origin: center center;
+  will-change: transform;
+  user-select: none;
+  -webkit-user-drag: none;
+  touch-action: none;
+}
+
+/* In hero context keep cover behaviour at scale 1 */
+.detail-hero .zoom-target {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ── Floating zoom control panel ────────────────────────────────────────── */
+.zoom-controls {
+  position: absolute;
+  display: flex;
+  gap: 4px;
+  z-index: 20;
+  background: rgba(10, 8, 5, 0.55);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: 10px;
+  padding: 5px 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Hero: top-right, below the action buttons row */
+.zoom-controls--hero {
+  top: 58px;
+  right: 12px;
+}
+
+/* Lightbox: bottom-centre */
+.zoom-controls--lightbox {
+  bottom: 56px;
+  left: 50%;
+  transform: translateX(-50%);
+  position: fixed;
+}
+
+/* ── Zoom button ────────────────────────────────────────────────────────── */
+.zoom-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.85);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  font-weight: 700;
+  font-family: inherit;
+  line-height: 1;
+  transition: background 0.15s, color 0.15s, transform 0.1s;
+}
+.zoom-btn:hover {
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
+}
+.zoom-btn:active {
+  transform: scale(0.88);
+}
+
+/* Reset button — highlighted when zoom is active */
+.zoom-btn--reset {
+  font-size: 10px;
+  letter-spacing: 0;
+  min-width: 36px;
+  padding: 0 6px;
+}
+.zoom-btn--reset.zoom-btn--active {
+  background: var(--gold, #B8975A);
+  color: #fff;
+}
+
+/* ── Lightbox layout adjustments for zoom ───────────────────────────────── */
+.lightbox {
+  flex-direction: column;
+  gap: 0;
+}
+
+/* Ensure lightbox image is inside the zoom container */
+.lightbox .zoom-container--lightbox {
+  margin: auto;
+}
+
+/* Download link sits below zoom container */
+.lightbox-dl {
+  margin-top: 14px;
+  position: relative;
+  z-index: 21;
+}
+
+/* Keep close button above zoom controls */
+.lightbox-close {
+  z-index: 25;
+}
+
+/* ── Cursor states ──────────────────────────────────────────────────────── */
+.zoom-target[style*="scale(1)"],
+.zoom-target:not([style]) {
+  cursor: default;
+}
+
+/* ── Responsive adjustments ─────────────────────────────────────────────── */
+@media (max-width: 480px) {
+  .zoom-controls--hero {
+    top: 54px;
+    right: 8px;
+  }
+  .zoom-btn {
+    width: 28px;
+    height: 28px;
+    font-size: 13px;
+  }
+  .zoom-btn--reset {
+    font-size: 9px;
+    min-width: 32px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .zoom-controls--hero {
+    top: 66px;
+    right: 16px;
+  }
+}

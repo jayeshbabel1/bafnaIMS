@@ -20,6 +20,7 @@ require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/helpers.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/notifications.php';
+require_once __DIR__ . '/../includes/logo.php';
 
 
 // ── CSV Export (before any output) ───────────────────────────────────────────
@@ -67,6 +68,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         foreach ($defaults as $k => $v) setSetting($k, $v);
         flash('toast', 'Colors reset to defaults.');
         redirect('index.php?page=colors');
+    }
+    if ($action === 'upload_logo') {
+        $result = uploadLogo($_FILES['logo_file'] ?? []);
+        if ($result['success']) {
+            flash('toast', 'Logo updated successfully.');
+        } else {
+            flash('error', $result['error']);
+        }
+        redirect('index.php?page=logo');
+    }
+    
+    if ($action === 'remove_logo') {
+        // Delete file
+        $st = getDB()->prepare("SELECT `value` FROM settings WHERE `key` = ?");
+        $st->execute([LOGO_SETTING_KEY]);
+        $old = (string)($st->fetchColumn() ?: '');
+        if ($old !== '') {
+            $oldPath = LOGO_DIR . '/' . $old;
+            if (file_exists($oldPath)) @unlink($oldPath);
+        }
+        getDB()->prepare("DELETE FROM settings WHERE `key` = ?")->execute([LOGO_SETTING_KEY]);
+        flash('toast', 'Logo removed. Default logo is now shown.');
+        redirect('index.php?page=logo');
     }
 
     if ($action === 'save_product') {
@@ -213,11 +237,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $headers .= "From: no-reply@yourdomain.com\r\n";
 
         mail($data['email'], $subject, $message, $headers);
-      createNotification(
-              'Inquiry Replied',
-              'Reply sent for product "' . ($data['product_name'] ?? '') . '".',
-              'inquiry'
-          );
+     // createNotification(
+//'Inquiry Replied',
+     //         'Reply sent for product "' . ($data['product_name'] ?? '') . '".',
+       //       'inquiry'
+    //    );
         flash('toast', 'Reply sent successfully.');
         redirect('index.php?page=inquiries');
 
@@ -1449,7 +1473,7 @@ function syncDnaReports(): array {
 
 
 
-$pages = ['dashboard','products','product_edit','colors','users','inquiries','sync','notifications'];
+$pages = ['dashboard','products','product_edit','colors','users','inquiries','sync','notifications','logo'];
 $file  = in_array($page, $pages)
        ? __DIR__ . '/views/' . $page . '.php'
        : __DIR__ . '/views/dashboard.php';

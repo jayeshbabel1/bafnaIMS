@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title><?= h($adminTitle ?? 'Admin') ?> — <?= APP_NAME ?></title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
 <style><?= getCSSVariables() ?></style>
 <link rel="stylesheet" href="../assets/css/style.css"/>
 <link rel="stylesheet" href="../assets/css/admin.css"/>
@@ -17,6 +17,11 @@
 <?php if ($e): ?><div class="toast toast-error"   id="admin-toast"><?= h($e) ?></div><?php endif; ?>
 
 <?php
+// Ensure logo helper is loaded
+if (!function_exists('getLogo')) {
+    require_once BASE_PATH . '/includes/logo.php';
+}
+
 // Notification count for bell badge
 $_notifCount = 0;
 try {
@@ -24,7 +29,7 @@ try {
     $ns = getDB()->prepare("SELECT COUNT(*) FROM notifications WHERE is_read=0 AND created_at >= ?");
     $ns->execute([$cutoff20]);
     $_notifCount = (int)$ns->fetchColumn();
-} catch (Throwable $e) {}
+} catch (Throwable $_e) {}
 
 // Recent 5 for dropdown
 $_recentNotifs = [];
@@ -32,18 +37,26 @@ try {
     $nsr = getDB()->prepare("SELECT * FROM notifications WHERE created_at >= ? ORDER BY created_at DESC LIMIT 5");
     $nsr->execute([$cutoff20]);
     $_recentNotifs = $nsr->fetchAll();
-} catch (Throwable $e) {}
+} catch (Throwable $_e) {}
+
+// Site logo for admin panel
+$_adminLogo = getLogo(true);
 ?>
 
 <div class="admin-shell">
   <aside class="admin-sidebar">
     <div class="admin-logo">
       <div class="admin-logo-icon">
-        <img width="40" height="40" src="https://i0.wp.com/www.bafnamarble.com/wp-content/uploads/2023/11/cropped-logo-01.png?fit=317%2C250&ssl=1"
-             class="custom-logo" alt="Bafna Marble & Granite" decoding="async"/>
+        <?php if ($_adminLogo): ?>
+          <img src="<?= h($_adminLogo) ?>" alt="<?= h(APP_NAME) ?>" width="40" height="40" style="object-fit:contain;border-radius:8px;"/>
+        <?php else: ?>
+          <img width="40" height="40"
+               src="https://i0.wp.com/www.bafnamarble.com/wp-content/uploads/2023/11/cropped-logo-01.png?fit=317%2C250&ssl=1"
+               class="custom-logo" alt="<?= h(APP_NAME) ?>" decoding="async"/>
+        <?php endif; ?>
       </div>
       <div>
-        <p class="admin-logo-name">Bafna Marbles Pvt. Ltd.</p>
+        <p class="admin-logo-name"><?= h(APP_NAME) ?></p>
         <p class="admin-logo-sub">Admin Panel</p>
       </div>
     </div>
@@ -59,6 +72,7 @@ try {
         ['page'=>'users',         'icon'=>'users',   'label'=>'Users'],
         ['page'=>'notifications', 'icon'=>'bell',    'label'=>'Notifications', 'badge'=>$_notifCount],
         ['page'=>'colors',        'icon'=>'palette', 'label'=>'Color Scheme'],
+        ['page'=>'logo',          'icon'=>'image',   'label'=>'Logo'],
       ];
       foreach ($navItems as $n): ?>
       <a href="index.php?page=<?= $n['page'] ?>" class="admin-nav-item <?= $ap===$n['page']?'active':'' ?>">
@@ -137,7 +151,7 @@ try {
     <div class="admin-content">
 
 <style>
-/* Notification bell */
+/* Notification bell — inline here to avoid extra file for small block */
 .notif-bell-wrap { position: relative; }
 .notif-bell-btn {
   position: relative; width: 36px; height: 36px; border-radius: 8px;
@@ -176,14 +190,12 @@ try {
 
 <script>
 function toggleNotifDropdown() {
-  const d = document.getElementById('notifDropdown');
-  d.classList.toggle('open');
+  var d = document.getElementById('notifDropdown');
+  if (d) d.classList.toggle('open');
 }
-// Close on outside click
 document.addEventListener('click', function(e) {
-  const wrap = document.getElementById('notifBellWrap');
-  if (wrap && !wrap.contains(e.target)) {
-    document.getElementById('notifDropdown')?.classList.remove('open');
-  }
+  var wrap = document.getElementById('notifBellWrap');
+  var dd   = document.getElementById('notifDropdown');
+  if (wrap && dd && !wrap.contains(e.target)) dd.classList.remove('open');
 });
 </script>

@@ -174,3 +174,325 @@
   .admin-form-grid{grid-template-columns:1fr;}
   .stats-grid{grid-template-columns:1fr 1fr;}
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   APPEND TO: assets/css/admin.css
+   Tasks 1 (logo), 2 (admin products AJAX pagination)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Task 1: Logo Management ────────────────────────────────────────────── */
+.logo-mgmt-wrap { max-width: 680px; }
+
+.logo-preview-section { }
+
+.logo-current-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100px;
+  padding: 20px;
+  background: var(--surface2);
+  border-radius: 10px;
+  margin-bottom: 12px;
+  border: 1px solid var(--border);
+}
+
+.logo-preview-img {
+  max-height: 80px;
+  max-width: 100%;
+  object-fit: contain;
+  border-radius: 4px;
+}
+
+.logo-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: var(--text3);
+}
+
+.logo-placeholder-text {
+  font-size: 12px;
+  color: var(--text3);
+}
+
+.logo-meta {
+  margin-top: 4px;
+}
+
+/* Upload zone */
+.logo-upload-zone {
+  border: 2px dashed var(--border);
+  border-radius: 12px;
+  padding: 32px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  background: var(--surface);
+  position: relative;
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+.logo-upload-zone:hover,
+.logo-upload-zone.drag-over {
+  border-color: var(--accent);
+  background: var(--accent-light);
+}
+
+.logo-file-input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+}
+
+.logo-upload-inner {
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: var(--text3);
+}
+.logo-upload-title { font-size: 14px; font-weight: 600; color: var(--text2); }
+.logo-upload-hint  { font-size: 12px; }
+
+.logo-new-preview {
+  display: none;
+  max-height: 120px;
+  max-width: 100%;
+  object-fit: contain;
+  border-radius: 6px;
+  margin: 0 auto;
+  position: relative;
+  z-index: 1;
+}
+.logo-new-preview.visible { display: block; }
+
+.logo-selected-name {
+  font-size: 12px;
+  color: var(--text3);
+  margin-bottom: 14px;
+  min-height: 18px;
+}
+
+.logo-form-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* Tips list */
+.logo-tips-section { }
+.logo-tips-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.logo-tips-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text2);
+  line-height: 1.5;
+}
+.logo-tips-list li svg { flex-shrink: 0; margin-top: 2px; }
+
+
+/* ── Task 2: Admin Products AJAX Pagination ──────────────────────────────── */
+
+/* Toolbar */
+.admin-products-toolbar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.admin-toolbar-form { display: inline-flex; }
+.admin-toolbar-file-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  padding: 8px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--surface);
+  color: var(--text);
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+.admin-toolbar-file-btn:hover { background: var(--surface2); }
+.admin-toolbar-file-btn input[type=file] { display: none; }
+.admin-toolbar-file-btn--accent {
+  border-color: var(--accent);
+  background: var(--accent-light);
+  color: var(--accent);
+  border-style: dashed;
+}
+.admin-toolbar-file-btn--accent:hover { background: var(--accent-light); opacity: 0.85; }
+
+.admin-toolbar-sync-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  padding: 8px 14px;
+  border: 1.5px dashed var(--accent);
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--accent-light);
+  color: var(--accent);
+  transition: opacity 0.15s;
+  white-space: nowrap;
+}
+.admin-toolbar-sync-btn:hover { opacity: 0.8; }
+
+/* Category tabs strip */
+.admin-cat-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 14px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: none;
+}
+.admin-cat-tabs::-webkit-scrollbar { display: none; }
+
+/* Search + per-page bar */
+.admin-products-searchbar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.admin-search-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 180px;
+}
+.admin-search-wrap > svg {
+  position: absolute;
+  left: 10px;
+  color: var(--text3);
+  pointer-events: none;
+  flex-shrink: 0;
+}
+.admin-search-input { padding-left: 34px !important; padding-right: 32px !important; }
+.admin-search-clear {
+  position: absolute;
+  right: 8px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--surface3);
+  color: var(--text3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: none;
+  transition: background 0.15s;
+}
+.admin-search-clear:hover { background: var(--border); }
+
+.admin-perpage-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.admin-perpage-select { width: 80px !important; }
+.admin-perpage-label { font-size: 12px; color: var(--text3); white-space: nowrap; }
+
+/* Loading overlay */
+.admin-products-loader {
+  display: none;
+  position: absolute;
+  inset: 0;
+  background: rgba(255,255,255,.65);
+  backdrop-filter: blur(2px);
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  border-radius: var(--card-radius);
+}
+#adminProductsTableWrap { position: relative; }
+
+.admin-loader-ring {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: adminSpin 0.7s linear infinite;
+}
+@keyframes adminSpin { to { transform: rotate(360deg); } }
+
+/* Pagination */
+.admin-pagination {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.apag-btn {
+  min-width: 34px;
+  height: 34px;
+  padding: 0 8px;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text2);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.apag-btn.active  { background: var(--nav-bg); color: #fff; border-color: var(--nav-bg); }
+.apag-btn.disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
+.apag-btn:hover:not(.active):not(.disabled) { background: var(--surface2); }
+.apag-ellipsis { padding: 0 4px; color: var(--text3); font-size: 13px; line-height: 34px; }
+
+/* Footer */
+.admin-products-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.admin-products-count { font-size: 12px; color: var(--text3); }
+
+/* Empty cell */
+.admin-table-empty {
+  text-align: center;
+  padding: 30px;
+  color: var(--text3);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .admin-products-toolbar { gap: 6px; }
+  .admin-products-searchbar { flex-direction: column; align-items: stretch; }
+  .admin-search-wrap { min-width: unset; }
+  .admin-perpage-wrap { justify-content: flex-start; }
+}

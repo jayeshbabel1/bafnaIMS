@@ -35,15 +35,12 @@ $_success = getFlash('success');
   $sc      = shortlistCount();
   $ic      = inquiryCount();
 ?>
-<!-- ── DESKTOP SIDEBAR ───────────────────────────────────────────────────── -->
+  
 <aside class="desktop-sidebar">
   <div class="ds-logo">
-    <div class="ds-logo-icon">
-      <svg width="22" height="22" viewBox="0 0 36 36" fill="none">
-        <polygon points="18,4 32,28 4,28" fill="rgba(255,255,255,.15)" stroke="white" stroke-width="1.5"/>
-        <polygon points="18,10 26,24 10,24" fill="rgba(255,255,255,.3)" stroke="white" stroke-width="1"/>
-      </svg>
-    </div>
+    <img width="40" height="40"
+               src="https://i0.wp.com/www.bafnamarble.com/wp-content/uploads/2023/11/cropped-logo-01.png?fit=317%2C250&ssl=1"
+               class="custom-logo" alt="<?= h(APP_NAME) ?>" decoding="async"/>
     <div>
       <p class="ds-brand"><?= APP_NAME ?></p>
       <p class="ds-sub">Exquisite Rocks Defining Sovereign</p>
