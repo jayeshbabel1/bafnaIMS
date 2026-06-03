@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 define('APP_NAME',    'Bafna Marbles');
 define('APP_VERSION', '2.0.0');
 define('BASE_PATH',   dirname(__DIR__));
@@ -7,9 +7,9 @@ define('BASE_URL',    (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS']==='on' ? 'h
 // ── MySQL Database ─────────────────────────────────────────────────────────
 define('DB_HOST',     'localhost');
 define('DB_PORT',     '3306');
-define('DB_NAME',     '');
-define('DB_USER',     '');
-define('DB_PASS',     '');
+define('DB_NAME',     'bmarble_ims');
+define('DB_USER',     'bmarble_imsu');
+define('DB_PASS',     'ydfLSUJIy84F');
 define('DB_CHARSET',  'utf8mb4');
 
 // ── Upload Directories ─────────────────────────────────────────────────────

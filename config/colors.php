@@ -1,37 +1,50 @@
 <?php
-// Modern Professional Light Palette
+// Elegant Professional Warm Light Palette
 return [
-    '--bg'            => '#F5F7FA',
+    '--bg'            => '#F7F4EF', // Main background
     '--surface'       => '#FFFFFF',
-    '--surface2'      => '#F0F3F7',
-    '--surface3'      => '#E6EBF2',
+    '--surface2'      => '#E7DED1',
+    '--surface3'      => '#DDD0C3',
 
-    '--accent'        => '#2563EB', // Primary Blue
-    '--accent2'       => '#1E40AF',
-    '--accent-light'  => '#DBEAFE',
-    '--accent-mid'    => '#60A5FA',
+    // Primary Accent Colors
+    '--accent'        => '#776B63',
+    '--accent2'       => '#5F544D',
+    '--accent-light'  => '#E7DED1',
+    '--accent-mid'    => '#BDA59E',
 
-    '--stone'         => '#CBD5E1',
-    '--stone-dark'    => '#64748B',
+    // Neutral Stone Shades
+    '--stone'         => '#C8B8A8',
+    '--stone-dark'    => '#776B63',
 
-    '--text'          => '#0F172A',
-    '--text2'         => '#334155',
-    '--text3'         => '#64748B',
+    // Text Colors
+    '--text'          => '#111111',
+    '--text2'         => '#2B2B2B',
+    '--text3'         => '#5C5C5C',
 
-    '--border'        => '#E2E8F0',
+    // Borders
+    '--border'        => '#D8CCBF',
 
-    '--gold'          => '#2563EB',
-    '--gold-bg'       => '#DBEAFE',
+    // Premium Accent Usage
+    '--gold'          => '#776B63',
+    '--gold-bg'       => '#E7DED1',
 
-    '--success'       => '#16A34A',
-    '--success-bg'    => '#DCFCE7',
+    // Success Colors
+    '--success'       => '#2F7A4D',
+    '--success-bg'    => '#E3F2E8',
 
-    '--danger'        => '#DC2626',
-    '--danger-bg'     => '#FEE2E2',
+    // Danger Colors
+    '--danger'        => '#B23A3A',
+    '--danger-bg'     => '#F8E3E3',
 
-    '--nav-bg'        => '#213b7a',
-    '--topbar-bg'     => 'rgba(255,255,255,0.96)',
+    // Navigation & Topbar
+    '--nav-bg'        => '#776B63',
+    '--topbar-bg'     => 'rgba(247,244,239,0.96)',
 
+    // Text on Dark Backgrounds
+    '--text-on-dark'  => '#FFFFFF',
+    '--text-on-light' => '#111111',
+
+    // Radius
     '--btn-radius'    => '8px',
     '--card-radius'   => '16px',
 ];

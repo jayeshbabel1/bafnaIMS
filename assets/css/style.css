@@ -744,3 +744,342 @@ textarea.input-field{resize:vertical;min-height:80px;}
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important;}
 }
+
+/* ── Catalog controls bar ───────────────────────────────────────────────── */
+.catalog-controls-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 16px 0; flex-wrap: wrap; gap: 8px;
+}
+.catalog-sort-select {
+  padding: 7px 28px 7px 10px; border: 1.5px solid var(--border);
+  border-radius: 8px; font-size: 12px; font-weight: 500;
+  color: var(--text); background: var(--surface);
+  cursor: pointer; appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238FA3B1' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 8px center;
+  outline: none; transition: border-color .15s;
+}
+.catalog-sort-select:focus { border-color: var(--accent); }
+
+.view-toggle { display: flex; border: 1.5px solid var(--border); border-radius: 8px; overflow: hidden; }
+.view-btn {
+  width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;
+  background: var(--surface); color: var(--text3); cursor: pointer;
+  border: none; transition: all .15s;
+}
+.view-btn:first-child { border-right: 1px solid var(--border); }
+.view-btn.active { background: var(--nav-bg); color: #fff; }
+
+/* ── Search hint ────────────────────────────────────────────────────────── */
+.search-hint {
+  font-size: 11px; color: var(--text3); margin-top: 5px;
+  display: flex; align-items: center; gap: 4px; padding: 0 2px;
+}
+
+/* ── List view ──────────────────────────────────────────────────────────── */
+.catalog-list-view {
+  display: flex; flex-direction: column; gap: 0;
+  padding: 8px 12px 16px;
+}
+.catalog-list-item {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--card-radius); margin-bottom: 8px;
+  display: flex; align-items: center; overflow: hidden;
+  position: relative; transition: box-shadow .2s;
+}
+.catalog-list-item:hover { box-shadow: 0 4px 16px rgba(0,0,0,.07); }
+.catalog-list-link { display: flex; align-items: center; gap: 12px; flex: 1; padding: 12px 14px; min-width: 0; text-decoration: none; }
+.catalog-list-thumb { width: 72px; height: 72px; border-radius: 8px; overflow: hidden; flex-shrink: 0; background: var(--surface2); }
+.catalog-list-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.catalog-list-info { flex: 1; min-width: 0; }
+.catalog-list-name { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.catalog-list-meta { font-size: 11px; color: var(--text3); margin-top: 2px; }
+.catalog-list-actions { padding-right: 14px; flex-shrink: 0; display: flex; align-items: center; gap: 8px; }
+.shortlist-btn-list {
+  width: 32px; height: 32px; border-radius: 50%; border: 1.5px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  background: var(--surface); color: var(--text3); cursor: pointer;
+  transition: all .15s; flex-shrink: 0;
+}
+.shortlist-btn-list.saved { color: var(--danger); border-color: var(--danger); background: var(--danger-bg); }
+
+/* ── Product grid equal heights ─────────────────────────────────────────── */
+.product-grid {
+  display: grid; grid-template-columns: repeat(2, 1fr);
+  gap: 10px; padding: 8px 12px 16px;
+  width: 100%; box-sizing: border-box;
+}
+.product-card-wrap { display: flex; flex-direction: column; min-width: 0; }
+.product-card { display: flex; flex-direction: column; height: 100%; }
+.product-card-body { flex: 1; display: flex; flex-direction: column; }
+.product-card-footer { margin-top: auto; }
+
+/* ── Loader ─────────────────────────────────────────────────────────────── */
+.ajax-loader {
+  position: fixed; inset: 0;
+  background: rgba(255,255,255,.72); backdrop-filter: blur(2px);
+  display: none; align-items: center; justify-content: center; z-index: 99999;
+}
+.loader-spinner {
+  width: 46px; height: 46px; border: 3px solid var(--border);
+  border-top-color: var(--accent); border-radius: 50%;
+  animation: spin .7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Overflow guard ─────────────────────────────────────────────────────── */
+.page-content { overflow-x: hidden; }
+.filter-strip  { max-width: 100%; }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   RANGE FILTER CARDS  — luxury marble design
+   ───────────────────────────────────────────────────────────────────────── */
+.range-filters-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.range-filter-card {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 14px;
+  padding: 13px 14px 11px;
+  transition: border-color .2s, box-shadow .2s;
+  position: relative;
+  overflow: hidden;
+}
+/* Subtle marble-vein accent line on left */
+.range-filter-card::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: linear-gradient(to bottom, var(--stone-dark), transparent);
+  border-radius: 14px 0 0 14px;
+  opacity: .35;
+  transition: opacity .2s;
+}
+.range-filter-card:hover { border-color: var(--stone-dark); box-shadow: 0 4px 18px rgba(0,0,0,.06); }
+.range-filter-card:hover::before { opacity: .7; }
+
+.range-filter-card--active {
+  border-color: var(--accent);
+  background: var(--accent-light);
+  box-shadow: 0 2px 14px rgba(37,99,235,.08);
+}
+.range-filter-card--active::before {
+  background: linear-gradient(to bottom, var(--accent), var(--accent-mid));
+  opacity: 1;
+}
+
+.range-filter-header {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 10px;
+}
+.range-filter-icon {
+  width: 26px; height: 26px;
+  border-radius: 7px;
+  background: var(--surface2);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text3);
+  flex-shrink: 0;
+  transition: background .15s, color .15s;
+}
+.range-filter-card--active .range-filter-icon {
+  background: var(--accent);
+  color: #fff;
+}
+.range-filter-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  flex: 1;
+}
+.range-filter-badge {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 20px;
+  background: var(--accent);
+  color: #fff;
+  letter-spacing: .3px;
+  text-transform: uppercase;
+}
+
+.range-filter-inputs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.range-input-group {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.range-input-label {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: .4px;
+}
+.range-input {
+  width: 100%;
+  padding: 7px 9px;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  outline: none;
+  transition: border-color .15s, box-shadow .15s;
+  font-family: inherit;
+  /* Remove spinner arrows for cleaner look */
+  -moz-appearance: textfield;
+}
+.range-input::-webkit-outer-spin-button,
+.range-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.range-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(37,99,235,.1);
+}
+.range-filter-card--active .range-input {
+  background: #fff;
+}
+.range-input-sep {
+  font-size: 12px;
+  color: var(--text3);
+  flex-shrink: 0;
+  margin-top: 14px; /* align with input, below label */
+}
+.range-clear-btn {
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  background: var(--danger-bg);
+  color: var(--danger);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 14px;
+  transition: background .15s;
+}
+.range-clear-btn:hover { background: var(--danger); color: #fff; }
+
+.range-filter-hint {
+  font-size: 10px;
+  color: var(--text3);
+  margin-top: 8px;
+  padding-left: 1px;
+}
+.range-bar-group {margin:10px;}
+
+/* ── Responsive ─────────────────────────────────────────────────────────── */
+@media (max-width: 420px) {
+  .range-filters-row { grid-template-columns: 1fr; }
+}
+@media (min-width: 768px) {
+  .product-grid { grid-template-columns: repeat(3,1fr); gap: 14px; padding: 10px 20px 20px; }
+  .catalog-list-view { padding: 10px 20px 20px; }
+  .catalog-controls-bar { padding: 12px 20px 0; }
+  .range-filters-row { gap: 14px; }
+  .range-filter-card { padding: 15px 16px 13px; }
+}
+@media (min-width: 1024px) {
+  .product-grid { grid-template-columns: repeat(4,1fr); gap: 16px; padding: 12px 24px 24px; }
+  .catalog-list-view { padding: 12px 24px 24px; }
+  .catalog-controls-bar { padding: 14px 24px 0; }
+  .range-filters-row { gap: 16px; }
+}
+  
+  
+  /* ─────────────────────────────────────────────
+   FILTER TOGGLE
+───────────────────────────────────────────── */
+.catalog-filter-toggle-wrap{
+  padding: 12px 16px 0;
+}
+
+.catalog-filter-toggle-btn{
+  width: 100%;
+  height: 46px;
+  border-radius: 14px;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding: 0 14px;
+  font-size:14px;
+  font-weight:600;
+  color: var(--text);
+  cursor:pointer;
+  transition: all .2s ease;
+  box-shadow: 0 2px 10px rgba(0,0,0,.03);
+}
+
+.catalog-filter-toggle-btn:hover{
+  border-color: var(--accent);
+}
+
+.filter-toggle-icon{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  margin-right:8px;
+}
+
+.filter-toggle-arrow{
+  margin-left:auto;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  transition: transform .25s ease;
+}
+
+.catalog-filter-toggle-btn.active .filter-toggle-arrow{
+  transform: rotate(180deg);
+}
+
+.filter-active-dot{
+  width:8px;
+  height:8px;
+  border-radius:50%;
+  background: var(--accent);
+  margin-left:8px;
+  margin-right:10px;
+}
+
+/* ─────────────────────────────────────────────
+   FILTER PANEL
+───────────────────────────────────────────── */
+.catalog-topbar{
+  overflow:hidden;
+}
+
+.catalog-filters-inner{
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition:
+    max-height .35s ease,
+    opacity .25s ease,
+    padding-top .25s ease;
+}
+
+.catalog-filters-inner.open{
+  max-height: 1200px;
+  opacity: 1;
+  padding-top: 12px;
+}
+

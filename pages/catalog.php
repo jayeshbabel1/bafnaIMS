@@ -1,45 +1,98 @@
 <?php
-
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 /**
  * pages/catalog.php
- * Tasks 4 (responsive fix), 5 (sort + view), 7 (search 3-char min)
+ * Range filters added: sqft_min/sqft_max (quantity_available)
+ *                      size_min/size_max  (sizes_l × sizes_h)
  */
 $pageTitle = 'Catalog — ' . APP_NAME;
 $showNav   = true;
 $extraJS   = ['catalog.js'];
 
-$cat     = $_GET['cat']   ?? '';
-$color   = $_GET['color'] ?? '';
-$search  = trim($_GET['q'] ?? '');
-$sort    = $_GET['sort']  ?? 'latest';
-$curPage = max(1, (int)($_GET['p'] ?? 1));
-$perPage = 8;
-$isAjax  = !empty($_GET['ajax']);
+// ── Read all GET params ────────────────────────────────────────────────────
+$cat      = $_GET['cat']      ?? '';
+$color    = $_GET['color']    ?? '';
+$search   = trim($_GET['q']   ?? '');
+$sort     = $_GET['sort']     ?? 'latest';
+$currentPage  = max(1, (int)($_GET['p'] ?? 1));
+$perPage  = 8;
+$isAjax   = !empty($_GET['ajax']);
 
+// Range filter params
+$sqftMin  = isset($_GET['sqft_min']) && $_GET['sqft_min'] !== '' ? (float)$_GET['sqft_min'] : null;
+$sqftMax  = isset($_GET['sqft_max']) && $_GET['sqft_max'] !== '' ? (float)$_GET['sqft_max'] : null;
+$sizeMin  = isset($_GET['size_min']) && $_GET['size_min'] !== '' ? (float)$_GET['size_min'] : null;
+$sizeMax  = isset($_GET['size_max']) && $_GET['size_max'] !== '' ? (float)$_GET['size_max'] : null;
+
+// ── Build $filters array (passed to query builder) ─────────────────────────
 $filters = [];
-if ($cat)    $filters['category']          = $cat;
-if ($color)  $filters['color_subcategory'] = $color;
-if ($search) $filters['search']            = $search;
+if ($cat)            $filters['category']          = $cat;
+if ($color)          $filters['color_subcategory'] = $color;
+if ($search)         $filters['search']            = $search;
+if ($sqftMin !== null) $filters['sqft_min']         = $sqftMin;
+if ($sqftMax !== null) $filters['sqft_max']         = $sqftMax;
+if ($sizeMin !== null) $filters['size_min']         = $sizeMin;
+if ($sizeMax !== null) $filters['size_max']         = $sizeMax;
 
-// ── Sorting ────────────────────────────────────────────────────────────────
+// ── Sorting + Query builder ────────────────────────────────────────────────
 function getSortedProducts(array $filters, string $sort): array {
-    $db   = getDB();
-    $sql  = "SELECT p.*, (SELECT filename FROM product_photos WHERE product_id=p.id ORDER BY sort_order LIMIT 1) AS primary_photo FROM products p WHERE 1=1";
+    $db     = getDB();
+    $sql    = "SELECT p.*,
+                 (SELECT filename FROM product_photos WHERE product_id=p.id ORDER BY sort_order LIMIT 1) AS primary_photo
+               FROM products p
+               WHERE 1=1";
     $params = [];
-    if (!empty($filters['category']))          { $sql .= " AND p.category=?";          $params[] = $filters['category']; }
-    if (!empty($filters['subcategory']))       { $sql .= " AND p.subcategory=?";        $params[] = $filters['subcategory']; }
-    if (!empty($filters['color_subcategory'])) { $sql .= " AND p.color_subcategory=?";  $params[] = $filters['color_subcategory']; }
-    if (!empty($filters['search']))            { $sql .= " AND (p.name LIKE ? OR p.quarry_number LIKE ?)"; $params[] = '%'.$filters['search'].'%'; $params[] = '%'.$filters['search'].'%'; }
 
-    switch ($sort) {
-        case 'name_az':  $sql .= " ORDER BY p.name ASC";                                     break;
-        case 'qty_asc':  $sql .= " ORDER BY p.quantity_available ASC";                       break;
-        case 'qty_desc': $sql .= " ORDER BY p.quantity_available DESC";                      break;
-        default:         $sql .= " ORDER BY p.featured DESC, p.sort_order ASC, p.id DESC";   break; // latest
+    // Standard filters
+    if (!empty($filters['category'])) {
+        $sql     .= " AND p.category = ?";
+        $params[] = $filters['category'];
     }
+    if (!empty($filters['subcategory'])) {
+        $sql     .= " AND p.subcategory = ?";
+        $params[] = $filters['subcategory'];
+    }
+    if (!empty($filters['color_subcategory'])) {
+        $sql     .= " AND p.color_subcategory = ?";
+        $params[] = $filters['color_subcategory'];
+    }
+    if (!empty($filters['search'])) {
+        $sql     .= " AND (p.name LIKE ? OR p.quarry_number LIKE ?)";
+        $params[] = '%' . $filters['search'] . '%';
+        $params[] = '%' . $filters['search'] . '%';
+    }
+
+    // ── Available Sqft range filter ────────────────────────────────────────
+    if (isset($filters['sqft_min'])) {
+        $sql     .= " AND p.quantity_available >= ?";
+        $params[] = $filters['sqft_min'];
+    }
+    if (isset($filters['sqft_max'])) {
+        $sql     .= " AND p.quantity_available <= ?";
+        $params[] = $filters['sqft_max'];
+    }
+
+    // ── Usable Slab Size range filter ──────────────────────────────────────
+    // Filters on the PRODUCT of L × H (area), casting both columns safely
+    if (isset($filters['size_min'])) {
+        $sql     .= " AND (CAST(p.sizes_l AS DECIMAL(10,2)) * CAST(p.sizes_h AS DECIMAL(10,2))) >= ?";
+        $params[] = $filters['size_min'];
+    }
+    if (isset($filters['size_max'])) {
+        $sql     .= " AND (CAST(p.sizes_l AS DECIMAL(10,2)) * CAST(p.sizes_h AS DECIMAL(10,2))) <= ?";
+        $params[] = $filters['size_max'];
+    }
+
+    // Sorting
+    switch ($sort) {
+        case 'name_az':  $sql .= " ORDER BY p.name ASC";                                    break;
+        case 'qty_asc':  $sql .= " ORDER BY p.quantity_available ASC";                      break;
+        case 'qty_desc': $sql .= " ORDER BY p.quantity_available DESC";                     break;
+        default:         $sql .= " ORDER BY p.featured DESC, p.sort_order ASC, p.id DESC";  break;
+    }
+
     $st = $db->prepare($sql);
     $st->execute($params);
     return $st->fetchAll();
@@ -48,13 +101,13 @@ function getSortedProducts(array $filters, string $sort): array {
 $allProducts = getSortedProducts($filters, $sort);
 $totalCount  = count($allProducts);
 $totalPages  = max(1, (int)ceil($totalCount / $perPage));
-$curPage     = min($curPage, $totalPages);
-$products    = array_slice($allProducts, ($curPage - 1) * $perPage, $perPage);
+$currentPage     = min($currentPage, $totalPages);
+$products    = array_slice($allProducts, ($currentPage - 1) * $perPage, $perPage);
 $featured    = array_filter($allProducts, fn($p) => $p['featured']);
 $categories  = CATEGORIES;
 $colorSubs   = COLOR_SUBCATEGORIES;
 
-/* ── Pagination HTML ─────────────────────────────────────────────────────── */
+// ── Pagination HTML ────────────────────────────────────────────────────────
 function renderPagination(int $cur, int $total): string {
     if ($total <= 1) return '';
     $h  = '<div class="pagination" id="paginationWrap">';
@@ -68,7 +121,7 @@ function renderPagination(int $cur, int $total): string {
     return $h;
 }
 
-/* ── Product Grid HTML ───────────────────────────────────────────────────── */
+// ── Product Grid HTML ──────────────────────────────────────────────────────
 function renderProductGrid(array $products, string $view = 'grid'): string {
     if (empty($products)) {
         return '<div class="empty-state" style="padding:48px 20px;">
@@ -83,6 +136,15 @@ function renderProductGrid(array $products, string $view = 'grid'): string {
         foreach ($products as $i => $p) {
             $pal   = json_decode($p['palette']??'[]',true)?:['F2F0EC','D8CFC4','BFB0A0'];
             $saved = isShortlisted($p['id']);
+            $slabDisplay = '';
+            if (!empty($p['sizes_l']) || !empty($p['sizes_h'])) {
+                $slabDisplay = trim($p['sizes_l']??'') . ' x ' . trim($p['sizes_h']??'');
+            }
+            $metaParts = ['Quarry No.: ' . h($p['quarry_number'])];
+            if ($p['thickness']) $metaParts[] = ' Thickness: ' . h($p['thickness']);
+          if ($slabDisplay)    $metaParts[] = ' Useable Size: ' . h($slabDisplay);
+            $metaParts[] =' Quantity Available: ' . number_format((float)$p['quantity_available']) . ' sqft';
+
             $h .= '<div class="catalog-list-item fade-up" style="animation-delay:'.round($i*.04,3).'s">';
             $h .= '<a href="index.php?page=product&id='.$p['id'].'" class="catalog-list-link">';
             $h .= '<div class="catalog-list-thumb">';
@@ -96,17 +158,7 @@ function renderProductGrid(array $products, string $view = 'grid'): string {
             if ($p['featured'])  $h .= '<span class="badge badge-gold">✦</span>';
             $h .= '</div>';
             $h .= '<p class="catalog-list-name">'.h($p['name']).'</p>';
-            $slabDisplay = '';
-if (!empty($p['sizes_l']) || !empty($p['sizes_h'])) {
-    $slabDisplay = trim($p['sizes_l'] ?? '') . ' x ' . trim($p['sizes_h'] ?? '');
-}
-
-$metaParts = ['Lot: ' . h($p['quarry_number'])];
-if ($p['thickness'])  $metaParts[] = h($p['thickness']);
-if ($slabDisplay)     $metaParts[] = h($slabDisplay);
-$metaParts[] = number_format((float)$p['quantity_available']) . ' sqft';
-
-$h .= '<p class="catalog-list-meta">' . implode(' · ', $metaParts) . '</p>';
+            $h .= '<p class="catalog-list-meta">' . implode(' · ', $metaParts) . '</p>';
             $h .= '</div>';
             $h .= '<div class="catalog-list-actions">';
             $h .= '<a href="index.php?page=inquiry_form&product_id='.$p['id'].'" class="btn-outline btn-sm" style="white-space:nowrap;text-decoration:none;">'.icon('msg',13).' Inquire</a>';
@@ -144,7 +196,7 @@ $h .= '<p class="catalog-list-meta">' . implode(' · ', $metaParts) . '</p>';
         $h .= '<div class="product-card-body">';
         $h .= '<div class="product-card-cat"><span class="badge badge-amber">'.h($p['category']).'</span></div>';
         $h .= '<p class="product-card-name">'.h($p['name']).'</p>';
-        $h .= '<p class="product-card-quarry">Lot: '.h($p['quarry_number']).'</p>';
+        $h .= '<p class="product-card-quarry">Quarry No.: '.h($p['quarry_number']).'</p>';
         $h .= '<div class="product-card-footer"><span class="product-card-qty">'.number_format((float)$p['quantity_available']).' sqft</span>';
         $h .= '<span style="font-size:11px;color:var(--text3);">'.h($p['thickness']).'</span></div>';
         $h .= '</div></a>';
@@ -160,16 +212,19 @@ $h .= '<p class="catalog-list-meta">' . implode(' · ', $metaParts) . '</p>';
     return $h;
 }
 
-/* ── AJAX response ───────────────────────────────────────────────────────── */
+// ── AJAX response ──────────────────────────────────────────────────────────
 if ($isAjax) {
     $view = $_GET['view'] ?? 'grid';
-    $html = renderProductGrid($products, $view) . renderPagination($curPage, $totalPages);
+    $html = renderProductGrid($products, $view) . renderPagination($currentPage, $totalPages);
     header('Content-Type: application/json');
-    echo json_encode(['html'=>$html,'total'=>$totalCount,'pages'=>$totalPages,'current'=>$curPage]);
+    echo json_encode(['html'=>$html,'total'=>$totalCount,'pages'=>$totalPages,'current'=>$currentPage]);
     exit;
 }
 
-$view = 'grid'; // default — JS overrides from localStorage
+$view = 'grid'; // JS overrides from localStorage
+
+// ── Active range-filter flag (for "Clear" link) ───────────────────────────
+$hasRangeFilter = ($sqftMin !== null || $sqftMax !== null || $sizeMin !== null || $sizeMax !== null);
 ?>
 <?php include BASE_PATH . '/layouts/header.php'; ?>
 
@@ -193,21 +248,34 @@ $view = 'grid'; // default — JS overrides from localStorage
       <a href="index.php?page=profile" class="topbar-icon-btn"><?= icon('settings',17) ?></a>
     </div>
   </div>
+<!-- FILTER TOGGLE BUTTON -->
+<div class="catalog-filter-toggle-wrap">
+  <button type="button" class="catalog-filter-toggle-btn" id="filterToggleBtn">
+    <span class="filter-toggle-icon"><?= icon('filter',15) ?></span>
+    <span>Filters</span>
 
+    <?php if ($search || $cat || $color || $hasRangeFilter): ?>
+      <span class="filter-active-dot"></span>
+    <?php endif; ?>
+
+    <span class="filter-toggle-arrow" id="filterToggleArrow">
+      <?= icon('chevron_down',14) ?>
+    </span>
+  </button>
+</div>
   <!-- SEARCH + FILTERS -->
-  <div class="catalog-topbar">
+<div class="catalog-topbar" id="catalogFiltersWrap">
+  <div id="catalogFiltersInner" class="catalog-filters-inner">
     <!-- Search -->
     <div class="search-wrap" style="position:relative;margin-bottom:12px;">
       <span class="search-icon"><?= icon('search',15) ?></span>
       <input type="search" id="searchInput" class="input-field search-input"
              placeholder="Search by name or lot number…"
-             value="<?= h($search) ?>" autocomplete="off"
-             data-min="3"/>
+             value="<?= h($search) ?>" autocomplete="off" data-min="3"/>
       <?php if ($search): ?>
       <a href="index.php?page=catalog<?= $cat?'&cat='.urlencode($cat):'' ?>" class="search-clear"><?= icon('close',13) ?></a>
       <?php endif; ?>
-      <!-- helper text -->
-      <p id="searchHint" class="search-hint" style="display:<?= strlen($search) > 0 && strlen($search) < 3 ? 'block' : 'none' ?>;">
+      <p id="searchHint" class="search-hint" style="display:<?= strlen($search)>0&&strlen($search)<3?'block':'none' ?>;">
         <?= icon('info',12) ?> Type at least 3 characters to search
       </p>
     </div>
@@ -223,7 +291,7 @@ $view = 'grid'; // default — JS overrides from localStorage
     </div>
 
     <!-- Colour pills -->
-    <div class="filter-strip" style="margin-bottom:4px;">
+    <div class="filter-strip" style="margin-bottom:12px;">
       <a href="index.php?page=catalog<?= $cat?'&cat='.urlencode($cat):'' ?><?= $search?'&q='.urlencode($search):'' ?><?= $sort&&$sort!='latest'?'&sort='.urlencode($sort):'' ?>"
          class="tag-pill tag-pill-sm tag-pill-color<?= !$color?' active':'' ?>">All Colours</a>
       <?php foreach ($colorSubs as $cs): ?>
@@ -233,10 +301,50 @@ $view = 'grid'; // default — JS overrides from localStorage
       </a>
       <?php endforeach; ?>
     </div>
-  </div>
+
+    <!-- ── Range filter bar (single line) ───────────────────────────────── -->
+    <div class="range-bar" id="rangeFiltersRow">
+
+      <!-- Sqft group -->
+      <div class="range-bar-group <?= ($sqftMin!==null||$sqftMax!==null)?'range-bar-group--active':'' ?>" id="rfCardSqft">
+        <span class="range-bar-label"><?= icon('grid',12) ?> Available Sqft</span>
+        <input type="number" class="tag-pill" id="sqftMin"
+               min="0" step="1" placeholder="Min"
+               value="<?= $sqftMin !== null ? h((string)$sqftMin) : '' ?>"/>
+        <span class="range-bar-sep">–</span>
+        <input type="number" class="tag-pill" id="sqftMax"
+               min="0" step="1" placeholder="Max"
+               value="<?= $sqftMax !== null ? h((string)$sqftMax) : '' ?>"/>
+        <button class="range-bar-clear" id="sqftClear" title="Clear"
+                style="display:<?= ($sqftMin!==null||$sqftMax!==null)?'flex':'none' ?>">
+          <?= icon('close',10) ?>
+        </button>
+      </div>
+
+      <div class="range-bar-divider"></div>
+
+      <!-- Slab size group -->
+      <div class="range-bar-group <?= ($sizeMin!==null||$sizeMax!==null)?'range-bar-group--active':'' ?>" id="rfCardSize">
+        <span class="range-bar-label"><?= icon('eye',12) ?> Useable Size L×H</span>
+        <input type="number" class="tag-pill" id="sizeMin"
+               min="0" step="0.01" placeholder="Min"
+               value="<?= $sizeMin !== null ? h((string)$sizeMin) : '' ?>"/>
+        <span class="range-bar-sep">–</span>
+        <input type="number" class="tag-pill" id="sizeMax"
+               min="0" step="0.01" placeholder="Max"
+               value="<?= $sizeMax !== null ? h((string)$sizeMax) : '' ?>"/>
+        <button class="range-bar-clear" id="sizeClear" title="Clear"
+                style="display:<?= ($sizeMin!==null||$sizeMax!==null)?'flex':'none' ?>">
+          <?= icon('close',10) ?>
+        </button>
+      </div>
+
+    </div><!-- .range-bar -->
+</div>
+  </div><!-- .catalog-topbar -->
 
   <!-- FEATURED CAROUSEL -->
-  <?php if (!$search && !$cat && !$color && count($featured) && $curPage === 1): ?>
+  <?php if (!$search && !$cat && !$color && !$hasRangeFilter && count($featured) && $currentPage===1): ?>
   <div style="padding-top:14px;">
     <div class="section-header">
       <span class="section-title">✦ Featured</span>
@@ -269,19 +377,17 @@ $view = 'grid'; // default — JS overrides from localStorage
     <div class="catalog-count">
       <span class="catalog-count-num" id="totalCount"><?= $totalCount ?></span>
       <span>products</span>
-      <?php if ($search || $cat || $color): ?>
-      · <a href="index.php?page=catalog" style="color:var(--gold);font-weight:600;font-size:12px;">Clear</a>
+      <?php if ($search || $cat || $color || $hasRangeFilter): ?>
+      · <a href="index.php?page=catalog" style="color:var(--gold);font-weight:600;font-size:12px;">Clear all</a>
       <?php endif; ?>
     </div>
     <div style="display:flex;align-items:center;gap:8px;">
-      <!-- Sort dropdown -->
       <select id="sortSelect" class="catalog-sort-select" data-current="<?= h($sort) ?>">
         <option value="latest"   <?= $sort==='latest'  ?'selected':'' ?>>Latest</option>
         <option value="qty_desc" <?= $sort==='qty_desc'?'selected':'' ?>>Qty High→Low</option>
         <option value="qty_asc"  <?= $sort==='qty_asc' ?'selected':'' ?>>Qty Low→High</option>
         <option value="name_az"  <?= $sort==='name_az' ?'selected':'' ?>>Name A→Z</option>
       </select>
-      <!-- View toggle -->
       <div class="view-toggle">
         <button class="view-btn" id="viewGrid" title="Grid view"><?= icon('grid',15) ?></button>
         <button class="view-btn" id="viewList" title="List view"><?= icon('filter',15) ?></button>
@@ -300,126 +406,37 @@ $view = 'grid'; // default — JS overrides from localStorage
        data-color="<?= h($color) ?>"
        data-q="<?= h($search) ?>"
        data-sort="<?= h($sort) ?>"
+       data-sqft-min="<?= $sqftMin !== null ? h((string)$sqftMin) : '' ?>"
+       data-sqft-max="<?= $sqftMax !== null ? h((string)$sqftMax) : '' ?>"
+       data-size-min="<?= $sizeMin !== null ? h((string)$sizeMin) : '' ?>"
+       data-size-max="<?= $sizeMax !== null ? h((string)$sizeMax) : '' ?>"
        data-view="grid">
     <?= renderProductGrid($products, 'grid') ?>
-    <? $curPage = max(1, (int)($_GET['p'] ?? 1)); ?>
-    <?= renderPagination($curPage, $totalPages) ?>
+    <?= renderPagination($currentPage, $totalPages) ?>
   </div>
 
 </div><!-- .page-content -->
+<script>
+document.addEventListener('DOMContentLoaded', () => {
 
-<style>
-/* ── Catalog controls bar ─────────────────────────────────────────────── */
-.catalog-controls-bar {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 10px 16px 0; flex-wrap: wrap; gap: 8px;
-}
-.catalog-sort-select {
-  padding: 7px 28px 7px 10px; border: 1.5px solid var(--border);
-  border-radius: 8px; font-size: 12px; font-weight: 500;
-  color: var(--text); background: var(--surface);
-  cursor: pointer; appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238FA3B1' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
-  background-repeat: no-repeat; background-position: right 8px center;
-  outline: none; transition: border-color .15s;
-}
-.catalog-sort-select:focus { border-color: var(--accent); }
+  const btn   = document.getElementById('filterToggleBtn');
+  const panel = document.getElementById('catalogFiltersInner');
 
-.view-toggle { display: flex; border: 1.5px solid var(--border); border-radius: 8px; overflow: hidden; }
-.view-btn {
-  width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;
-  background: var(--surface); color: var(--text3); cursor: pointer;
-  border: none; transition: all .15s;
-}
-.view-btn:first-child { border-right: 1px solid var(--border); }
-.view-btn.active { background: var(--nav-bg); color: #fff; }
+  if (!btn || !panel) return;
 
-/* ── Search hint ──────────────────────────────────────────────────────── */
-.search-hint {
-  font-size: 11px; color: var(--text3); margin-top: 5px;
-  display: flex; align-items: center; gap: 4px; padding: 0 2px;
-}
+  // Auto-open if filters already active
+  const hasActiveFilters =
+      <?= ($search || $cat || $color || $hasRangeFilter) ? 'true' : 'false' ?>;
 
-/* ── List view ────────────────────────────────────────────────────────── */
-.catalog-list-view {
-  display: flex; flex-direction: column; gap: 0;
-  padding: 8px 12px 16px;
-}
-.catalog-list-item {
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--card-radius); margin-bottom: 8px;
-  display: flex; align-items: center; overflow: hidden;
-  position: relative; transition: box-shadow .2s;
-}
-.catalog-list-item:hover { box-shadow: 0 4px 16px rgba(0,0,0,.07); }
-.catalog-list-link { display: flex; align-items: center; gap: 12px; flex: 1; padding: 12px 14px; min-width: 0; text-decoration: none; }
-.catalog-list-thumb { width: 72px; height: 72px; border-radius: 8px; overflow: hidden; flex-shrink: 0; background: var(--surface2); }
-.catalog-list-thumb img { width: 100%; height: 100%; object-fit: cover; }
-.catalog-list-info { flex: 1; min-width: 0; }
-.catalog-list-name { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.catalog-list-meta { font-size: 11px; color: var(--text3); margin-top: 2px; }
-.catalog-list-actions { padding-right: 14px; flex-shrink: 0; display: flex; align-items: center; gap: 8px; }
-.shortlist-btn-list {
-  width: 32px; height: 32px; border-radius: 50%; border: 1.5px solid var(--border);
-  display: flex; align-items: center; justify-content: center;
-  background: var(--surface); color: var(--text3); cursor: pointer;
-  transition: all .15s; flex-shrink: 0;
-}
-.shortlist-btn-list.saved { color: var(--danger); border-color: var(--danger); background: var(--danger-bg); }
+  if (hasActiveFilters) {
+    panel.classList.add('open');
+    btn.classList.add('active');
+  }
 
-/* ── Fix: product grid equal heights ──────────────────────────────────── */
-.product-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
-  padding: 8px 12px 16px;
-  width: 100%;
-  box-sizing: border-box;
-}
-.product-card-wrap {
-  display: flex;
-  flex-direction: column;
-  min-width: 0; /* prevent overflow */
-}
-.product-card {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-}
-.product-card-body {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-.product-card-footer { margin-top: auto; }
+  btn.addEventListener('click', () => {
+    panel.classList.toggle('open');
+    btn.classList.toggle('active');
+  });
 
-/* ── Prevent horizontal overflow ──────────────────────────────────────── */
-.page-content { overflow-x: hidden; }
-.filter-strip  { max-width: 100%; }
-
-/* ── Loader ────────────────────────────────────────────────────────────── */
-.ajax-loader {
-  position: fixed; inset: 0;
-  background: rgba(255,255,255,.72); backdrop-filter: blur(2px);
-  display: none; align-items: center; justify-content: center; z-index: 99999;
-}
-.loader-spinner {
-  width: 46px; height: 46px; border: 3px solid var(--border);
-  border-top-color: var(--accent); border-radius: 50%;
-  animation: spin .7s linear infinite;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
-
-@media (min-width: 768px) {
-  .product-grid { grid-template-columns: repeat(3,1fr); gap: 14px; padding: 10px 20px 20px; }
-  .catalog-list-view { padding: 10px 20px 20px; }
-  .catalog-controls-bar { padding: 12px 20px 0; }
-}
-@media (min-width: 1024px) {
-  .product-grid { grid-template-columns: repeat(4,1fr); gap: 16px; padding: 12px 24px 24px; }
-  .catalog-list-view { padding: 12px 24px 24px; }
-  .catalog-controls-bar { padding: 14px 24px 0; }
-}
-</style>
-
+});</script>
 <?php include BASE_PATH . '/layouts/footer.php'; ?>

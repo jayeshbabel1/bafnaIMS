@@ -21,14 +21,14 @@ $sizesDisplay  = $p['sizes_display'] ?? '';
 
 $specs = [
     'Product Name'      => $p['name'],
-    'Category'          => $p['category'],
-    'Sub-Category'      => $p['subcategory'],
-    'Colour Family'     => $p['color_subcategory'],
-    'Quarry / Lot No.'  => $p['quarry_number'],
-    'No. of Pieces'     => $p['pieces'] . ' slabs',
+    'Stone Type'        => $p['category'],
+    'Stone Subcategory'      => $p['subcategory'],
+    'Stone Color'     => $p['color_subcategory'],
+    'Quarry No.'  => $p['quarry_number'],
+    'Total Pieces'     => $p['pieces'] . ' slabs',
     'Thickness'         => $p['thickness'],
-    'Slab Size'         => $sizesDisplay,
-    'Cutter Size'       => $cutterDisplay,
+    'Useable Size'         => $sizesDisplay,
+    'Italian Size'       => $cutterDisplay,
     'Origin'            => $p['origin'],
     'Finish'            => $p['finish'],
 ];
@@ -133,16 +133,17 @@ $specs = [
         <div class="qty-tile-value"><?= number_format((float)$p['total_quantity']) ?></div>
         <div class="qty-tile-unit">sqft</div>
       </div>
-      <div class="qty-tile">
-        <div class="qty-tile-label">Available</div>
-        <div class="qty-tile-value" style="color:var(--gold);"><?= number_format((float)$p['quantity_available']) ?></div>
-        <div class="qty-tile-unit">sqft</div>
-      </div>
-      <div class="qty-tile">
-        <div class="qty-tile-label">On Hold</div>
+       <div class="qty-tile">
+        <div class="qty-tile-label">Hold Quantity</div>
         <div class="qty-tile-value"><?= number_format((float)$p['quantity_on_hold']) ?></div>
         <div class="qty-tile-unit">sqft</div>
       </div>
+      <div class="qty-tile">
+        <div class="qty-tile-label">Available Quantity</div>
+        <div class="qty-tile-value" style="color:var(--gold);"><?= number_format((float)$p['quantity_available']) ?></div>
+        <div class="qty-tile-unit">sqft</div>
+      </div>
+     
     </div>
 
     <!-- Quick spec tiles — now includes Slab Size and Cutter Size -->
@@ -151,8 +152,8 @@ $specs = [
       $quickSpecs = [
           'Thickness' => $p['thickness'],
           'Finish'    => $p['finish'],
-          'Slab Size' => $sizesDisplay,
-          'Cutter'    => $cutterDisplay,
+          'Useable Size' => $sizesDisplay,
+          'Italian Size'    => $cutterDisplay,
       ];
       foreach ($quickSpecs as $k => $v):
           if (!trim($v, ' -\'"')) continue;
