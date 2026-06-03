@@ -10,6 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet"/>
 <style><?= getCSSVariables() ?></style>
 <link rel="stylesheet" href="assets/css/style.css"/>
+  <link rel="stylesheet" href="assets/css/watermark.css"/>
 <?php if (!empty($extraCSS)) foreach ($extraCSS as $f): ?>
 <link rel="stylesheet" href="assets/css/<?= h($f) ?>"/>
 <?php endforeach; ?>
@@ -21,6 +22,11 @@
 $_toast   = getFlash('toast');
 $_error   = getFlash('error');
 $_success = getFlash('success');
+// Load logo helper
+if (!function_exists('getLogo')) {
+    require_once BASE_PATH . '/includes/logo.php';
+}
+$_authLogo = getLogo(false);
 ?>
 <?php if ($_toast || $_success): ?>
 <div class="toast toast-success" id="app-toast"><?= h($_toast ?: $_success) ?></div>
@@ -38,9 +44,13 @@ $_success = getFlash('success');
   
 <aside class="desktop-sidebar">
   <div class="ds-logo">
-    <img width="40" height="40"
+   <?php if (!empty($_authLogo)): ?>
+          <img width="50" height="50" src="<?= h($_authLogo) ?>" alt="<?= h(APP_NAME) ?>"/>
+        <?php else: ?>
+          <img width="40" height="40"
                src="https://i0.wp.com/www.bafnamarble.com/wp-content/uploads/2023/11/cropped-logo-01.png?fit=317%2C250&ssl=1"
-               class="custom-logo" alt="<?= h(APP_NAME) ?>" decoding="async"/>
+               alt="<?= h(APP_NAME) ?>" decoding="async" style="width:100%;height:100%;object-fit:contain;"/>
+        <?php endif; ?>
     <div>
       <p class="ds-brand"><?= APP_NAME ?></p>
       <p class="ds-sub">Exquisite Rocks Defining Sovereign</p>
@@ -57,11 +67,11 @@ $_success = getFlash('success');
       <?= icon('heart',18) ?><span>Shortlist</span>
       <?php if ($sc): ?><span class="ds-nav-badge"><?= $sc ?></span><?php endif; ?>
     </a>
-    <a href="index.php?page=inquiries"
+  <!--  <a href="index.php?page=inquiries"
        class="ds-nav-item <?= $curPage==='inquiries' ? 'active' : '' ?>">
       <?= icon('msg',18) ?><span>Inquiries</span>
       <?php if ($ic): ?><span class="ds-nav-badge"><?= $ic ?></span><?php endif; ?>
-    </a>
+    </a> -->
     <a href="index.php?page=notifications"
        class="ds-nav-item <?= $curPage==='notifications' ? 'active' : '' ?>">
       <?= icon('bell',18) ?><span>Notifications</span>

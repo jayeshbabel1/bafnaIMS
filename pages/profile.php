@@ -20,13 +20,7 @@ $rpSt = $db->prepare("SELECT COUNT(*) as c FROM inquiries WHERE user_id=? AND st
   <!-- ── TOPBAR ─────────────────────────────────────────────────────────── -->
   <div class="topbar">
     <div class="topbar-brand">
-      <div class="topbar-logo" style="display:flex;">
-        <svg width="20" height="20" viewBox="0 0 36 36" fill="none">
-          <polygon points="18,4 32,28 4,28" fill="rgba(184,151,90,.18)" stroke="rgba(184,151,90,.9)" stroke-width="1.5"/>
-          <polygon points="18,10 26,24 10,24" fill="rgba(184,151,90,.35)" stroke="rgba(184,151,90,.7)" stroke-width="1"/>
-        </svg>
-      </div>
-      <div>
+    <div>
         <p class="topbar-eyebrow">Account</p>
         <p class="topbar-title">My Profile</p>
       </div>
@@ -62,7 +56,7 @@ $rpSt = $db->prepare("SELECT COUNT(*) as c FROM inquiries WHERE user_id=? AND st
         </div>
       </div>
 
-      <!-- Stats row -->
+      <!-- Stats row 
       <div class="stat-tiles-row" style="margin-top:0;margin-bottom:12px;">
         <div class="stat-tile">
           <div class="stat-tile-num"><?= $slC ?></div>
@@ -76,16 +70,16 @@ $rpSt = $db->prepare("SELECT COUNT(*) as c FROM inquiries WHERE user_id=? AND st
           <div class="stat-tile-num" style="color:var(--success);"><?= $rpC ?></div>
           <div class="stat-tile-label">Replied</div>
         </div>
-      </div>
+      </div>-->
 
       <!-- Quick menu (desktop left panel) -->
       <div class="card" style="overflow:hidden;">
         <?php $menuItems = [
           ['icon'=>'user',  'label'=>'Edit Profile',  'url'=>'index.php?page=profile&section=settings'],
-          ['icon'=>'heart', 'label'=>'My Shortlist',  'url'=>'index.php?page=shortlist'],
-          ['icon'=>'msg',   'label'=>'My Inquiries',  'url'=>'index.php?page=inquiries'],
-          ['icon'=>'bell', 'label'=>'Notifications', 'url'=>'index.php?page=notifications'],
-          ['icon'=>'info', 'label'=>'Help & Support', 'url'=>'index.php?page=support'],
+       //   ['icon'=>'heart', 'label'=>'My Shortlist',  'url'=>'index.php?page=shortlist'],
+        //  ['icon'=>'msg',   'label'=>'My Inquiries',  'url'=>'index.php?page=inquiries'],
+        //  ['icon'=>'bell', 'label'=>'Notifications', 'url'=>'index.php?page=notifications'],
+        //  ['icon'=>'info', 'label'=>'Help & Support', 'url'=>'index.php?page=support'],
         ];
         foreach ($menuItems as $item): ?>
         <a href="<?= h($item['url']) ?>" class="profile-menu-item">
@@ -144,7 +138,7 @@ $rpSt = $db->prepare("SELECT COUNT(*) as c FROM inquiries WHERE user_id=? AND st
               <input type="tel" name="phone" class="input-field" value="<?= h($user['phone'] ?? '') ?>"/>
             </div>
           </div>
-          <button type="submit" class="btn-primary btn-gold" style="max-width:220px;">Save Changes</button>
+          <button type="submit" class="btn-outline" style="max-width:220px;">Save Changes</button>
         </form>
 
         <hr style="border:none;border-top:1px solid var(--border);margin:24px 0;"/>
@@ -169,12 +163,12 @@ $rpSt = $db->prepare("SELECT COUNT(*) as c FROM inquiries WHERE user_id=? AND st
               </div>
             </div>
           </div>
-          <button type="submit" class="btn-primary btn-gold" style="max-width:220px;">Update Password</button>
+          <button type="submit" class="btn-outline" style="max-width:220px;">Update Password</button>
         </form>
       </div>
 
       <?php else: ?>
-      <!-- Default: show a welcome card on desktop right panel -->
+      <!-- Default: show a welcome card on desktop right panel 
       <div class="card" style="padding:28px;text-align:center;background:linear-gradient(135deg,var(--nav-bg),#2a2420);">
         <div style="width:56px;height:56px;border-radius:50%;background:rgba(184,151,90,.2);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;">
           <?= icon('verified',24) ?>
@@ -189,7 +183,7 @@ $rpSt = $db->prepare("SELECT COUNT(*) as c FROM inquiries WHERE user_id=? AND st
           <a href="index.php?page=catalog" class="btn-primary btn-gold" style="width:auto;padding:12px 24px;text-decoration:none;"><?= icon('grid',14) ?>&nbsp; Browse Catalog</a>
           <a href="index.php?page=inquiries" class="btn-outline" style="width:auto;padding:12px 24px;border-color:rgba(255,255,255,.2);color:rgba(255,255,255,.7);text-decoration:none;"><?= icon('msg',14) ?>&nbsp; My Inquiries</a>
         </div>
-      </div>
+      </div>-->
 
       <!-- Recent shortlist preview -->
       <?php

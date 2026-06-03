@@ -1,4 +1,8 @@
 <?php
+ini_set('display_errors', '1');
+ini_set('display_startup_errors', '1');
+error_reporting(E_ALL);
+
 session_start();
 $autoload = __DIR__ . '/../vendor/autoload.php';
 
@@ -24,10 +28,10 @@ require_once __DIR__ . '/../includes/logo.php';
 
 
 // ── CSV Export (before any output) ───────────────────────────────────────────
-if (isset($_GET['action']) && $_GET['action'] === 'export_csv' && isAdmin()) {
-    exportCSV();
-    exit;
-}
+//if (isset($_GET['action']) && $_GET['action'] === 'export_csv' && isAdmin()) {
+ //   exportCSV();
+ //   exit;
+//}
 
 // ── Handle POST ───────────────────────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -145,11 +149,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     exit;
 }
   
-
-    if ($action === 'import_excel') {
-        importCSV($_FILES['excel_file'] ?? null);
-        redirect('index.php?page=products');
-    }
+ //  import csv file product 
+  //  if ($action === 'import_excel') {
+    //    importCSV($_FILES['excel_file'] ?? null);
+   //     redirect('index.php?page=products');
+ //   }
   	if ($_POST['action'] === 'sync_photos') {
     syncPhotosFromDirectory();
       redirect('index.php?page=products');
@@ -293,8 +297,11 @@ function saveProduct(array $data, array $files): void {
         'quantity_on_hold'  => (float)($data['quantity_on_hold']  ?? 0),
         'pieces'            => (int)($data['pieces']           ?? 0),
         'thickness'         => trim($data['thickness']         ?? ''),
-        'sizes'             => trim($data['sizes']             ?? ''),
-        'cutter_size'       => trim($data['cutter_size']       ?? ''),
+        // Split dimension columns
+        'sizes_l'           => trim($data['sizes_l']           ?? ''),
+        'sizes_h'           => trim($data['sizes_h']           ?? ''),
+        'cutter_size_l'     => trim($data['cutter_size_l']     ?? ''),
+        'cutter_size_h'     => trim($data['cutter_size_h']     ?? ''),
         'origin'            => trim($data['origin']            ?? ''),
         'finish'            => trim($data['finish']            ?? ''),
         'description'       => trim($data['description']       ?? ''),
@@ -333,96 +340,39 @@ function saveProduct(array $data, array $files): void {
     }
 
     // Handle photo uploads
-   
-if (isset($files['photos']) && !empty($files['photos']['name'])) {
+    if (isset($files['photos']) && !empty($files['photos']['name'])) {
+        $names  = is_array($files['photos']['name'])     ? $files['photos']['name']     : [$files['photos']['name']];
+        $tmps   = is_array($files['photos']['tmp_name']) ? $files['photos']['tmp_name'] : [$files['photos']['tmp_name']];
+        $errors = is_array($files['photos']['error'])    ? $files['photos']['error']    : [$files['photos']['error']];
 
-    $names  = is_array($files['photos']['name'])
-        ? $files['photos']['name']
-        : [$files['photos']['name']];
+        $st = $db->prepare("SELECT COALESCE(MAX(sort_order),0) FROM product_photos WHERE product_id=?");
+        $st->execute([$pid]);
+        $order = ((int)$st->fetchColumn()) + 1;
 
-    $tmps = is_array($files['photos']['tmp_name'])
-        ? $files['photos']['tmp_name']
-        : [$files['photos']['tmp_name']];
-
-    $errors = is_array($files['photos']['error'])
-        ? $files['photos']['error']
-        : [$files['photos']['error']];
-
-    // get next sort order
-    $st = $db->prepare("
-        SELECT COALESCE(MAX(sort_order),0)
-        FROM product_photos
-        WHERE product_id=?
-    ");
-
-    $st->execute([$pid]);
-
-    $order = ((int)$st->fetchColumn()) + 1;
-
-    foreach ($names as $i => $origName) {
-
-        if (($errors[$i] ?? 1) !== UPLOAD_ERR_OK)
-            continue;
-
-        if (empty($tmps[$i]))
-            continue;
-
-        $fn = basename(trim($origName));
-
-        // avoid duplicate DB row
-        $chk = $db->prepare("
-            SELECT id
-            FROM product_photos
-            WHERE product_id=?
-            AND filename=?
-        ");
-
-        $chk->execute([
-            $pid,
-            $fn
-        ]);
-
-        if ($chk->fetch()) {
-            continue;
+        foreach ($names as $i => $origName) {
+            if (($errors[$i] ?? 1) !== UPLOAD_ERR_OK) continue;
+            if (empty($tmps[$i])) continue;
+            $fn = basename(trim($origName));
+            $chk = $db->prepare("SELECT id FROM product_photos WHERE product_id=? AND filename=?");
+            $chk->execute([$pid, $fn]);
+            if ($chk->fetch()) continue;
+            if (!move_uploaded_file($tmps[$i], PHOTOS_DIR.'/'.$fn)) continue;
+            $db->prepare("INSERT INTO product_photos (product_id,filename,sort_order) VALUES (?,?,?)")
+               ->execute([$pid, $fn, $order++]);
         }
-
-        // move with original filename
-        if (!move_uploaded_file(
-            $tmps[$i],
-            PHOTOS_DIR.'/'.$fn
-        )) {
-            continue;
-        }
-
-        $db->prepare("
-            INSERT INTO product_photos
-            (
-                product_id,
-                filename,
-                sort_order
-            )
-            VALUES (?,?,?)
-        ")->execute([
-            $pid,
-            $fn,
-            $order++
-        ]);
     }
-}
-	syncPhotosFromDirectory();
-     $isNew = ($pid === 0 || $pid === (int)($data['product_id'] ?? 0) && !$pid);
-    //      Actually check if new insert:
-          if (!(int)($data['product_id'] ?? 0)) {
-              createNotification(
-                  'New Product Added',
-                  'Product "' . trim($data['name'] ?? '') . '" has been added to the catalog.',
-                  'product'
-              );
-          }
+
+    syncPhotosFromDirectory();
+
+    if (!(int)($data['product_id'] ?? 0)) {
+        createNotification(
+            'New Product Added',
+            'Product "' . trim($data['name'] ?? '') . '" has been added to the catalog.',
+            'product'
+        );
+    }
     flash('toast', 'Product saved successfully.');
 }
-
-
 
 
 // ── Photo Import (multi-file by quarry prefix) ────────────────────────────────
@@ -578,46 +528,62 @@ function syncPhotosFromDirectory(): void
     $count = 0;
 
     if (!is_dir(PHOTOS_DIR)) {
-        flash('error','Photo directory not found.');
+        flash('error', 'Photo directory not found.');
         return;
     }
 
-    $files = scandir(PHOTOS_DIR);
+    // recursive iterator
+    $iterator = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator(
+            PHOTOS_DIR,
+            RecursiveDirectoryIterator::SKIP_DOTS
+        )
+    );
 
-    foreach ($files as $file) {
+    foreach ($iterator as $fileObj) {
 
-        // skip . and ..
-        if ($file === '.' || $file === '..')
+        if (!$fileObj->isFile()) {
             continue;
+        }
 
-        $fullPath = PHOTOS_DIR.'/'.$file;
+        $fullPath = $fileObj->getPathname();
 
-        if (!is_file($fullPath))
-            continue;
+        // relative path from photos dir
+        $relativePath = str_replace(
+            PHOTOS_DIR . '/',
+            '',
+            $fullPath
+        );
+
+        $file = $fileObj->getFilename();
 
         // extension check
         $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
 
-        if (!in_array($ext, ['jpg','jpeg','png','webp']))
+        if (!in_array($ext, ['jpg', 'jpeg', 'png', 'webp'])) {
             continue;
+        }
 
         /*
-        Supports:
-        Q23048-IMG.jpeg
-        Q23048-IMG-1.jpeg
-        Q23048-IMG-2.jpg
+        Supported formats:
+
+        Q2323-3333-img-1.jpg
+        Q555-33333-IMG.jpg
+        Q3336-W994-IMG-2.jpg
         */
 
-        if (!preg_match('/^(Q\d+)/i', $file, $m))
-            continue;
+        if (!preg_match('/^(.+?)(?:-img)?(?:-\d+)?\.(jpg|jpeg|png|webp)$/i', $file, $m)) {
+    continue;
+}
 
-        $quarry = strtoupper($m[1]);
+        // quarry number before -IMG
+        $quarry = strtoupper(trim($m[1]));
 
-        // product lookup
+        // find product
         $st = $db->prepare("
             SELECT id
             FROM products
-            WHERE quarry_number=?
+            WHERE quarry_number = ?
             LIMIT 1
         ");
 
@@ -625,37 +591,39 @@ function syncPhotosFromDirectory(): void
 
         $prod = $st->fetch(PDO::FETCH_ASSOC);
 
-        if (!$prod)
+        if (!$prod) {
             continue;
+        }
 
-        // avoid duplicate DB entry
+        // duplicate check
         $chk = $db->prepare("
             SELECT id
             FROM product_photos
-            WHERE product_id=?
-            AND filename=?
+            WHERE product_id = ?
+            AND filename = ?
         ");
 
         $chk->execute([
             $prod['id'],
-            $file
+            $relativePath
         ]);
 
-        if ($chk->fetch())
+        if ($chk->fetch()) {
             continue;
+        }
 
         // next sort order
         $ord = $db->prepare("
             SELECT COALESCE(MAX(sort_order),0)
             FROM product_photos
-            WHERE product_id=?
+            WHERE product_id = ?
         ");
 
         $ord->execute([$prod['id']]);
 
         $order = ((int)$ord->fetchColumn()) + 1;
 
-        // save record
+        // insert
         $db->prepare("
             INSERT INTO product_photos
             (
@@ -666,7 +634,7 @@ function syncPhotosFromDirectory(): void
             VALUES (?,?,?)
         ")->execute([
             $prod['id'],
-            $file,
+            $relativePath,
             $order
         ]);
 
@@ -675,7 +643,7 @@ function syncPhotosFromDirectory(): void
 
     flash(
         'toast',
-        $count.' photos synced successfully.'
+        $count . ' photos synced successfully.'
     );
 }
 
@@ -685,38 +653,67 @@ function syncMeasurementSheetsfromdirectory(): void
     $db = getDB();
     $count = 0;
 
-    if (!is_dir(MEASUREMENT_DIR)) {
-        flash('error','Measurement folder missing');
+    $baseDir = MEASUREMENT_DIR;
+
+    if (!is_dir($baseDir)) {
+        flash('error', 'Measurement folder missing');
         return;
     }
 
-    foreach (scandir(MEASUREMENT_DIR) as $file) {
+    $iterator = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator(
+            $baseDir,
+            RecursiveDirectoryIterator::SKIP_DOTS
+        )
+    );
 
-        if ($file=='.' || $file=='..')
+    foreach ($iterator as $item) {
+
+        if (!$item->isFile()) {
             continue;
+        }
 
-        $full = MEASUREMENT_DIR.'/'.$file;
+        $fullPath = $item->getPathname();
 
-        if (!is_file($full))
+        // only pdf
+        if (strtolower(pathinfo($fullPath, PATHINFO_EXTENSION)) !== 'pdf') {
             continue;
+        }
 
-        if (strtolower(pathinfo($file,PATHINFO_EXTENSION))!='pdf')
+        $file = $item->getFilename();
+
+        /*
+        Supported:
+
+        MS-Q23048.pdf
+        MS-Q23048-1.pdf
+        MS-3243-34343.pdf
+        MS-Q3336-W994.pdf
+        */
+
+        if (!preg_match('/^MS-(.+?)\.pdf$/i', $file, $m)) {
             continue;
+        }
 
-        // Q23048-MS.pdf
-        if (!preg_match('/^(Q\d+)-MS/i',$file,$m))
-            continue;
+        // quarry number
+        $quarry = strtoupper(trim($m[1]));
 
-        $quarry = strtoupper($m[1]);
+        // relative path
+        $relativePath = str_replace(
+            $baseDir . '/',
+            '',
+            $fullPath
+        );
 
+        // update product
         $st = $db->prepare("
             UPDATE products
-            SET measurement_sheet=?
-            WHERE quarry_number=?
+            SET measurement_sheet = ?
+            WHERE UPPER(quarry_number) = ?
         ");
 
         $st->execute([
-            $file,
+            $relativePath,
             $quarry
         ]);
 
@@ -725,7 +722,7 @@ function syncMeasurementSheetsfromdirectory(): void
 
     flash(
         'toast',
-        $count.' measurement sheet(s) synced'
+        $count . ' measurement sheet(s) synced'
     );
 }
 
@@ -735,38 +732,66 @@ function syncDNAReportsfromdirectory(): void
     $db = getDB();
     $count = 0;
 
-    if (!is_dir(DNA_DIR)) {
-        flash('error','DNA folder missing');
+    $baseDir = DNA_DIR;
+
+    if (!is_dir($baseDir)) {
+        flash('error', 'DNA folder missing');
         return;
     }
 
-    foreach (scandir(DNA_DIR) as $file) {
+    $iterator = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator(
+            $baseDir,
+            RecursiveDirectoryIterator::SKIP_DOTS
+        )
+    );
 
-        if ($file=='.' || $file=='..')
+    foreach ($iterator as $item) {
+
+        if (!$item->isFile()) {
             continue;
+        }
 
-        $full = DNA_DIR.'/'.$file;
+        $fullPath = $item->getPathname();
 
-        if (!is_file($full))
+        // only pdf
+        if (strtolower(pathinfo($fullPath, PATHINFO_EXTENSION)) !== 'pdf') {
             continue;
+        }
 
-        if (strtolower(pathinfo($file,PATHINFO_EXTENSION))!='pdf')
+        $file = $item->getFilename();
+
+        /*
+        Supported:
+
+        DNA-Q23048.pdf
+        DNA-324-3333.pdf
+        DNA-Q3336-W994.pdf
+        */
+
+        if (!preg_match('/^DNA-(.+?)\.pdf$/i', $file, $m)) {
             continue;
+        }
 
-        // Q23048-DNA.pdf
-        if (!preg_match('/^(Q\d+)-DNA/i',$file,$m))
-            continue;
+        // quarry number
+        $quarry = strtoupper(trim($m[1]));
 
-        $quarry = strtoupper($m[1]);
+        // relative path
+        $relativePath = str_replace(
+            $baseDir . '/',
+            '',
+            $fullPath
+        );
 
+        // update product
         $st = $db->prepare("
             UPDATE products
-            SET dna_report=?
-            WHERE quarry_number=?
+            SET dna_report = ?
+            WHERE UPPER(quarry_number) = ?
         ");
 
         $st->execute([
-            $file,
+            $relativePath,
             $quarry
         ]);
 
@@ -775,11 +800,13 @@ function syncDNAReportsfromdirectory(): void
 
     flash(
         'toast',
-        $count.' DNA report(s) synced'
+        $count . ' DNA report(s) synced'
     );
 }
 
-// ── CSV ────────────────────────────────────────────────────────────────
+// ════════════════════════════════════════════════════════════════════════════
+// exportCSV() — replace existing function
+// ════════════════════════════════════════════════════════════════════════════
 function exportCSV(): void {
     $db = getDB();
     $products = $db->query("SELECT * FROM products ORDER BY id ASC")->fetchAll();
@@ -791,7 +818,8 @@ function exportCSV(): void {
 
     $headers = ['name','category','subcategory','color_subcategory','quarry_number',
                 'total_quantity','quantity_available','quantity_on_hold','pieces',
-                'thickness','sizes','cutter_size','origin','finish','description',
+                'thickness','sizes_l','sizes_h','cutter_size_l','cutter_size_h',
+                'origin','finish','description',
                 'in_stock','featured','measurement_sheet','dna_report'];
     fputcsv($out, $headers);
 
@@ -801,7 +829,10 @@ function exportCSV(): void {
     }
     fclose($out);
 }
-// ── CSV Import ────────────────────────────────────────────────────────────────
+
+// ════════════════════════════════════════════════════════════════════════════
+// importCSV() — replace existing function
+// ════════════════════════════════════════════════════════════════════════════
 function importCSV(?array $file): void {
     if (!$file || $file['error']) { flash('error','File upload failed.'); return; }
     $fn  = $file['name'];
@@ -825,7 +856,6 @@ function importCSV(?array $file): void {
         $gf   = fn($k) => (float)trim($data[$k] ?? 0);
         $gi   = fn($k) => (int)trim($data[$k] ?? 0);
 
-        // Try multiple header name variants
         $quarry = $g('quarry_number') ?: $g('Quarry Number') ?: $g('quarry');
         $name   = $g('name') ?: $g('Name') ?: $g('Product Name');
         if (!$name) continue;
@@ -833,29 +863,55 @@ function importCSV(?array $file): void {
         $measurement = $g('measurement_sheet') ?: $g('Measurement Sheet');
         $dna         = $g('dna_report')        ?: $g('DNA Report');
 
+        // Support both old single-column and new split columns in CSV
+        // Old: cutter_size = "104x34" → auto-split; new: cutter_size_l + cutter_size_h
+        $csL = $g('cutter_size_l');
+        $csH = $g('cutter_size_h');
+        if ($csL === '' && $csH === '') {
+            // Try legacy column
+            $old = $g('cutter_size') ?: $g('Cutter Size');
+            if ($old !== '') {
+                $parts = preg_split('/[x×]/i', $old);
+                $csL   = trim($parts[0] ?? '');
+                $csH   = trim($parts[1] ?? '');
+            }
+        }
+
+        $szL = $g('sizes_l');
+        $szH = $g('sizes_h');
+        if ($szL === '' && $szH === '') {
+            $old = $g('sizes') ?: $g('Sizes');
+            if ($old !== '') {
+                $parts = preg_split('/[x×]/i', $old);
+                $szL   = trim($parts[0] ?? '');
+                $szH   = trim($parts[1] ?? '');
+            }
+        }
+
         $fields = [
             'name'               => $name,
-            'category'           => $g('category')        ?: $g('Category'),
-            'subcategory'        => $g('subcategory')      ?: $g('Sub Category'),
-            'color_subcategory'  => $g('color_subcategory')?: $g('Color'),
+            'category'           => $g('category')          ?: $g('Category'),
+            'subcategory'        => $g('subcategory')        ?: $g('Sub Category'),
+            'color_subcategory'  => $g('color_subcategory')  ?: $g('Color'),
             'quarry_number'      => $quarry,
-            'total_quantity'     => $gf('total_quantity')  ?: $gf('Total Quantity'),
+            'total_quantity'     => $gf('total_quantity')    ?: $gf('Total Quantity'),
             'quantity_available' => $gf('quantity_available') ?: $gf('Quantity Available'),
             'quantity_on_hold'   => $gf('quantity_on_hold')   ?: $gf('Quantity On Hold'),
-            'pieces'             => $gi('pieces')          ?: $gi('Pieces'),
-            'thickness'          => $g('thickness')        ?: $g('Thickness'),
-            'sizes'              => $g('sizes')            ?: $g('Sizes'),
-            'cutter_size'        => $g('cutter_size')      ?: $g('Cutter Size'),
-            'origin'             => $g('origin')           ?: $g('Origin'),
-            'finish'             => $g('finish')           ?: $g('Finish'),
-            'description'        => $g('description')      ?: $g('Description'),
-            'in_stock'           => $gi('in_stock')        ?: $gi('In Stock')        ?: 1,
-            'featured'           => $gi('featured')        ?: $gi('Featured'),
+            'pieces'             => $gi('pieces')            ?: $gi('Pieces'),
+            'thickness'          => $g('thickness')          ?: $g('Thickness'),
+            'sizes_l'            => $szL,
+            'sizes_h'            => $szH,
+            'cutter_size_l'      => $csL,
+            'cutter_size_h'      => $csH,
+            'origin'             => $g('origin')             ?: $g('Origin'),
+            'finish'             => $g('finish')             ?: $g('Finish'),
+            'description'        => $g('description')        ?: $g('Description'),
+            'in_stock'           => $gi('in_stock')          ?: $gi('In Stock')    ?: 1,
+            'featured'           => $gi('featured')          ?: $gi('Featured'),
             'measurement_sheet'  => $measurement,
             'dna_report'         => $dna,
         ];
 
-        // Upsert by quarry_number
         $existing = null;
         if ($quarry) {
             $st = $db->prepare("SELECT id FROM products WHERE quarry_number=?");
@@ -879,405 +935,214 @@ function importCSV(?array $file): void {
     flash('toast', "Import complete. $count products processed.");
 }
 
-
-// ── EXCEL Export (.xlsx) ─────────────────────────────────────
+// ════════════════════════════════════════════════════════════════════════════
+// exportExcel() — replace existing function
+// ════════════════════════════════════════════════════════════════════════════
 function exportExcel(): void {
-
     try {
+        if (ob_get_length()) ob_end_clean();
 
-        // Prevent accidental output
-        if (ob_get_length()) {
-            ob_end_clean();
-        }
-
-        $db = getDB();
-
-        $products = $db->query(
-            "SELECT * FROM products ORDER BY id ASC"
-        )->fetchAll(PDO::FETCH_ASSOC);
-
+        $db       = getDB();
+        $products = $db->query("SELECT * FROM products ORDER BY id ASC")->fetchAll(PDO::FETCH_ASSOC);
 
         $headers = [
-            'name',
-            'category',
-            'subcategory',
-            'color_subcategory',
-            'quarry_number',
-            'total_quantity',
-            'quantity_available',
-            'quantity_on_hold',
-            'pieces',
-            'thickness',
-            'sizes',
-            'cutter_size',
-            'origin',
-            'finish',
-            'description',
-            'in_stock',
-            'featured',
-            'measurement_sheet',
-            'dna_report'
+            'name','category','subcategory','color_subcategory','quarry_number',
+            'total_quantity','quantity_available','quantity_on_hold','pieces',
+            'thickness','sizes_l','sizes_h','cutter_size_l','cutter_size_h',
+            'origin','finish','description','in_stock','featured',
+            'measurement_sheet','dna_report',
         ];
 
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $sheet       = $spreadsheet->getActiveSheet();
 
-        $spreadsheet = new Spreadsheet();
-        $sheet = $spreadsheet->getActiveSheet();
-
-
-        // Header row
         foreach ($headers as $col => $header) {
-
-            $column =
-                Coordinate::stringFromColumnIndex(
-                    $col + 1
-                );
-
-            $sheet->setCellValue(
-                $column . '1',
-                $header
-            );
+            $column = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col + 1);
+            $sheet->setCellValue($column . '1', $header);
         }
 
-
-        // Data rows
         $rowNo = 2;
-
         foreach ($products as $p) {
-
             foreach ($headers as $col => $key) {
-
-                $column =
-                    Coordinate::stringFromColumnIndex(
-                        $col + 1
-                    );
-
-                $sheet->setCellValue(
-                    $column . $rowNo,
-                    $p[$key] ?? ''
-                );
+                $column = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col + 1);
+                $sheet->setCellValue($column . $rowNo, $p[$key] ?? '');
             }
-
             $rowNo++;
         }
 
-
-        // Auto width
-        $lastCol =
-            Coordinate::stringFromColumnIndex(
-                count($headers)
-            );
-
+        $lastCol = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(count($headers));
         foreach (range('A', $lastCol) as $col) {
-
-            $sheet
-                ->getColumnDimension($col)
-                ->setAutoSize(true);
+            $sheet->getColumnDimension($col)->setAutoSize(true);
         }
 
-
-        // Download headers
-        header(
-            'Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-        );
-
-        header(
-            'Content-Disposition: attachment; filename="bafna_products_'
-            .date('Ymd').
-            '.xlsx"'
-        );
-
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment; filename="bafna_products_'.date('Ymd').'.xlsx"');
         header('Cache-Control: max-age=0');
         header('Pragma: public');
         header('Expires: 0');
 
-
-        $writer = new Xlsx($spreadsheet);
-
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
         $writer->save('php://output');
-
         exit;
 
-    } catch (Throwable $e) {
-
-        die(
-            '<pre>'
-            .'Excel Export Error:'."\n\n"
-            .$e->getMessage()."\n\n"
-            .'File: '.$e->getFile()."\n"
-            .'Line: '.$e->getLine()
-            .'</pre>'
-        );
+    } catch (\Throwable $e) {
+        die('<pre>Excel Export Error:'."\n\n".$e->getMessage()."\n\nFile: ".$e->getFile()."\nLine: ".$e->getLine().'</pre>');
     }
 }
-// ── EXCEL Import (.xlsx/.xls/.csv) ──────────────────────────
+
+// ════════════════════════════════════════════════════════════════════════════
+// importExcel() — replace existing function
+// ════════════════════════════════════════════════════════════════════════════
 function importExcel(?array $file): void {
-
-    if (!$file || $file['error']) {
-        flash('error','File upload failed.');
-        return;
-    }
-
-    $ext = strtolower(
-        pathinfo($file['name'], PATHINFO_EXTENSION)
-    );
-
-    if (!in_array($ext,['xlsx','xls','csv'])) {
-        flash(
-            'error',
-            'Only .xlsx, .xls or .csv allowed'
-        );
-        return;
-    }
+    if (!$file || $file['error']) { flash('error','File upload failed.'); return; }
+    $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+    if (!in_array($ext,['xlsx','xls','csv'])) { flash('error','Only .xlsx, .xls or .csv allowed'); return; }
 
     $dest = EXCEL_DIR.'/'.time().'_'.$file['name'];
-
-    if (!move_uploaded_file(
-        $file['tmp_name'],
-        $dest
-    )) {
-        flash('error','Could not save upload');
-        return;
-    }
+    if (!move_uploaded_file($file['tmp_name'], $dest)) { flash('error','Could not save upload'); return; }
 
     try {
+        $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($dest);
+        $rows        = $spreadsheet->getActiveSheet()->toArray();
 
-        $spreadsheet =
-            IOFactory::load($dest);
+        if (count($rows) < 2) { flash('error','No rows found'); return; }
 
-        $sheet =
-            $spreadsheet->getActiveSheet();
+        $excelHeaders = array_map(fn($h) => trim((string)$h), array_shift($rows));
 
-        // simpler structure
-        $rows = $sheet->toArray();
+$headerMap = [
+    'Product Name'        => 'name',
+    'Stone Type'          => 'category',
+    'Stone Color'         => 'color_subcategory',
+    'Quarry Number'       => 'quarry_number',
+    'Total Quantity'      => 'total_quantity',
+    'Hold Quantity'       => 'quantity_on_hold',
+    'Available Quantity'  => 'quantity_available',
+    'Total Piece'         => 'pieces',
+    'Thickness'           => 'thickness',
 
-        if (count($rows) < 2) {
-            flash('error','No rows found');
-            return;
-        }
+    'Net Useable Size L'  => 'sizes_l',
+    'Net Useable Size H'  => 'sizes_h',
 
-        // normalize exported headers
-        $headers = array_map(
-            function($h){
+    'Italian Size L'      => 'cutter_size_l',
+    'Italian Size H'      => 'cutter_size_h',
+];
 
-                return strtolower(
-                    trim($h)
-                );
+$headers = [];
 
-            },
-            array_shift($rows)
-        );
+foreach ($excelHeaders as $h) {
+    $clean = trim($h);
 
+    // convert excel name → database field
+    $headers[] = $headerMap[$clean]
+        ?? strtolower(str_replace(' ', '_', $clean));
+}
+        $db      = getDB();
+        $count   = 0;
 
-        $db = getDB();
-        $count=0;
+        foreach ($rows as $row) {
+            if (empty(array_filter($row))) continue;
+            $data = array_combine($headers, $row);
+            if (!$data) continue;
 
+            $g  = fn($k) => trim((string)($data[$k] ?? ''));
+            $gf = fn($k) => (float)($data[$k] ?? 0);
+            $gi = fn($k) => (int)($data[$k] ?? 0);
 
-        foreach($rows as $row){
+            $name   = $g('name');
+            if (!$name) continue;
+            $quarry = $g('quarry_number');
 
-            if(
-                empty(
-                    array_filter($row)
-                )
-            ){
-                continue;
+            // Dimension column handling: split or legacy
+            $csL = $g('cutter_size_l');
+            $csH = $g('cutter_size_h');
+            if ($csL === '' && $csH === '') {
+                $old = $g('cutter_size');
+                if ($old !== '') {
+                    $parts = preg_split('/[x×]/i', $old);
+                    $csL   = trim($parts[0] ?? '');
+                    $csH   = trim($parts[1] ?? '');
+                }
             }
 
-            $data = array_combine(
-                $headers,
-                $row
-            );
-
-            if(!$data){
-                continue;
+            $szL = $g('sizes_l');
+            $szH = $g('sizes_h');
+            if ($szL === '' && $szH === '') {
+                $old = $g('sizes');
+                if ($old !== '') {
+                    $parts = preg_split('/[x×]/i', $old);
+                    $szL   = trim($parts[0] ?? '');
+                    $szH   = trim($parts[1] ?? '');
+                }
             }
 
-            $g=function($k) use($data){
-
-                return trim(
-                    (string)($data[$k] ?? '')
-                );
-            };
-
-            $gf=function($k) use($data){
-
-                return (float)(
-                    $data[$k] ?? 0
-                );
-            };
-
-            $gi=function($k) use($data){
-
-                return (int)(
-                    $data[$k] ?? 0
-                );
-            };
-
-
-            $name=$g('name');
-
-            if(!$name){
-                continue;
-            }
-
-            $quarry=
-                $g('quarry_number');
-
-
-            $fields=[
-
-                'name'=>$name,
-
-                'category'=>
-                    $g('category'),
-
-                'subcategory'=>
-                    $g('subcategory'),
-
-                'color_subcategory'=>
-                    $g('color_subcategory'),
-
-                'quarry_number'=>
-                    $quarry,
-
-                'total_quantity'=>
-                    $gf('total_quantity'),
-
-                'quantity_available'=>
-                    $gf('quantity_available'),
-
-                'quantity_on_hold'=>
-                    $gf('quantity_on_hold'),
-
-                'pieces'=>
-                    $gi('pieces'),
-
-                'thickness'=>
-                    $g('thickness'),
-
-                'sizes'=>
-                    $g('sizes'),
-
-                'cutter_size'=>
-                    $g('cutter_size'),
-
-                'origin'=>
-                    $g('origin'),
-
-                'finish'=>
-                    $g('finish'),
-
-                'description'=>
-                    $g('description'),
-
-                'in_stock'=>
-                    $gi('in_stock') ?: 1,
-
-                'featured'=>
-                    $gi('featured'),
-
-                'measurement_sheet'=>
-                    $g('measurement_sheet'),
-
-                'dna_report'=>
-                    $g('dna_report')
+            $fields = [
+                'name'               => $name,
+                'category'           => $g('category'),
+                'subcategory'        => $g('subcategory'),
+                'color_subcategory'  => $g('color_subcategory'),
+                'quarry_number'      => $quarry,
+                'total_quantity'     => $gf('total_quantity'),
+                'quantity_available' => $gf('quantity_available'),
+                'quantity_on_hold'   => $gf('quantity_on_hold'),
+                'pieces'             => $gi('pieces'),
+                'thickness'          => $g('thickness'),
+                'sizes_l'            => $szL,
+                'sizes_h'            => $szH,
+                'cutter_size_l'      => $csL,
+                'cutter_size_h'      => $csH,
+                'origin'             => $g('origin'),
+                'finish'             => $g('finish'),
+                'description'        => $g('description'),
+                'in_stock'           => $gi('in_stock') ?: 1,
+                'featured'           => $gi('featured'),
+                'measurement_sheet'  => $g('measurement_sheet'),
+                'dna_report'         => $g('dna_report'),
             ];
 
-
-            // Upsert
-            $existing=null;
-
-            if($quarry){
-
-                $st=$db->prepare(
-                    "SELECT id
-                     FROM products
-                     WHERE quarry_number=?"
-                );
-
+            $existing = null;
+            if ($quarry) {
+                $st = $db->prepare("SELECT id FROM products WHERE quarry_number=?");
                 $st->execute([$quarry]);
-
-                $existing=
-                    $st->fetch(
-                        PDO::FETCH_ASSOC
-                    );
+                $existing = $st->fetch(PDO::FETCH_ASSOC);
             }
 
-
-            if($existing){
-
-                $set=implode(
-                    ',',
-                    array_map(
-                        fn($k)=>"$k=?",
-                        array_keys($fields)
-                    )
-                );
-
-                $vals=array_values(
-                    $fields
-                );
-
-                $vals[]=
-                    $existing['id'];
-
-                $db->prepare(
-                    "UPDATE products
-                     SET $set
-                     WHERE id=?"
-                )->execute(
-                    $vals
-                );
-
-            }else{
-
-                $cols=implode(
-                    ',',
-                    array_keys($fields)
-                );
-
-                $ph=implode(
-                    ',',
-                    array_fill(
-                        0,
-                        count($fields),
-                        '?'
-                    )
-                );
-
-                $db->prepare(
-                    "INSERT INTO products
-                    ($cols)
-                    VALUES
-                    ($ph)"
-                )->execute(
-                    array_values(
-                        $fields
-                    )
-                );
+            if ($existing) {
+                $set  = implode(',', array_map(fn($k) => "$k=?", array_keys($fields)));
+                $vals = array_values($fields);
+                $vals[] = $existing['id'];
+                $db->prepare("UPDATE products SET $set WHERE id=?")->execute($vals);
+            } else {
+                $cols = implode(',', array_keys($fields));
+                $ph   = implode(',', array_fill(0, count($fields), '?'));
+                $db->prepare("INSERT INTO products ($cols) VALUES ($ph)")->execute(array_values($fields));
             }
-
             $count++;
         }
-
-        flash(
-            'toast',
-            "Import complete. $count products processed."
+ createNotification(
+            'Product Update .',
+            'Inventory has been updated to the catalog.',
+            'product'
         );
-
-    } catch(Throwable $e){
-
-        flash(
-            'error',
-            $e->getMessage()
-        );
+        flash('toast', "Import complete. $count products processed."); 
+    } catch (\Throwable $e) {
+        flash('error', $e->getMessage());
     }
 }
-
 
 // ── Step 1: Sync Photos from /assets/uploads/photos/ ─────────────────────────
 function syncImages(): array {
-    $db      = getDB();
-    $result  = ['step'=>1,'label'=>'Photos','found'=>0,'synced'=>0,'skipped'=>0,'errors'=>[],'done'=>false];
+
+    $db = getDB();
+
+    $result = [
+        'step'    => 1,
+        'label'   => 'Photos',
+        'found'   => 0,
+        'synced'  => 0,
+        'skipped' => 0,
+        'errors'  => [],
+        'done'    => false
+    ];
 
     if (!is_dir(PHOTOS_DIR)) {
         $result['errors'][] = 'Photos directory not found: ' . PHOTOS_DIR;
@@ -1286,191 +1151,369 @@ function syncImages(): array {
     }
 
     $allowed = ['jpg','jpeg','png','webp'];
-    $files   = array_diff(scandir(PHOTOS_DIR), ['.','..']);
 
-    foreach ($files as $file) {
-        $fullPath = PHOTOS_DIR . '/' . $file;
-        if (!is_file($fullPath)) continue;
+    // Scan color folders
+    $colorFolders = array_diff(scandir(PHOTOS_DIR), ['.', '..']);
 
-        $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
-        if (!in_array($ext, $allowed)) continue;
+    foreach ($colorFolders as $colorFolder) {
 
-        $result['found']++;
+        $colorPath = PHOTOS_DIR . '/' . $colorFolder;
 
-        // Parse quarry number using shared helper
-        $stem   = pathinfo($file, PATHINFO_FILENAME);
-        $quarry = parseQuarryFromFilename($stem);
-
-        if (!$quarry) {
-            $result['skipped']++;
-            $result['errors'][] = "Cannot parse quarry from: $file";
+        if (!is_dir($colorPath)) {
             continue;
         }
 
-        // Find product by quarry number
-        $st = $db->prepare("SELECT id FROM products WHERE quarry_number = ?");
-        $st->execute([$quarry]);
-        $prod = $st->fetch();
+        $files = array_diff(scandir($colorPath), ['.', '..']);
 
-        if (!$prod) {
-            $result['skipped']++;
-            $result['errors'][] = "No product for quarry '$quarry' ($file)";
-            continue;
+        foreach ($files as $file) {
+
+            $fullPath = $colorPath . '/' . $file;
+
+            if (!is_file($fullPath)) {
+                continue;
+            }
+
+            $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+
+            if (!in_array($ext, $allowed)) {
+                continue;
+            }
+
+            $result['found']++;
+
+            // Example:
+            // Q228-IMG.jpg
+            // Q23048-IMG-1.jpg
+            // A9993-W998899-IMG-1.jpg
+
+            $stem   = pathinfo($file, PATHINFO_FILENAME);
+            $quarry = parseQuarryFromFilename($stem);
+
+            if (!$quarry) {
+                $result['skipped']++;
+                $result['errors'][] = "Cannot parse quarry from: $file";
+                continue;
+            }
+
+            // Match by quarry 
+            $st = $db->prepare("
+                SELECT id
+                FROM products
+                WHERE quarry_number = ?
+                LIMIT 1
+            ");
+
+            $st->execute([$quarry]);
+
+            $prod = $st->fetch();
+
+            if (!$prod) {
+                $result['skipped']++;
+                $result['errors'][] =
+                    "No product for quarry '$quarry' in color '$colorFolder' ($file)";
+                continue;
+            }
+
+            // Save relative path
+            $relativePath = $colorFolder . '/' . $file;
+
+            // Skip duplicates
+            $chk = $db->prepare("
+                SELECT id
+                FROM product_photos
+                WHERE product_id = ?
+                AND filename = ?
+            ");
+
+            $chk->execute([
+                $prod['id'],
+                $relativePath
+            ]);
+
+            if ($chk->fetch()) {
+                $result['skipped']++;
+                continue;
+            }
+
+            // Next sort order
+            $ord = $db->prepare("
+                SELECT COALESCE(MAX(sort_order),0) as m
+                FROM product_photos
+                WHERE product_id = ?
+            ");
+
+            $ord->execute([$prod['id']]);
+
+            $order = (int)$ord->fetch()['m'] + 1;
+
+            // Insert
+            $db->prepare("
+                INSERT INTO product_photos
+                (product_id, filename, sort_order)
+                VALUES (?, ?, ?)
+            ")->execute([
+                $prod['id'],
+                $relativePath,
+                $order
+            ]);
+
+            $result['synced']++;
         }
-
-        // Skip if already linked
-        $chk = $db->prepare("SELECT id FROM product_photos WHERE product_id=? AND filename=?");
-        $chk->execute([$prod['id'], $file]);
-        if ($chk->fetch()) {
-            $result['skipped']++;
-            continue;
-        }
-
-        // Get next sort order
-        $ord = $db->prepare("SELECT COALESCE(MAX(sort_order),0) as m FROM product_photos WHERE product_id=?");
-        $ord->execute([$prod['id']]);
-        $order = (int)$ord->fetch()['m'] + 1;
-
-        $db->prepare("INSERT INTO product_photos (product_id,filename,sort_order) VALUES (?,?,?)")
-           ->execute([$prod['id'], $file, $order]);
-
-        $result['synced']++;
     }
 
     $result['done'] = true;
+
     return $result;
 }
 
 // ── Step 2: Sync Measurement Sheets from /assets/uploads/measurement_sheets/ ─
 // File naming: Q23048-MS.pdf  or  Q23048-MS-1.pdf
 function syncMeasurementSheets(): array {
-    $db     = getDB();
-    $result = ['step'=>2,'label'=>'Measurement Sheets','found'=>0,'synced'=>0,'skipped'=>0,'errors'=>[],'done'=>false];
+
+    $db = getDB();
+
+    $result = [
+        'step'    => 2,
+        'label'   => 'Measurement Sheets',
+        'found'   => 0,
+        'synced'  => 0,
+        'skipped' => 0,
+        'errors'  => [],
+        'done'    => false
+    ];
 
     if (!is_dir(MEASUREMENT_DIR)) {
-        $result['errors'][] = 'Measurement sheets directory not found.';
+
+        $result['errors'][] = 'Measurement sheets directory not found: ' . MEASUREMENT_DIR;
         $result['done'] = true;
+
         return $result;
     }
 
-    $files = array_diff(scandir(MEASUREMENT_DIR), ['.','..']);
+    $iterator = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator(
+            MEASUREMENT_DIR,
+            RecursiveDirectoryIterator::SKIP_DOTS
+        )
+    );
 
-    foreach ($files as $file) {
-        $fullPath = MEASUREMENT_DIR . '/' . $file;
-        if (!is_file($fullPath)) continue;
+    foreach ($iterator as $fileInfo) {
+
+        // Skip folders
+        if (!$fileInfo->isFile()) {
+            continue;
+        }
+
+        $file = $fileInfo->getFilename();
 
         $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
-        if ($ext !== 'pdf') continue;
+
+        if ($ext !== 'pdf') {
+            continue;
+        }
 
         $result['found']++;
-        $stem   = pathinfo($file, PATHINFO_FILENAME); // e.g. Q23048-MS or Q23048-MS-2
 
-        // Strip -MS suffix and optional trailing number to get quarry
-        // Q23048-MS.pdf → Q23048
-        // Q23048-MS-1.pdf → Q23048
-        if (preg_match('/^(.+?)-MS/i', $stem, $m)) {
+        $fullPath = $fileInfo->getPathname();
+
+        // Save relative path
+        $relativePath = str_replace(
+            rtrim(MEASUREMENT_DIR, '/') . '/',
+            '',
+            $fullPath
+        );
+
+        $stem = pathinfo($file, PATHINFO_FILENAME);
+
+        // Examples:
+        // Q23048-MS.pdf
+        // Q23048-MS-1.pdf
+        // A9993-W998899-MS.pdf
+
+        if (preg_match('/^MS-(.+)$/i', $stem, $m)) {
+
             $quarry = trim($m[1]);
+
         } else {
-            // Fallback: strip trailing -N
+
             $quarry = preg_replace('/-\d+$/', '', $stem);
         }
 
         if (!$quarry) {
+
             $result['skipped']++;
             $result['errors'][] = "Cannot parse quarry from: $file";
+
             continue;
         }
 
-        $st = $db->prepare("SELECT id, measurement_sheet FROM products WHERE quarry_number = ?");
+        $st = $db->prepare("
+            SELECT id, measurement_sheet
+            FROM products
+            WHERE quarry_number = ?
+            LIMIT 1
+        ");
+
         $st->execute([$quarry]);
+
         $prod = $st->fetch();
 
         if (!$prod) {
+
             $result['skipped']++;
-            $result['errors'][] = "No product for quarry '$quarry' ($file)";
+            $result['errors'][] =
+                "No product for quarry '$quarry' ($file)";
+
             continue;
         }
 
-        // Already linked to this exact file?
-        if ($prod['measurement_sheet'] === $file) {
+        // Already linked
+        if ($prod['measurement_sheet'] === $relativePath) {
+
             $result['skipped']++;
             continue;
         }
 
-        $db->prepare("UPDATE products SET measurement_sheet = ? WHERE id = ?")
-           ->execute([$file, $prod['id']]);
+        $db->prepare("
+            UPDATE products
+            SET measurement_sheet = ?
+            WHERE id = ?
+        ")->execute([
+            $relativePath,
+            $prod['id']
+        ]);
 
         $result['synced']++;
     }
 
     $result['done'] = true;
+
     return $result;
 }
-
 // ── Step 3: Sync DNA Reports from /assets/uploads/dna_reports/ ───────────────
 // File naming: Q23048-DNA.pdf  or  Q23048-DNA-1.pdf
 function syncDnaReports(): array {
-    $db     = getDB();
-    $result = ['step'=>3,'label'=>'DNA / Lot Reports','found'=>0,'synced'=>0,'skipped'=>0,'errors'=>[],'done'=>false];
+
+    $db = getDB();
+
+    $result = [
+        'step'    => 3,
+        'label'   => 'DNA / Lot Reports',
+        'found'   => 0,
+        'synced'  => 0,
+        'skipped' => 0,
+        'errors'  => [],
+        'done'    => false
+    ];
 
     if (!is_dir(DNA_DIR)) {
-        $result['errors'][] = 'DNA reports directory not found.';
+
+        $result['errors'][] = 'DNA reports directory not found: ' . DNA_DIR;
         $result['done'] = true;
+
         return $result;
     }
 
-    $files = array_diff(scandir(DNA_DIR), ['.','..']);
+    $iterator = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator(
+            DNA_DIR,
+            RecursiveDirectoryIterator::SKIP_DOTS
+        )
+    );
 
-    foreach ($files as $file) {
-        $fullPath = DNA_DIR . '/' . $file;
-        if (!is_file($fullPath)) continue;
+    foreach ($iterator as $fileInfo) {
+
+        // Skip folders
+        if (!$fileInfo->isFile()) {
+            continue;
+        }
+
+        $file = $fileInfo->getFilename();
 
         $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
-        if ($ext !== 'pdf') continue;
+
+        if ($ext !== 'pdf') {
+            continue;
+        }
 
         $result['found']++;
+
+        $fullPath = $fileInfo->getPathname();
+
+        // Relative path for DB
+        $relativePath = str_replace(
+            rtrim(DNA_DIR, '/') . '/',
+            '',
+            $fullPath
+        );
+
         $stem = pathinfo($file, PATHINFO_FILENAME);
 
-        // Q23048-DNA.pdf → Q23048
-        if (preg_match('/^(.+?)-DNA/i', $stem, $m)) {
+        // Examples:
+        // Q23048-DNA.pdf
+        // Q23048-DNA-1.pdf
+        // A9993-W998899-DNA.pdf
+
+        if (preg_match('/^DNA-(.+)$/i', $stem, $m)) {
+
             $quarry = trim($m[1]);
+
         } else {
+
             $quarry = preg_replace('/-\d+$/', '', $stem);
         }
 
         if (!$quarry) {
+
             $result['skipped']++;
             $result['errors'][] = "Cannot parse quarry from: $file";
+
             continue;
         }
 
-        $st = $db->prepare("SELECT id, dna_report FROM products WHERE quarry_number = ?");
+        $st = $db->prepare("
+            SELECT id, dna_report
+            FROM products
+            WHERE quarry_number = ?
+            LIMIT 1
+        ");
+
         $st->execute([$quarry]);
+
         $prod = $st->fetch();
 
         if (!$prod) {
+
             $result['skipped']++;
-            $result['errors'][] = "No product for quarry '$quarry' ($file)";
+            $result['errors'][] =
+                "No product for quarry '$quarry' ($file)";
+
             continue;
         }
 
-        if ($prod['dna_report'] === $file) {
+        // Already linked
+        if ($prod['dna_report'] === $relativePath) {
+
             $result['skipped']++;
             continue;
         }
 
-        $db->prepare("UPDATE products SET dna_report = ? WHERE id = ?")
-           ->execute([$file, $prod['id']]);
+        $db->prepare("
+            UPDATE products
+            SET dna_report = ?
+            WHERE id = ?
+        ")->execute([
+            $relativePath,
+            $prod['id']
+        ]);
 
         $result['synced']++;
     }
 
     $result['done'] = true;
+
     return $result;
 }
-
-
-
 
 
 $pages = ['dashboard','products','product_edit','colors','users','inquiries','sync','notifications','logo'];

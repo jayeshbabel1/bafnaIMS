@@ -18,13 +18,14 @@ define('MEASUREMENT_DIR', BASE_PATH . '/assets/uploads/measurement_sheets');
 define('DNA_DIR',         BASE_PATH . '/assets/uploads/dna_reports');
 define('EXCEL_DIR',       BASE_PATH . '/assets/uploads/excel');
 
-define('SESSION_TTL',  86400 * 7); // 7 days
+define('SESSION_TTL',  86400 * 2); // 7 days
+// SMTP SETTINGS
 
 define('MAIL_FROM',      'noreply@bafnamarbles.com');
 define('MAIL_FROM_NAME', 'Bafna Marbles');
 
-define('CATEGORIES',         ['Marble','Travertine','Onyx','Quartzite']);
-define('COLOR_SUBCATEGORIES',['White','Grey','Beige','Exotic']);
+define('CATEGORIES',         ['Marble','Travertino','Onyx','Quartzite']);
+define('COLOR_SUBCATEGORIES',['White','Grey','Beige','Exotic','Color']);
 
 define('ROLES', [
     'architect'         => 'Architect',

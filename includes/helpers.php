@@ -8,6 +8,40 @@ function getFlash(string $key): ?string {
     return $m;
 }
 
+// ── Dimension helpers ──────────────────────────────────────────────────────────
+/**
+ * Format two dimension parts as "L x H".
+ * Returns empty string if both parts are empty.
+ */
+function formatDimension(string $l, string $h, string $sep = ' x '): string {
+    $l = trim($l);
+    $h = trim($h);
+    if ($l === '' && $h === '') return '';
+    if ($l === '') return $h;
+    if ($h === '') return $l;
+    return $l . $sep . $h;
+}
+
+/**
+ * Format cutter size: "104 x 34"
+ */
+function formatCutterSize(array $product): string {
+    return formatDimension(
+        $product['cutter_size_l'] ?? '',
+        $product['cutter_size_h'] ?? ''
+    );
+}
+
+/**
+ * Format slab sizes: "233 x 34"
+ */
+function formatSizes(array $product): string {
+    return formatDimension(
+        $product['sizes_l'] ?? '',
+        $product['sizes_h'] ?? ''
+    );
+}
+
 // ── Settings ───────────────────────────────────────────────────────────────────
 function getSetting(string $key, string $default = ''): string {
     static $cache = null;
@@ -44,7 +78,6 @@ function getCSSVariables(): string {
 
     $overrides = array_column($rows,'value','key');
 
-    // keep defaults + overwrite only existing DB values
     $vars = $defaults;
 
     foreach($overrides as $k=>$v){
@@ -170,6 +203,9 @@ function getProduct(int $id): ?array {
     $ps->execute([$id]);
     $p['photos'] = $ps->fetchAll();
     $p['palette_arr'] = json_decode($p['palette'] ?? '["F2F0EC","D8CFC4","BFB0A0"]', true) ?? ['F2F0EC','D8CFC4','BFB0A0'];
+    // Pre-compute formatted dimension strings
+    $p['cutter_size_display'] = formatCutterSize($p);
+    $p['sizes_display']       = formatSizes($p);
     return $p;
 }
 

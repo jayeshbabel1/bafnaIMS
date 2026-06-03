@@ -96,7 +96,17 @@ function renderProductGrid(array $products, string $view = 'grid'): string {
             if ($p['featured'])  $h .= '<span class="badge badge-gold">✦</span>';
             $h .= '</div>';
             $h .= '<p class="catalog-list-name">'.h($p['name']).'</p>';
-            $h .= '<p class="catalog-list-meta">Lot: '.h($p['quarry_number']).' · '.h($p['thickness']).'mm · '.number_format((float)$p['quantity_available']).' sqft</p>';
+            $slabDisplay = '';
+if (!empty($p['sizes_l']) || !empty($p['sizes_h'])) {
+    $slabDisplay = trim($p['sizes_l'] ?? '') . ' x ' . trim($p['sizes_h'] ?? '');
+}
+
+$metaParts = ['Lot: ' . h($p['quarry_number'])];
+if ($p['thickness'])  $metaParts[] = h($p['thickness']);
+if ($slabDisplay)     $metaParts[] = h($slabDisplay);
+$metaParts[] = number_format((float)$p['quantity_available']) . ' sqft';
+
+$h .= '<p class="catalog-list-meta">' . implode(' · ', $metaParts) . '</p>';
             $h .= '</div>';
             $h .= '<div class="catalog-list-actions">';
             $h .= '<a href="index.php?page=inquiry_form&product_id='.$p['id'].'" class="btn-outline btn-sm" style="white-space:nowrap;text-decoration:none;">'.icon('msg',13).' Inquire</a>';
@@ -136,7 +146,7 @@ function renderProductGrid(array $products, string $view = 'grid'): string {
         $h .= '<p class="product-card-name">'.h($p['name']).'</p>';
         $h .= '<p class="product-card-quarry">Lot: '.h($p['quarry_number']).'</p>';
         $h .= '<div class="product-card-footer"><span class="product-card-qty">'.number_format((float)$p['quantity_available']).' sqft</span>';
-        $h .= '<span style="font-size:11px;color:var(--text3);">'.h($p['thickness']).'mm</span></div>';
+        $h .= '<span style="font-size:11px;color:var(--text3);">'.h($p['thickness']).'</span></div>';
         $h .= '</div></a>';
         $h .= '<form method="POST" action="index.php" class="shortlist-form" data-id="'.$p['id'].'">';
         $h .= '<input type="hidden" name="action" value="toggle_shortlist"/>';

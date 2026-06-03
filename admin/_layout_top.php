@@ -9,6 +9,7 @@
 <style><?= getCSSVariables() ?></style>
 <link rel="stylesheet" href="../assets/css/style.css"/>
 <link rel="stylesheet" href="../assets/css/admin.css"/>
+  <link rel="stylesheet" href="../assets/css/watermark.css"/>
 </head>
 <body class="admin-body">
 
@@ -68,7 +69,7 @@ $_adminLogo = getLogo(true);
         ['page'=>'dashboard',     'icon'=>'home',    'label'=>'Dashboard'],
         ['page'=>'products',      'icon'=>'grid',    'label'=>'Products'],
         ['page'=>'sync',          'icon'=>'refresh', 'label'=>'Sync Product Data'],
-        ['page'=>'inquiries',     'icon'=>'msg',     'label'=>'Inquiries'],
+       // ['page'=>'inquiries',     'icon'=>'msg',     'label'=>'Inquiries'],
         ['page'=>'users',         'icon'=>'users',   'label'=>'Users'],
         ['page'=>'notifications', 'icon'=>'bell',    'label'=>'Notifications', 'badge'=>$_notifCount],
         ['page'=>'colors',        'icon'=>'palette', 'label'=>'Color Scheme'],

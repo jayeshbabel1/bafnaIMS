@@ -19,6 +19,12 @@
 $_toast   = getFlash('toast');
 $_error   = getFlash('error');
 $_success = getFlash('success');
+
+// Load logo helper
+if (!function_exists('getLogo')) {
+    require_once BASE_PATH . '/includes/logo.php';
+}
+$_authLogo = getLogo(false);
 ?>
 <?php if ($_toast || $_success): ?>
 <div class="toast toast-success" id="app-toast"><?= h($_toast ?: $_success) ?></div>

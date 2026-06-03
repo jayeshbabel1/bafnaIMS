@@ -1,117 +1,321 @@
 /* ═══════════════════════════════════════════════════════════════════════════
    AUTH CSS — login / register / forgot / reset
+   Full responsive: mobile → tablet (768px) → desktop (1024px)
    ═══════════════════════════════════════════════════════════════════════════ */
 
 /* ── Auth Body ────────────────────────────────────────────────────────────── */
-.auth-body{background:var(--nav-bg);}
-.auth-body .app-shell{background:var(--nav-bg);box-shadow:none;max-width:100%;}
+.auth-body { background: var(--nav-bg); }
+.auth-body .app-shell { background: var(--nav-bg); box-shadow: none; max-width: 100%; }
 
-/* ── Auth Page ────────────────────────────────────────────────────────────── */
-.auth-page{
-  min-height:100vh;min-height:100dvh;
-  display:flex;flex-direction:column;
+/* ── Auth Page — mobile default: single column ───────────────────────────── */
+.auth-page {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
 }
 
 /* ── Auth Hero ────────────────────────────────────────────────────────────── */
-.auth-hero{
-  padding:36px 24px 28px;
-  display:flex;flex-direction:column;align-items:flex-start;
-  position:relative;overflow:hidden;flex-shrink:0;
+.auth-hero {
+  padding: 32px 22px 26px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: var(--nav-bg);
 }
-.auth-hero::before{
-  content:'';position:absolute;inset:0;
-  background:radial-gradient(circle at 110% 110%,rgba(184,151,90,.22) 0%,transparent 60%);
-  pointer-events:none;
+.auth-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 110% 110%, rgba(184,151,90,.22) 0%, transparent 60%);
+  pointer-events: none;
 }
-.auth-hero-logo{display:flex;align-items:center;gap:10px;margin-bottom:28px;}
-.auth-hero-logo-icon{
-  width:38px;height:38px;border-radius:8px;
-  background:var(--gold);display:flex;align-items:center;justify-content:center;
+
+/* ── Logo in hero ─────────────────────────────────────────────────────────── */
+.auth-hero-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 24px;
 }
-.auth-hero-brand{font-family:'Cormorant Garamond',serif;font-size:16px;font-weight:600;color:rgba(255,255,255,.9);}
-.auth-marble-strip{display:flex;gap:4px;border-radius:10px;overflow:hidden;height:72px;margin-bottom:24px;width:100%;}
-.auth-marble-item{flex:1;overflow:hidden;}
-.auth-marble-item svg{width:100%;height:100%;}
-.auth-hero-title{font-family:'Cormorant Garamond',serif;font-size:30px;font-weight:500;color:#fff;line-height:1.2;margin-bottom:6px;}
-.auth-hero-sub{font-size:13px;color:rgba(255,255,255,.45);line-height:1.55;}
+.auth-hero-logo-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: rgba(255,255,255,.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+.auth-hero-logo-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.auth-hero-brand {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 17px;
+  font-weight: 600;
+  color: rgba(255,255,255,.92);
+  line-height: 1.2;
+}
+
+/* ── Marble strip ─────────────────────────────────────────────────────────── */
+.auth-marble-strip {
+  display: flex;
+  gap: 4px;
+  border-radius: 10px;
+  overflow: hidden;
+  height: 68px;
+  margin-bottom: 22px;
+  width: 100%;
+}
+.auth-marble-item { flex: 1; overflow: hidden; }
+.auth-marble-item svg { width: 100%; height: 100%; }
+
+/* ── Hero text ────────────────────────────────────────────────────────────── */
+.auth-hero-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 28px;
+  font-weight: 500;
+  color: #fff;
+  line-height: 1.2;
+  margin-bottom: 6px;
+}
+.auth-hero-sub {
+  font-size: 13px;
+  color: rgba(255,255,255,.45);
+  line-height: 1.55;
+}
 
 /* ── Auth Form Card ───────────────────────────────────────────────────────── */
-.auth-card{
-  flex:1;background:var(--bg);
-  border-radius:20px 20px 0 0;
-  padding:26px 22px;
-  padding-bottom:calc(26px + env(safe-area-inset-bottom,0px));
+.auth-card {
+  flex: 1;
+  background: var(--bg);
+  border-radius: 20px 20px 0 0;
+  padding: 26px 22px;
+  padding-bottom: calc(26px + env(safe-area-inset-bottom, 0px));
 }
-.auth-card-title{font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:600;color:var(--text);margin-bottom:4px;}
-.auth-card-sub{font-size:13px;color:var(--text3);margin-bottom:22px;line-height:1.5;}
-.auth-footer-text{text-align:center;font-size:13px;color:var(--text2);margin-top:18px;}
-.auth-link{color:var(--gold);font-weight:600;}
-.back-btn{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:rgba(255,255,255,.6);padding:4px 0;margin-bottom:10px;}
+.auth-card-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+.auth-card-sub {
+  font-size: 13px;
+  color: var(--text3);
+  margin-bottom: 22px;
+  line-height: 1.5;
+}
+.auth-footer-text {
+  text-align: center;
+  font-size: 13px;
+  color: var(--text2);
+  margin-top: 18px;
+}
+.auth-link { color: var(--gold); font-weight: 600; }
+.back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: rgba(255,255,255,.6);
+  padding: 4px 0;
+  margin-bottom: 10px;
+}
 
 /* ── Step Indicator ───────────────────────────────────────────────────────── */
-.step-wrap{margin-bottom:22px;}
-.step-label{font-size:11px;font-weight:700;color:var(--text3);margin-bottom:7px;text-transform:uppercase;letter-spacing:.5px;}
-.progress-bar{height:4px;background:var(--border);border-radius:2px;overflow:hidden;}
-.progress-fill{height:100%;background:var(--gold);border-radius:2px;transition:width .4s cubic-bezier(.4,0,.2,1);}
+.step-wrap { margin-bottom: 22px; }
+.step-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text3);
+  margin-bottom: 7px;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+}
+.progress-bar { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+.progress-fill {
+  height: 100%;
+  background: var(--gold);
+  border-radius: 2px;
+  transition: width .4s cubic-bezier(.4,0,.2,1);
+}
 
 /* ── Role Options ─────────────────────────────────────────────────────────── */
-.role-option{display:flex;align-items:center;gap:10px;padding:11px 14px;border:1.5px solid var(--border);border-radius:8px;margin-bottom:7px;cursor:pointer;transition:all .15s;font-size:13px;font-weight:500;}
-.role-option input{display:none;}
-.role-option.selected,.role-option:has(input:checked){border-color:var(--gold);background:var(--gold-bg);color:var(--gold);}
-.role-check{width:20px;height:20px;border-radius:50%;border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:transparent;transition:all .15s;}
-.role-option.selected .role-check,.role-option:has(input:checked) .role-check{background:var(--gold);border-color:var(--gold);color:#fff;}
+.role-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 7px;
+  cursor: pointer;
+  transition: all .15s;
+  font-size: 13px;
+  font-weight: 500;
+}
+.role-option input { display: none; }
+.role-option.selected,
+.role-option:has(input:checked) {
+  border-color: var(--gold);
+  background: var(--gold-bg);
+  color: var(--gold);
+}
+.role-check {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: transparent;
+  transition: all .15s;
+}
+.role-option.selected .role-check,
+.role-option:has(input:checked) .role-check {
+  background: var(--gold);
+  border-color: var(--gold);
+  color: #fff;
+}
 
 /* ── Experience Chips ─────────────────────────────────────────────────────── */
-.chip-row{display:flex;flex-wrap:wrap;gap:7px;}
-.exp-chip{padding:7px 14px;border:1.5px solid var(--border);border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;transition:all .15s;color:var(--text2);}
-.exp-chip.active,.exp-chip:has(input:checked){background:var(--gold);border-color:var(--gold);color:#fff;}
+.chip-row { display: flex; flex-wrap: wrap; gap: 7px; }
+.exp-chip {
+  padding: 7px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all .15s;
+  color: var(--text2);
+}
+.exp-chip.active,
+.exp-chip:has(input:checked) {
+  background: var(--gold);
+  border-color: var(--gold);
+  color: #fff;
+}
 
 /* ── Success icon ─────────────────────────────────────────────────────────── */
-.auth-success-icon{width:60px;height:60px;border-radius:50%;background:var(--success-bg);display:flex;align-items:center;justify-content:center;color:var(--success);margin-bottom:16px;}
+.auth-success-icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: var(--success-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--success);
+  margin-bottom: 16px;
+}
+
+/* ── Gold bar ─────────────────────────────────────────────────────────────── */
+.gold-bar {
+  width: 28px;
+  height: 2px;
+  background: var(--gold);
+  border-radius: 1px;
+  margin-bottom: 10px;
+}
 
 /* ═══════════════════════════════════════════════════════════════════════════
    TABLET  768px+
    ═══════════════════════════════════════════════════════════════════════════ */
-@media (min-width:768px){
-  .auth-hero{padding:44px 36px 36px;}
-  .auth-marble-strip{height:90px;}
-  .auth-hero-title{font-size:36px;}
-  .auth-card{padding:36px 36px;border-radius:0;}
-  .auth-card-title{font-size:26px;}
-  .role-option{padding:13px 16px;}
+@media (min-width: 768px) {
+
+  /* Hero taller and more spaced */
+  .auth-hero {
+    padding: 44px 36px 36px;
+  }
+  .auth-marble-strip { height: 88px; }
+  .auth-hero-title { font-size: 34px; }
+  .auth-hero-brand { font-size: 18px; }
+
+  /* Card more breathing room */
+  .auth-card {
+    padding: 36px 36px;
+    border-radius: 0;
+  }
+  .auth-card-title { font-size: 26px; }
+
+  /* Role options 2-col grid on tablet */
+  .roles-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .roles-grid .role-option { margin-bottom: 0; }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   DESKTOP  1024px+
+   DESKTOP  1024px+  — split screen
    ═══════════════════════════════════════════════════════════════════════════ */
-@media (min-width:1024px){
-  /* Split screen */
-  .auth-page{flex-direction:row;min-height:100vh;}
+@media (min-width: 1024px) {
 
-  .auth-hero{
-    flex:0 0 420px;min-height:100vh;
-    padding:52px 44px;
-    border-radius:0;
-    justify-content:flex-start;
+  /* Side-by-side layout */
+  .auth-page {
+    flex-direction: row;
+    min-height: 100vh;
+    min-height: 100dvh;
   }
-  .auth-marble-strip{height:110px;margin-bottom:32px;}
-  .auth-hero-title{font-size:40px;}
 
-  .auth-card{
-    flex:1;border-radius:0;
-    display:flex;flex-direction:column;justify-content:center;
-    padding:52px 64px;
-    background:var(--bg);max-width:640px;
+  /* Fixed-width hero panel */
+  .auth-hero {
+    flex: 0 0 420px;
+    min-height: 100vh;
+    min-height: 100dvh;
+    padding: 52px 44px;
+    border-radius: 0;
+    justify-content: flex-start;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
   }
-  .auth-card-title{font-size:28px;}
-  .auth-card-sub{font-size:14px;margin-bottom:28px;}
+
+  .auth-marble-strip { height: 110px; margin-bottom: 32px; }
+  .auth-hero-title { font-size: 38px; }
+  .auth-hero-sub { font-size: 14px; }
+  .auth-hero-logo { margin-bottom: 32px; }
+  .auth-hero-logo-icon { width: 46px; height: 46px; }
+  .auth-hero-brand { font-size: 18px; }
+
+  /* Scrollable form panel */
+  .auth-card {
+    flex: 1;
+    border-radius: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 52px 64px;
+    padding-bottom: 52px;
+    background: var(--bg);
+    max-width: 620px;
+    min-height: 100vh;
+    overflow-y: auto;
+  }
+
+  .auth-card-title { font-size: 28px; }
+  .auth-card-sub { font-size: 14px; margin-bottom: 28px; }
 
   /* Role options 2-col on desktop */
-  .roles-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
-  .roles-grid .role-option{margin-bottom:0;}
+  .roles-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .roles-grid .role-option { margin-bottom: 0; }
 }
 
-@media (min-width:1280px){
-  .auth-hero{flex:0 0 500px;padding:60px 52px;}
-  .auth-card{padding:60px 80px;}
+/* ═══════════════════════════════════════════════════════════════════════════
+   WIDE DESKTOP  1280px+
+   ═══════════════════════════════════════════════════════════════════════════ */
+@media (min-width: 1280px) {
+  .auth-hero { flex: 0 0 500px; padding: 60px 52px; }
+  .auth-card { padding: 60px 80px; max-width: 680px; }
+  .auth-hero-title { font-size: 42px; }
 }

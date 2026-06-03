@@ -7,10 +7,17 @@ $pageTitle = 'Inquiry — ' . APP_NAME;
 $showNav   = false;
 $pal       = $p['palette_arr'];
 $err       = $inlineError ?? null;
+
+// Dimension display strings (computed by getProduct() via helpers)
+$cutterDisplay = $p['cutter_size_display'] ?? '';
+$sizesDisplay  = $p['sizes_display']       ?? '';
+
+// Build a compact spec line: thickness · sizes · cutter
+$specParts = [];
+if ($p['thickness'])    $specParts[] = h($p['thickness']);
 ?>
 <?php include BASE_PATH . '/layouts/header.php'; ?>
 
-<!-- Desktop: normal flow. Mobile: full-screen flex column -->
 <div class="inq-form-page" id="inqFormPage">
 
   <!-- Top bar -->
@@ -40,7 +47,15 @@ $err       = $inlineError ?? null;
       <div style="flex:1;min-width:0;">
         <p style="font-family:'Cormorant Garamond',serif;font-size:16px;font-weight:600;color:var(--text);line-height:1.3;"><?= h($p['name']) ?></p>
         <p style="font-size:11.5px;color:var(--text3);margin-top:2px;">Lot <?= h($p['quarry_number']) ?> · <?= h($p['category']) ?></p>
-        <p style="font-size:11.5px;color:var(--text2);margin-top:2px;"><?= h($p['thickness']) ?>mm · <?= h($p['sizes']) ?></p>
+        <?php if ($specParts): ?>
+        <p style="font-size:11.5px;color:var(--text2);margin-top:2px;"><?= implode('', $specParts) ?></p>
+        <?php endif; ?>
+        <?php if ($sizesDisplay): ?>
+        <p style="font-size:11px;color:var(--text3);margin-top:2px;">Useable: <?= h($sizesDisplay) ?></p>
+        <?php endif; ?>
+        <?php if ($cutterDisplay): ?>
+        <p style="font-size:11px;color:var(--text3);margin-top:2px;">Cutter: <?= h($cutterDisplay) ?></p>
+        <?php endif; ?>
       </div>
       <div style="flex-shrink:0;">
         <?= $p['in_stock']
@@ -57,7 +72,6 @@ $err       = $inlineError ?? null;
       <input type="hidden" name="action"     value="send_inquiry"/>
       <input type="hidden" name="product_id" value="<?= $pid ?>"/>
 
-      <!-- On desktop: two-col layout for message + qty -->
       <div class="inq-form-grid">
         <div class="input-wrap" style="margin-bottom:0;">
           <label class="input-label">Your Message</label>
@@ -72,7 +86,6 @@ $err       = $inlineError ?? null;
                    placeholder="e.g. 200" min="1"/>
           </div>
 
-          <!-- Quick chips -->
           <p style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:9px;">Quick Add</p>
           <div style="display:flex;flex-wrap:wrap;gap:0;">
             <?php foreach (['Pricing details','Sample request','Availability','Custom sizes','Bulk order','Site visit'] as $chip): ?>
@@ -82,9 +95,8 @@ $err       = $inlineError ?? null;
         </div>
       </div>
 
-      <!-- Submit inside form (desktop) -->
       <div class="inq-form-submit-inline">
-        <button type="submit" class="btn-primary btn-gold">
+        <button type="submit" class="btn-primary">
           <?= icon('msg',16) ?>&nbsp; Send Inquiry to Bafna Team
         </button>
       </div>
@@ -100,20 +112,16 @@ $err       = $inlineError ?? null;
 </div>
 
 <style>
-/* Mobile: full-screen flex */
 .inq-form-page{ display:flex; flex-direction:column; height:100vh; height:100dvh; }
 .inq-form-grid{ display:block; }
 .inq-form-submit-inline{ display:none; }
 .inq-form-footer-mobile{ display:block; }
 
-/* Tablet: relax the full-screen height */
 @media(min-width:768px){
   .inq-form-page{ height:auto; max-width:720px; margin:0 auto; width:100%; }
   .inq-form-body{ max-height:none; overflow:visible; }
   .inq-form-footer-mobile{ padding-bottom:20px; }
 }
-
-/* Desktop: two-column form, no sticky footer */
 @media(min-width:1024px){
   .inq-form-page{ max-width:860px; }
   .inq-form-grid{ display:grid; grid-template-columns:1fr 1fr; gap:20px; }

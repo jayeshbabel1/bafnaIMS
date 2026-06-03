@@ -78,15 +78,34 @@ $g   = fn($k) => h($p[$k] ?? '');
             <label class="admin-label">Thickness (mm)</label>
             <input type="text" name="thickness" class="admin-input" value="<?= $g('thickness') ?>" placeholder="18 / 20"/>
           </div>
+
+          <!-- Slab Sizes: L x H -->
           <div>
-            <label class="admin-label">Available Sizes (inches)</label>
-            <input type="text" name="sizes" class="admin-input" value="<?= $g('sizes') ?>" placeholder="600×600, 1200×600"/>
+            <label class="admin-label">Slab Size — Length (cm/inches)</label>
+            <input type="text" name="sizes_l" class="admin-input" value="<?= $g('sizes_l') ?>" placeholder="233"/>
           </div>
           <div>
-            <label class="admin-label">Cutter Size (inches)</label>
-            <input type="text" name="cutter_size" class="admin-input" value="<?= $g('cutter_size') ?>" placeholder="48×48"/>
+            <label class="admin-label">Slab Size — Height (cm/inches)</label>
+            <input type="text" name="sizes_h" class="admin-input" value="<?= $g('sizes_h') ?>" placeholder="116"/>
+          </div>
+
+          <!-- Cutter Size: L x H -->
+          <div>
+            <label class="admin-label">Cutter Size — Length (inches)</label>
+            <input type="text" name="cutter_size_l" class="admin-input" value="<?= $g('cutter_size_l') ?>" placeholder="104"/>
+          </div>
+          <div>
+            <label class="admin-label">Cutter Size — Height (inches)</label>
+            <input type="text" name="cutter_size_h" class="admin-input" value="<?= $g('cutter_size_h') ?>" placeholder="34"/>
           </div>
         </div>
+
+        <!-- Live dimension preview -->
+        <div style="margin-top:8px;padding:10px 14px;background:var(--surface2);border-radius:8px;font-size:12px;color:var(--text2);display:flex;gap:24px;flex-wrap:wrap;" id="dimPreviewBar">
+          <span>Slab: <strong id="previewSizes">—</strong></span>
+          <span>Cutter: <strong id="previewCutter">—</strong></span>
+        </div>
+
         <div style="margin-top:14px;">
           <label class="admin-label">Description</label>
           <textarea name="description" class="admin-input" rows="3" style="resize:vertical;"><?= $g('description') ?></textarea>
@@ -172,18 +191,14 @@ $g   = fn($k) => h($p[$k] ?? '');
             <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:9px;color:var(--text3);">No file</div>
             <?php endif; ?>
             <form method="POST" action="index.php" style="display:contents;">
-            <!--  <input type="hidden" name="action"   value="delete_photo"/> -->
               <input type="hidden" name="photo_id" value="<?= $ph['id'] ?>"/>
-            <!--  <button type="submit" class="photo-grid-del" title="Delete" data-confirm="Delete this photo?">×</button> -->
               <button type="submit"
-        name="action"
-        value="delete_photo"
-        formaction="index.php"
-        class="photo-grid-del"
-        title="Delete"
-        data-confirm="Delete this photo?">
-    ×
-</button>
+                      name="action"
+                      value="delete_photo"
+                      formaction="index.php"
+                      class="photo-grid-del"
+                      title="Delete"
+                      data-confirm="Delete this photo?">×</button>
             </form>
           </div>
           <?php endforeach; ?>
@@ -232,5 +247,29 @@ $g   = fn($k) => h($p[$k] ?? '');
     </div>
   </div>
 </form>
+
+<script>
+// ── Live dimension preview ──────────────────────────────────────────────────
+(function () {
+  function updateDimPreviews() {
+    var slL = (document.querySelector('[name="sizes_l"]')?.value || '').trim();
+    var slH = (document.querySelector('[name="sizes_h"]')?.value || '').trim();
+    var ctL = (document.querySelector('[name="cutter_size_l"]')?.value || '').trim();
+    var ctH = (document.querySelector('[name="cutter_size_h"]')?.value || '').trim();
+
+    var ps = document.getElementById('previewSizes');
+    var pc = document.getElementById('previewCutter');
+    if (ps) ps.textContent = (slL && slH) ? slL + ' x ' + slH : (slL || slH || '—');
+    if (pc) pc.textContent = (ctL && ctH) ? ctL + ' x ' + ctH : (ctL || ctH || '—');
+  }
+
+  ['sizes_l','sizes_h','cutter_size_l','cutter_size_h'].forEach(function(name) {
+    var el = document.querySelector('[name="' + name + '"]');
+    if (el) el.addEventListener('input', updateDimPreviews);
+  });
+
+  updateDimPreviews();
+})();
+</script>
 
 <?php include __DIR__ . '/../_layout_bottom.php'; ?>

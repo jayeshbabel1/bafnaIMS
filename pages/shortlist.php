@@ -17,12 +17,7 @@ $items = $st->fetchAll();
   <!-- ── TOPBAR ─────────────────────────────────────────────────────────── -->
   <div class="topbar">
     <div class="topbar-brand">
-      <div class="topbar-logo" style="display:flex;">
-        <svg width="20" height="20" viewBox="0 0 36 36" fill="none">
-          <polygon points="18,4 32,28 4,28" fill="rgba(184,151,90,.18)" stroke="rgba(184,151,90,.9)" stroke-width="1.5"/>
-          <polygon points="18,10 26,24 10,24" fill="rgba(184,151,90,.35)" stroke="rgba(184,151,90,.7)" stroke-width="1"/>
-        </svg>
-      </div>
+      
       <div>
         <p class="topbar-eyebrow">My Collection</p>
         <p class="topbar-title">Shortlist</p>
@@ -60,7 +55,7 @@ $items = $st->fetchAll();
         <div class="list-info">
           <p class="list-name"><?= h($p['name']) ?></p>
           <p class="list-meta">Lot <?= h($p['quarry_number']) ?> · <?= h($p['category']) ?></p>
-          <p class="list-spec"><?= h($p['thickness']) ?>mm · <?= h($p['sizes']) ?></p>
+          <p class="list-spec"><?= h($p['thickness']) ?> · <?//= h($p['sizes']) ?></p>
           <div style="margin-top:6px;display:flex;gap:5px;flex-wrap:wrap;">
             <?= $p['in_stock']
               ? '<span class="badge badge-green">● In Stock</span>'
@@ -72,7 +67,7 @@ $items = $st->fetchAll();
       <!-- Actions -->
       <div class="list-actions">
         <a href="index.php?page=inquiry_form&product_id=<?= $p['id'] ?>"
-           class="btn-primary btn-gold btn-sm" style="text-decoration:none;flex:1;">
+           class="btn-primary btn-sm" style="text-decoration:none;flex:1;">
           <?= icon('msg',13) ?>&nbsp; Inquire
         </a>
         <form method="POST" action="index.php" style="flex:1">

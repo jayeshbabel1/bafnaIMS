@@ -15,6 +15,10 @@ $pal    = $p['palette_arr'];
 $photos = $p['photos'];
 $saved  = isShortlisted($id);
 
+// Use pre-computed display strings from getProduct()
+$cutterDisplay = $p['cutter_size_display'] ?? '';
+$sizesDisplay  = $p['sizes_display'] ?? '';
+
 $specs = [
     'Product Name'      => $p['name'],
     'Category'          => $p['category'],
@@ -22,9 +26,9 @@ $specs = [
     'Colour Family'     => $p['color_subcategory'],
     'Quarry / Lot No.'  => $p['quarry_number'],
     'No. of Pieces'     => $p['pieces'] . ' slabs',
-    'Thickness'         => $p['thickness'] . ' mm',
-    'Available Sizes'   => $p['sizes'],
-    'Cutter Size'       => $p['cutter_size'] . ' inches',
+    'Thickness'         => $p['thickness'],
+    'Slab Size'         => $sizesDisplay,
+    'Cutter Size'       => $cutterDisplay,
     'Origin'            => $p['origin'],
     'Finish'            => $p['finish'],
 ];
@@ -141,10 +145,18 @@ $specs = [
       </div>
     </div>
 
-    <!-- Quick spec tiles -->
+    <!-- Quick spec tiles — now includes Slab Size and Cutter Size -->
     <div class="spec-grid">
-      <?php foreach (['Thickness'=>$p['thickness'].' mm','Finish'=>$p['finish'],'Sizes'=>$p['sizes'],'Cutter'=>$p['cutter_size'].'"'] as $k=>$v):
-        if (!trim($v,' -\'"')) continue; ?>
+      <?php
+      $quickSpecs = [
+          'Thickness' => $p['thickness'],
+          'Finish'    => $p['finish'],
+          'Slab Size' => $sizesDisplay,
+          'Cutter'    => $cutterDisplay,
+      ];
+      foreach ($quickSpecs as $k => $v):
+          if (!trim($v, ' -\'"')) continue;
+      ?>
       <div class="spec-tile">
         <div class="spec-tile-label"><?= h($k) ?></div>
         <div class="spec-tile-value"><?= h($v) ?></div>
@@ -156,7 +168,7 @@ $specs = [
     <div class="card" style="padding:0 16px;margin-bottom:18px;">
       <p class="spec-section-title">Full Specifications</p>
       <div class="spec-table">
-        <?php foreach ($specs as $k => $v): if (!$v) continue; ?>
+        <?php foreach ($specs as $k => $v): if (!trim((string)$v)) continue; ?>
         <div class="spec-row">
           <span class="spec-key"><?= h($k) ?></span>
           <span class="spec-val"><?= h($v) ?></span>
@@ -189,24 +201,31 @@ $specs = [
     <p class="spec-section-title">Documents</p>
     <?php if ($p['measurement_sheet']): ?>
     <div class="card doc-card" style="margin-bottom:10px;">
-      <div class="doc-icon" style="color:var(--gold);"><?= icon('file',20) ?></div>
+      <div class="doc-icon" style="color:var(--success);"><?= icon('file',20) ?></div>
       <div class="doc-info">
-        <p class="doc-name"><?= h($p['measurement_sheet']) ?></p>
+        <p class="doc-name"><?= h(basename($p['measurement_sheet'])) ?> </p>
         <p class="doc-meta">Measurement Sheet</p>
       </div>
+      <a href="assets/uploads/measurement_sheets/<?= h($p['measurement_sheet']) ?>" 
+   target="_blank"
+   class="btn-outline btn-sm">
+   <?= icon('eye',13) ?> View 
+</a>
       <a href="assets/uploads/measurement_sheets/<?= h($p['measurement_sheet']) ?>" download
-         class="btn-outline btn-sm"><?= icon('download',13) ?> PDF</a>
+         class="btn-outline btn-sm"><?= icon('download',13) ?> Download </a>
     </div>
     <?php endif; ?>
     <?php if ($p['dna_report']): ?>
     <div class="card doc-card" style="margin-bottom:10px;">
       <div class="doc-icon" style="color:var(--danger);"><?= icon('pdf',20) ?></div>
       <div class="doc-info">
-        <p class="doc-name"><?= h($p['dna_report']) ?></p>
+        <p class="doc-name"><?= h(basename($p['dna_report'])) ?></p>
         <p class="doc-meta">DNA / Lot Report</p>
       </div>
+       <a href="assets/uploads/dna_reports/<?= h($p['dna_report']) ?>" target="_blank"
+         class="btn-outline btn-sm"><?= icon('eye',13) ?>View </a>
       <a href="assets/uploads/dna_reports/<?= h($p['dna_report']) ?>" download
-         class="btn-outline btn-sm"><?= icon('download',13) ?> PDF</a>
+         class="btn-outline btn-sm"><?= icon('download',13) ?> Download </a>
     </div>
     <?php endif; ?>
     <?php endif; ?>
@@ -222,7 +241,7 @@ $specs = [
         </button>
       </form>
       <a href="index.php?page=inquiry_form&product_id=<?= $id ?>"
-         class="btn-primary btn-gold" style="flex:2;text-decoration:none;">
+         class="btn-outline" style="flex:2;text-decoration:none;">
         <?= icon('msg',16) ?>&nbsp; Send Inquiry
       </a>
     </div>
@@ -237,7 +256,6 @@ $specs = [
 <div class="lightbox" id="lightbox" onclick="lightboxBgClick(event)">
   <button class="lightbox-close" onclick="closeLightbox()"><?= icon('close',22) ?></button>
 
-  <!-- Zoom controls inside lightbox -->
   <div class="zoom-controls zoom-controls--lightbox" data-target="lightbox">
     <button class="zoom-btn" data-action="in"    title="Zoom in">+</button>
     <button class="zoom-btn" data-action="out"   title="Zoom out">−</button>

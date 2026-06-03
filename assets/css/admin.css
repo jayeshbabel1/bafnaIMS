@@ -3,7 +3,8 @@
 .admin-shell{display:flex;min-height:100vh;}
 .admin-sidebar{width:230px;background:linear-gradient(180deg,var(--accent2) 0%,var(--text) 100%);display:flex;flex-direction:column;flex-shrink:0;position:fixed;top:0;left:0;height:100vh;z-index:100;}
 .admin-main{margin-left:230px;flex:1;display:flex;flex-direction:column;min-height:100vh;}
-.admin-logo{display:flex;align-items:center;gap:10px;padding:20px 16px 18px;border-bottom:1px solid rgba(255,255,255,.1);}
+.admin-logo{display:flex;align-items:center;gap:10px;padding:20px 16px 18px;border-bottom:1px solid rgba(255,255,255,.1);/* Force logo to pure white */
+  filter:    brightness(0) invert(1);}
 .admin-logo-icon{width:40px;height:40px;background:rgba(255,255,255,.1);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .admin-logo-name{font-size:14px;font-weight:700;color:#fff;font-family:'Cormorant Garamond',serif;}
 .admin-logo-sub{font-size:10px;color:rgba(255,255,255,.5);margin-top:1px;}

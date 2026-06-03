@@ -42,21 +42,21 @@ $recProd= $db->query("SELECT * FROM products ORDER BY created_at DESC LIMIT 5")-
     </div>
   </div>
 
-  <div class="dash-card">
+ <!-- <div class="dash-card">
     <div class="dash-left">
-      <div class="dash-icon warning" style="background:<?= $iPend ? 'var(--gold-bg)' : 'var(--surface2)' ?>;color:<?= $iPend ? 'var(--gold)' : 'var(--text3)' ?>;"><?= icon('msg',22) ?></div>
+      <div class="dash-icon warning" style="background:<?//= $iPend ? 'var(--gold-bg)' : 'var(--surface2)' ?>;color:<?//= $iPend ? 'var(--gold)' : 'var(--text3)' ?>;"><?//= icon('msg',22) ?></div>
       <div class="dash-info">
-        <div class="dash-value"><?= $iCount ?></div>
+        <div class="dash-value"><?//= $iCount ?></div>
         <div class="dash-label">
-          Inquiries <span class="dash-badge"><?= $iPend ?> pending</span>
+          Inquiries <span class="dash-badge"><?//= $iPend ?> pending</span>
         </div>
       </div>
     </div>
-  </div>
+  </div> -->
 </div>
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
   <!-- Recent Inquiries -->
-  <div>
+<!--  <div>
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
       <p style="font-weight:700;font-size:14px;">Recent Inquiries</p>
       <a href="index.php?page=inquiries" style="font-size:12px;color:var(--accent);">View all</a>
@@ -79,7 +79,7 @@ $recProd= $db->query("SELECT * FROM products ORDER BY created_at DESC LIMIT 5")-
         </tbody>
       </table>
     </div>
-  </div>
+  </div> -->
 
   <!-- Recent Products -->
   <div>

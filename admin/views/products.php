@@ -126,17 +126,17 @@ $db = getDB();
 <div class="admin-products-toolbar">
   <a href="index.php?page=product_edit" class="btn-admin-primary"><?= icon('plus',16) ?> Add Product</a>
 
-  <!-- Import CSV -->
+  <!-- Import CSV 
   <form method="POST" action="index.php" enctype="multipart/form-data" class="admin-toolbar-form">
     <input type="hidden" name="action" value="import_excel"/>
     <label class="admin-toolbar-file-btn">
-      <?= icon('upload',14) ?> Import CSV
+      <?//= icon('upload',14) ?> Import CSV
       <input type="file" name="excel_file" accept=".csv" onchange="this.form.submit()"/>
     </label>
-  </form>
+  </form> -->
 
   <!-- Export CSV -->
-  <a href="index.php?action=export_csv" class="btn-admin-secondary btn-admin-sm"><?= icon('download',14) ?> Export CSV</a>
+ <!-- <a href="index.php?action=export_csv" class="btn-admin-secondary btn-admin-sm"><?//= icon('download',14) ?> Export CSV</a> -->
 
   <!-- Export Excel -->
   <form method="post" class="admin-toolbar-form">

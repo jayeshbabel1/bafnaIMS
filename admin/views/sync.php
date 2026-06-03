@@ -35,12 +35,49 @@ $stepMeta = [
 
 // Count files in each dir for overview
 function countDir(string $dir, array $exts): int {
-    if (!is_dir($dir)) return 0;
-    $c = 0;
-    foreach (array_diff(scandir($dir), ['.','..']) as $f) {
-        if (in_array(strtolower(pathinfo($f, PATHINFO_EXTENSION)), $exts)) $c++;
+
+    if (!is_dir($dir)) {
+        return 0;
     }
-    return $c;
+
+    $count = 0;
+
+    $folders = array_diff(scandir($dir), ['.', '..']);
+
+    foreach ($folders as $item) {
+
+        $path = $dir . '/' . $item;
+
+        // If subfolder
+        if (is_dir($path)) {
+
+            foreach (array_diff(scandir($path), ['.', '..']) as $file) {
+
+                $filePath = $path . '/' . $file;
+
+                if (!is_file($filePath)) {
+                    continue;
+                }
+
+                $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+
+                if (in_array($ext, $exts)) {
+                    $count++;
+                }
+            }
+
+        } else {
+
+            // Support old flat structure also
+            $ext = strtolower(pathinfo($item, PATHINFO_EXTENSION));
+
+            if (in_array($ext, $exts)) {
+                $count++;
+            }
+        }
+    }
+
+    return $count;
 }
 $imgCount = countDir(PHOTOS_DIR,      ['jpg','jpeg','png','webp']);
 $msCount  = countDir(MEASUREMENT_DIR, ['pdf']);

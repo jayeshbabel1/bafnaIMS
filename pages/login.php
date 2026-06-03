@@ -13,14 +13,19 @@ $presets = [
 ?>
 
 <div class="auth-page">
-  <!-- Hero section -->
+
+  <!-- ── HERO PANEL ──────────────────────────────────────────────────────── -->
   <div class="auth-hero">
     <div class="auth-hero-logo">
-      
-        <img width="40" height="40"
+      <div class="auth-hero-logo-icon">
+        <?php if (!empty($_authLogo)): ?>
+          <img width="50" height="50" src="<?= h($_authLogo) ?>" alt="<?= h(APP_NAME) ?>"/>
+        <?php else: ?>
+          <img width="40" height="40"
                src="https://i0.wp.com/www.bafnamarble.com/wp-content/uploads/2023/11/cropped-logo-01.png?fit=317%2C250&ssl=1"
-               class="custom-logo" alt="<?= h(APP_NAME) ?>" decoding="async"/>
-     
+               alt="<?= h(APP_NAME) ?>" decoding="async" style="width:100%;height:100%;object-fit:contain;"/>
+        <?php endif; ?>
+      </div>
       <span class="auth-hero-brand"><?= APP_NAME ?></span>
     </div>
 
@@ -36,7 +41,7 @@ $presets = [
     <p class="auth-hero-sub">Exclusive access for architects,<br/>interior designers &amp; trade professionals.</p>
   </div>
 
-  <!-- Form card -->
+  <!-- ── FORM CARD ───────────────────────────────────────────────────────── -->
   <div class="auth-card">
     <p class="auth-card-title">Welcome back</p>
     <p class="auth-card-sub">Sign in to access the inventory.</p>
@@ -50,7 +55,7 @@ $presets = [
 
       <div class="input-wrap">
         <label class="input-label">Email Address</label>
-        <input type="email" name="email" class="input-field" placeholder=""
+        <input type="email" name="email" class="input-field" placeholder="Enter Email Address"
                value="<?= h($_POST['email'] ?? '') ?>" autocomplete="email" required/>
       </div>
 
@@ -76,7 +81,8 @@ $presets = [
     <p style="text-align:center;font-size:11px;color:var(--text3);margin-top:10px;line-height:1.6;">
       Exclusive access for verified trade professionals only.
     </p>
-  </div>
-</div>
+  </div><!-- .auth-card -->
+
+</div><!-- .auth-page -->
 
 <?php include BASE_PATH . '/layouts/auth_footer.php'; ?>
