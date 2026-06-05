@@ -80,6 +80,7 @@ function fallbackCopy(url) {
   document.execCommand('copy'); document.body.removeChild(ta);
 }
 
+
 /* ── Keyboard ────────────────────────────────────────────────────────── */
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') { closeLightbox(); closeShareModal(); }

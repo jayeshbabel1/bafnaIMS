@@ -4,10 +4,7 @@ include __DIR__ . '/../_layout_top.php';
 $db = getDB();
 $pCount = $db->query("SELECT COUNT(*) as c FROM products")->fetch()['c'];
 $uCount = $db->query("SELECT COUNT(*) as c FROM users")->fetch()['c'];
-$iCount = $db->query("SELECT COUNT(*) as c FROM inquiries")->fetch()['c'];
-$iPend  = $db->query("SELECT COUNT(*) as c FROM inquiries WHERE status='pending'")->fetch()['c'];
 $inStock= $db->query("SELECT COUNT(*) as c FROM products WHERE in_stock=1")->fetch()['c'];
-$recInq = $db->query("SELECT i.*,u.name as uname,p.name as pname FROM inquiries i JOIN users u ON i.user_id=u.id JOIN products p ON i.product_id=p.id ORDER BY i.created_at DESC LIMIT 5")->fetchAll();
 $recProd= $db->query("SELECT * FROM products ORDER BY created_at DESC LIMIT 5")->fetchAll();
 ?>
 
@@ -42,17 +39,6 @@ $recProd= $db->query("SELECT * FROM products ORDER BY created_at DESC LIMIT 5")-
     </div>
   </div>
 
- <!-- <div class="dash-card">
-    <div class="dash-left">
-      <div class="dash-icon warning" style="background:<?//= $iPend ? 'var(--gold-bg)' : 'var(--surface2)' ?>;color:<?//= $iPend ? 'var(--gold)' : 'var(--text3)' ?>;"><?//= icon('msg',22) ?></div>
-      <div class="dash-info">
-        <div class="dash-value"><?//= $iCount ?></div>
-        <div class="dash-label">
-          Inquiries <span class="dash-badge"><?//= $iPend ?> pending</span>
-        </div>
-      </div>
-    </div>
-  </div> -->
 </div>
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
   <!-- Recent Inquiries -->

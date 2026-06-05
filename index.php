@@ -1,15 +1,32 @@
 <?php
-
 require_once __DIR__ . '/config/config.php';
 require_once __DIR__ . '/includes/db.php';
 require_once __DIR__ . '/includes/helpers.php';
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/notifications.php';
+require_once __DIR__ . '/includes/clients.php';
 
 startSecureSession();
 
 $page = preg_replace('/[^a-z_]/', '', $_GET['page'] ?? 'catalog');
-
+// Client AJAX search
+if (!empty($_GET['ajax_search']) && ($_GET['page'] ?? '') === 'clients' && isLoggedIn()) {
+    $q      = trim($_GET['q'] ?? '');
+    $db     = getDB();
+    $sql    = "SELECT id, client_name, client_mobile, mansoner_name FROM clients WHERE user_id = ?";
+    $params = [$_SESSION['user_id']];
+    if ($q !== '') {
+        $sql     .= " AND (client_name LIKE ? OR client_mobile LIKE ? OR mansoner_name LIKE ?)";
+        $like     = "%{$q}%";
+        $params[] = $like; $params[] = $like; $params[] = $like;
+    }
+    $sql .= " ORDER BY client_name ASC LIMIT 20";
+    $st = $db->prepare($sql);
+    $st->execute($params);
+    header('Content-Type: application/json');
+    echo json_encode(['clients' => $st->fetchAll(PDO::FETCH_ASSOC)]);
+    exit;
+}
 // ── Handle POST actions ──────────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
@@ -98,6 +115,71 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $inlineError = $result['error'];
         include BASE_PATH . '/pages/reset_password.php'; exit;
     }
+  // ── Create client
+if ($action === 'create_client') {
+    $result = createClient($_SESSION['user_id'], $_POST);
+    if ($result['success']) {
+        flash('toast', 'Client added successfully.');
+        redirect('index.php?page=clients');
+    }
+    $inlineError = $result['error'];
+    include BASE_PATH . '/pages/client_form.php'; exit;
+}
+
+// ── Update client
+if ($action === 'update_client') {
+    $id     = (int)($_POST['client_id'] ?? 0);
+    $result = updateClient($id, $_SESSION['user_id'], $_POST);
+    if ($result['success']) {
+        flash('toast', 'Client updated.');
+        redirect('index.php?page=client_form&id=' . $id);
+    }
+    $inlineError = $result['error'];
+    include BASE_PATH . '/pages/client_form.php'; exit;
+}
+
+// ── Delete client
+if ($action === 'delete_client') {
+    $id = (int)($_POST['client_id'] ?? 0);
+    deleteClient($id, $_SESSION['user_id']);
+    flash('toast', 'Client deleted.');
+    redirect('index.php?page=clients');
+}
+
+// ── Add to selection
+if ($action === 'add_to_selection') {
+    $clientId = (int)($_POST['client_id'] ?? 0);
+    $result   = createSelection($clientId, $_SESSION['user_id'], $_POST);
+    if ($result['success']) {
+        flash('toast', 'Product added to selection.');
+        redirect('index.php?page=client_selections&client_id=' . $clientId);
+    }
+    flash('error', $result['error']);
+    redirect('index.php?page=product&id=' . (int)($_POST['product_id'] ?? 0));
+}
+
+// ── Update selection
+if ($action === 'update_selection') {
+    $id       = (int)($_POST['selection_id'] ?? 0);
+    $clientId = (int)($_POST['client_id']    ?? 0);
+    updateSelection($id, $_SESSION['user_id'], $_POST);
+    if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) ||
+        stripos($_SERVER['HTTP_ACCEPT'] ?? '', 'application/json') !== false) {
+        header('Content-Type: application/json');
+        echo json_encode(['success' => true]); exit;
+    }
+    flash('toast', 'Selection updated.');
+    redirect('index.php?page=client_selections&client_id=' . $clientId);
+}
+
+// ── Delete selection
+if ($action === 'delete_selection') {
+    $id       = (int)($_POST['selection_id'] ?? 0);
+    $clientId = (int)($_POST['client_id']    ?? 0);
+    deleteSelection($id, $_SESSION['user_id']);
+    flash('toast', 'Removed from selection.');
+    redirect('index.php?page=client_selections&client_id=' . $clientId);
+}
 
     // ── Authenticated actions ────────────────────────────────────────────
     requireLogin();
@@ -156,8 +238,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // ── Page routing ─────────────────────────────────────────────────────────
 $publicPages    = ['login','register','forgot_password','reset_password'];
-$protectedPages = ['catalog','product','shortlist','profile','support','notifications'];
-
+$protectedPages = ['catalog','product','shortlist','profile','support','notifications',
+                   'clients','client_form','client_selections'];
 if (!in_array($page, $publicPages) && !in_array($page, $protectedPages)) {
     $page = isLoggedIn() ? 'catalog' : 'login';
 }

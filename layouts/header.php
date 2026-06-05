@@ -11,6 +11,7 @@
 <style><?= getCSSVariables() ?></style>
 <link rel="stylesheet" href="assets/css/style.css"/>
 <link rel="stylesheet" href="assets/css/watermark.css"/>
+<link rel="stylesheet" href="assets/css/clients.css"/>
 <?php if (!empty($extraCSS)) foreach ($extraCSS as $f): ?>
 <link rel="stylesheet" href="assets/css/<?= h($f) ?>"/>
 <?php endforeach; ?>
@@ -44,6 +45,14 @@ $_authLogo = getLogo(false);
     $ns->execute([$cutoff20]);
     $notifCount = (int)$ns->fetchColumn();
   } catch (Throwable $_e) {}
+
+  // Client count for badge
+  $clientCount = 0;
+  try {
+    if (function_exists('clientCount')) {
+      $clientCount = clientCount($_SESSION['user_id']);
+    }
+  } catch (Throwable $_e) {}
 ?>
 
 <nav class="navbar">
@@ -69,6 +78,10 @@ $_authLogo = getLogo(false);
       <?= icon('heart',15) ?> Shortlist
       <?php if ($sc): ?><span class="navbar-badge"><?= $sc ?></span><?php endif; ?>
     </a>
+    <a href="index.php?page=clients" class="<?= in_array($curPage,['clients','client_form','client_selections'])?'active':'' ?>" style="position:relative;">
+      <?= icon('users',15) ?> Clients
+      <?php if ($clientCount): ?><span class="navbar-badge"><?= $clientCount ?></span><?php endif; ?>
+    </a>
     <a href="index.php?page=notifications" class="<?= $curPage==='notifications'?'active':'' ?>" style="position:relative;">
       <?= icon('bell',15) ?> Updates
       <?php if ($notifCount): ?><span class="navbar-badge"><?= $notifCount ?></span><?php endif; ?>
@@ -81,7 +94,7 @@ $_authLogo = getLogo(false);
   <!-- Right actions -->
   <div class="navbar-right">
     <!-- Shortlist icon (mobile) -->
-    <a href="index.php?page=shortlist" class="navbar-icon-btn" style="display:flex;" title="Shortlist">
+    <a href="index.php?page=shortlist" class="navbar-icon-btn" title="Shortlist">
       <?= icon('heart',17) ?>
       <?php if ($sc): ?><span class="navbar-badge"><?= $sc ?></span><?php endif; ?>
     </a>
@@ -108,6 +121,12 @@ $_authLogo = getLogo(false);
     <a href="index.php?page=shortlist" class="<?= $curPage==='shortlist'?'active':'' ?>" onclick="closeMobileMenu()" style="position:relative;">
       <?= icon('heart',18) ?> Shortlist
       <?php if ($sc): ?><span style="margin-left:auto;" class="badge badge-black"><?= $sc ?></span><?php endif; ?>
+    </a>
+    <a href="index.php?page=clients"
+       class="<?= in_array($curPage,['clients','client_form','client_selections'])?'active':'' ?>"
+       onclick="closeMobileMenu()">
+      <?= icon('users',18) ?> Clients
+      <?php if ($clientCount): ?><span style="margin-left:auto;" class="badge badge-black"><?= $clientCount ?></span><?php endif; ?>
     </a>
     <a href="index.php?page=notifications" class="<?= $curPage==='notifications'?'active':'' ?>" onclick="closeMobileMenu()">
       <?= icon('bell',18) ?> Notifications

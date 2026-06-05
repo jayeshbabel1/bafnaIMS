@@ -23,14 +23,28 @@ $users = $st->fetchAll();
 <div class="admin-table-wrap">
   <table class="admin-table">
     <thead>
-      <tr><th>Name</th><th>Email</th><th>Role</th><th>Firm</th><th>City</th><th>Verified</th><th>Joined</th><th>Action</th><th>Password Reset</th></tr>
+      <tr>
+        <th>Name</th>
+        <th>Email</th>
+        <th>Role</th>
+        <th>Firm</th>
+        <th>City</th>
+        <th>Verified</th>
+        <th>Joined</th>
+        <th>Password Reset</th>
+        <th>Clients</th>
+      </tr>
     </thead>
     <tbody>
       <?php if (empty($users)): ?>
-      <tr><td colspan="8" style="text-align:center;padding:30px;color:var(--text3);">No users found.</td></tr>
+      <tr><td colspan="10" style="text-align:center;padding:30px;color:var(--text3);">No users found.</td></tr>
       <?php else: foreach ($users as $u):
         $initials = strtoupper(($u['name'][0] ?? 'U'));
         $roleLabel = ROLES[$u['role'] ?? ''] ?? $u['role'];
+
+        // Client count for this user
+        $ccSt = $db->prepare("SELECT COUNT(*) as c FROM clients WHERE user_id=?");
+        $ccSt->execute([$u['id']]); $cc = (int)$ccSt->fetch()['c'];
       ?>
       <tr>
         <td>
@@ -55,21 +69,22 @@ $users = $st->fetchAll();
         </td>
         <td style="color:var(--text3);font-size:11px;"><?= date('d M Y', $u['created_at']) ?></td>
         <td>
-          <?php
-          $iqC = $db->prepare("SELECT COUNT(*) as c FROM inquiries WHERE user_id=?");
-          $iqC->execute([$u['id']]); $ic = $iqC->fetch()['c'];
-          ?>
-          <span style="font-size:11px;color:var(--text3);"><?= $ic ?> inq.</span>
+          <form method="POST" action="index.php" style="display:inline;">
+            <input type="hidden" name="action" value="send_password_reset"/>
+            <input type="hidden" name="user_id" value="<?= $u['id'] ?>"/>
+            <button type="submit" class="btn-admin-secondary btn-admin-sm" style="border:none;cursor:pointer;font-size:10px;">
+              <?= icon('mail',13) ?> Reset Email
+            </button>
+          </form>
         </td>
-        <td><!-- Password reset email button -->
-  		  <form method="POST" action="index.php" style="display:inline;">
-      <input type="hidden" name="action" value="send_password_reset"/>
-      <input type="hidden" name="user_id" value="<?= $u['id'] ?>"/>
-      <button type="submit" class="btn-admin-secondary btn-admin-sm
-              style="border:none;cursor:pointer;font-size:10px;"><?= icon('mail',13) ?>
-        Reset Email
-      </button>
-    </form></td>
+        <td>
+          <a href="index.php?page=user_clients&user_id=<?= $u['id'] ?>"
+             class="btn-admin-secondary btn-admin-sm"
+             style="display:inline-flex;align-items:center;gap:5px;text-decoration:none;">
+            <?= icon('users',13) ?>
+            <span><?= $cc ?> Clients</span>
+          </a>
+        </td>
       </tr>
       <?php endforeach; endif; ?>
     </tbody>

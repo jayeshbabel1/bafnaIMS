@@ -29,13 +29,13 @@ $showNav   = true;
 
     <!-- Contact cards -->
     <div class="support-cards">
-      <a href="tel:9993939399" class="support-card">
+      <a href="tel:9898074441" class="support-card">
         <div class="support-card-icon" style="background:var(--gray-100);color:var(--text3);">
           <?= icon('phone',22) ?>
         </div>
         <div class="support-card-body">
           <p class="support-card-label">Call Us</p>
-          <p class="support-card-value">+91 99939 39399</p>
+          <p class="support-card-value">+91 9898074441</p>
           <p class="support-card-hint">Mon – Sat, 9 AM – 6 PM</p>
         </div>
       </a>
@@ -46,18 +46,18 @@ $showNav   = true;
         </div>
         <div class="support-card-body">
           <p class="support-card-label">Email Us</p>
-          <p class="support-card-value">info@bafnamarbles.com</p>
+          <p class="support-card-value">sales@bafnamarbles.com</p>
           <p class="support-card-hint">Reply within 24 hours</p>
         </div>
       </a>
 
-      <a href="https://wa.me/919993939399" target="_blank" class="support-card">
+      <a href="https://wa.me/919898074441" target="_blank" class="support-card">
         <div class="support-card-icon" style="background:#e8faf0;color:#25D366;">
           <?= icon('whatsapp',22) ?>
         </div>
         <div class="support-card-body">
           <p class="support-card-label">WhatsApp</p>
-          <p class="support-card-value">+91 99939 39399</p>
+          <p class="support-card-value">+91 9898074441</p>
           <p class="support-card-hint">Quick responses</p>
         </div>
       </a>
@@ -68,8 +68,10 @@ $showNav   = true;
         </div>
         <div class="support-card-body">
           <p class="support-card-label">Visit Us</p>
-          <p class="support-card-value">33, Ring Road, Surat</p>
-          <p class="support-card-hint">Gujarat, India</p>
+          <p class="support-card-value">Bafna Marble & Granites <br> block No.40, Near Puniya Bhumi , Second VIP Road <br>Surat-395007 , Gujarat -INDIA <br>
+          <a href="https://maps.app.goo.gl/9WiRU9Zg3Sxw8xxA9">
+            click here for Google Location </a></p>
+          <p class="support-card-hint"><a href="https://api.whatsapp.com/send/?phone=919898074441&text=Hi%2C%20please%20check%20this%20location%20-%20https%3A%2F%2Fmaps.app.goo.gl%2F9WiRU9Zg3Sxw8xxA9&type=phone_number&app_absent=0">Share Location</a></p>
         </div>
       </div>
     </div>

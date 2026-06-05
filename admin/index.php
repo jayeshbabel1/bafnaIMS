@@ -25,6 +25,7 @@ require_once __DIR__ . '/../includes/helpers.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/notifications.php';
 require_once __DIR__ . '/../includes/logo.php';
+require_once __DIR__ . '/../includes/clients.php';
 
 
 // ── CSV Export (before any output) ───────────────────────────────────────────
@@ -182,80 +183,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         importPhotos($_FILES['photo_zip'] ?? null);
         redirect('index.php?page=products');
     }
-  
-  if ($action === 'reply_inquiry') {
-
-    try {
-
-        $iid   = (int)($_POST['inquiry_id'] ?? 0);
-        $reply = trim($_POST['reply'] ?? '');
-
-        if (!$iid || $reply === '') {
-            flash('error', 'Invalid request');
-            redirect('index.php?page=inquiries');
-        }
-
-        $db = getDB();
-
-        // safer query (no subject dependency unless it exists)
-        $st = $db->prepare("
-            SELECT 
-                u.email,
-                u.name AS user_name,
-                p.name AS product_name,
-                p.quarry_number
-            FROM inquiries i
-            JOIN users u ON u.id = i.user_id
-            LEFT JOIN products p ON p.id = i.product_id
-            WHERE i.id = ?
-        ");
-
-        $st->execute([$iid]);
-        $data = $st->fetch(PDO::FETCH_ASSOC);
-
-        if (!$data) {
-            flash('error', 'Inquiry not found');
-            redirect('index.php?page=inquiries');
-        }
-
-        // update
-        $db->prepare("
-            UPDATE inquiries 
-            SET admin_reply = ?, status = 'replied' 
-            WHERE id = ?
-        ")->execute([$reply, $iid]);
-
-        // subject build
-        $productLabel = trim(($data['product_name'] ?? '') . ' - ' . ($data['quarry_number'] ?? ''));
-        $subject = "Reply: " . $productLabel;
-
-        $message = "
-            Hello " . htmlspecialchars($data['user_name'] ?? 'User') . ",<br><br>
-            <b> We got your enqiry about <b>Product:</b> {$productLabel}<br><br>
-            <b>Reply:</b><br>" . nl2br(htmlspecialchars($reply)) . "
-            <br><br>Regards,<br>Support Team
-        ";
-
-        $headers  = "MIME-Version: 1.0\r\n";
-        $headers .= "Content-type:text/html;charset=UTF-8\r\n";
-        $headers .= "From: no-reply@yourdomain.com\r\n";
-
-        mail($data['email'], $subject, $message, $headers);
-     // createNotification(
-//'Inquiry Replied',
-     //         'Reply sent for product "' . ($data['product_name'] ?? '') . '".',
-       //       'inquiry'
-    //    );
-        flash('toast', 'Reply sent successfully.');
-        redirect('index.php?page=inquiries');
-
-    } catch (Throwable $e) {
-        error_log("reply_inquiry error: " . $e->getMessage());
-        flash('error', 'Something went wrong while sending reply.');
-        redirect('index.php?page=inquiries');
-    }
-}
-
 }
   
 // ── AJAX Sync endpoint ─────────────────────────────────────────────────────
@@ -1516,7 +1443,8 @@ function syncDnaReports(): array {
 }
 
 
-$pages = ['dashboard','products','product_edit','colors','users','inquiries','sync','notifications','logo'];
+$pages = ['dashboard','products','product_edit','colors','users','inquiries','sync',
+          'notifications','logo','user_clients','admin_selections'];
 $file  = in_array($page, $pages)
        ? __DIR__ . '/views/' . $page . '.php'
        : __DIR__ . '/views/dashboard.php';

@@ -3,16 +3,19 @@ $id = (int)($_GET['id'] ?? 0);
 $p  = getProduct($id);
 if (!$p) { flash('error','Product not found.'); redirect('index.php?page=catalog'); }
 
+require_once BASE_PATH . '/includes/clients.php';
+
 $pageTitle = h($p['name']) . ' — ' . APP_NAME;
 $showNav   = true;
 $extraJS   = ['product.js','zoom.js'];
-$extraCSS  = ['zoom.css'];
+$extraCSS  = ['zoom.css','clients.css'];
 
 $pal           = $p['palette_arr'];
 $photos        = $p['photos'];
 $saved         = isShortlisted($id);
 $cutterDisplay = $p['cutter_size_display'] ?? '';
 $sizesDisplay  = $p['sizes_display'] ?? '';
+$hasClients    = clientCount($_SESSION['user_id']) > 0;
 
 $specs = [
     'Stone Type'     => $p['category'],
@@ -30,7 +33,8 @@ $specs = [
 <?php include BASE_PATH . '/layouts/header.php'; ?>
 
 <div class="detail-page">
-  <!-- ── HERO ─────────────────────────────────────────────────────────── -->
+
+  <!-- ── HERO ────────────────────────────────────────────────────────────── -->
   <div class="detail-hero" id="heroWrap">
     <?php if ($photos && file_exists(PHOTOS_DIR.'/'.$photos[0]['filename'])): ?>
     <div class="zoom-container" id="heroZoomContainer">
@@ -94,9 +98,9 @@ $specs = [
     <?php endif; ?>
   </div><!-- .detail-hero -->
 
-  <!-- ── BODY ─────────────────────────────────────────────────────────── -->
+  <!-- ── BODY ─────────────────────────────────────────────────────────────── -->
   <div class="detail-body">
-   
+
     <!-- Tags -->
     <div class="detail-tags">
       <span class="badge badge-amber"><?= h($p['category']) ?></span>
@@ -202,7 +206,7 @@ $specs = [
     <?php endif; ?>
     <?php endif; ?>
 
-    <!-- CTAs -->
+    <!-- ── CTAs ── -->
     <div class="detail-cta" style="margin-top:22px;">
       <form method="POST" action="index.php" style="flex:1">
         <input type="hidden" name="action"     value="toggle_shortlist"/>
@@ -216,6 +220,20 @@ $specs = [
         <?= icon('share',16) ?>&nbsp; Share
       </button>
     </div>
+
+    <!-- Add to Selection — full width row -->
+    <div style="margin-top:10px;">
+      <button onclick="openAddToSelection()" class="btn btn-gold btn-block btn-lg">
+        <?= icon('plus',16) ?>&nbsp; Add to Client Selection
+      </button>
+    </div>
+
+    <?php if (!$hasClients): ?>
+    <p style="text-align:center;font-size:12px;color:var(--text4);margin-top:8px;">
+      No clients yet — <a href="index.php?page=client_form" style="color:var(--black);font-weight:600;">add a client</a> to use selections.
+    </p>
+    <?php endif; ?>
+
   </div><!-- .detail-body -->
 </div><!-- .detail-page -->
 
@@ -253,5 +271,224 @@ $specs = [
     </button>
   </div>
 </div>
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     ADD TO SELECTION MODAL
+     ════════════════════════════════════════════════════════════════════════ -->
+<div id="addToSelModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9000;align-items:flex-end;justify-content:center;">
+  <div style="background:var(--white);border-radius:var(--radius-xl) var(--radius-xl) 0 0;width:100%;max-width:100%;max-height:92vh;overflow-y:auto;">
+
+    <!-- Header -->
+    <div style="padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--white);z-index:2;">
+      <p style="font-family:var(--font-display);font-size:16px;font-weight:700;">Add to Client Selection</p>
+      <button onclick="closeAddToSelection()" style="color:var(--text3);cursor:pointer;padding:4px;"><?= icon('close',18) ?></button>
+    </div>
+
+    <!-- Product preview -->
+    <div style="padding:14px 20px;background:var(--gray-50);border-bottom:1px solid var(--border);">
+      <div style="display:flex;gap:12px;align-items:center;">
+        <div style="width:52px;height:52px;border-radius:var(--radius);overflow:hidden;flex-shrink:0;background:var(--gray-100);">
+          <?php $ph0 = $photos[0] ?? null; ?>
+          <?php if ($ph0 && file_exists(PHOTOS_DIR.'/'.$ph0['filename'])): ?>
+          <img src="assets/uploads/photos/<?= h($ph0['filename']) ?>" alt="" style="width:100%;height:100%;object-fit:cover;"/>
+          <?php else: ?>
+          <?= marbleSVG($pal, 52, 52, 'atsprev') ?>
+          <?php endif; ?>
+        </div>
+        <div style="flex:1;min-width:0;">
+          <p style="font-weight:700;font-size:14px;line-height:1.3;"><?= h($p['name']) ?></p>
+          <p style="font-size:12px;color:var(--text3);margin-top:1px;">Lot <?= h($p['quarry_number']) ?></p>
+          <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px;">
+            <?php if ($p['thickness']): ?>
+            <span class="badge badge-gray" style="font-size:10px;"><?= h($p['thickness']) ?></span>
+            <?php endif; ?>
+            <?php if ($p['quantity_available']): ?>
+            <span class="badge badge-green" style="font-size:10px;"><?= number_format((float)$p['quantity_available']) ?> sqft avail.</span>
+            <?php endif; ?>
+            <?php if ($sizesDisplay): ?>
+            <span class="badge badge-white" style="font-size:10px;">Size: <?= h($sizesDisplay) ?></span>
+            <?php endif; ?>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Form body -->
+    <div style="padding:20px;">
+      <?php if (!$hasClients): ?>
+      <div style="text-align:center;padding:20px 0;">
+        <div class="empty-icon" style="margin:0 auto 14px;"><?= icon('users',26) ?></div>
+        <p style="font-weight:700;font-size:15px;margin-bottom:6px;">No clients yet</p>
+        <p style="font-size:13px;color:var(--text3);margin-bottom:18px;">Add a client first to save product selections for them.</p>
+        <a href="index.php?page=client_form" class="btn btn-primary" style="text-decoration:none;">
+          <?= icon('plus',14) ?>&nbsp; Add Client
+        </a>
+      </div>
+      <?php else: ?>
+      <form method="POST" action="index.php" id="addToSelForm">
+        <input type="hidden" name="action"     value="add_to_selection"/>
+        <input type="hidden" name="product_id" value="<?= $id ?>"/>
+
+        <!-- Client search -->
+        <div class="input-group">
+          <label class="input-label">Client <span style="color:var(--danger);">*</span></label>
+          <div style="position:relative;">
+            <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text4);pointer-events:none;"><?= icon('search',14) ?></span>
+            <input type="text" id="atsClientSearch" class="input-field"
+                   placeholder="Type to search client…"
+                   autocomplete="off"
+                   style="padding-left:36px;"/>
+            <input type="hidden" name="client_id" id="atsClientId"/>
+            <div id="atsClientDrop"
+                 style="display:none;position:absolute;left:0;right:0;top:calc(100% + 2px);background:var(--white);border:1.5px solid var(--border);border-radius:var(--radius);max-height:200px;overflow-y:auto;z-index:20;box-shadow:var(--shadow);">
+            </div>
+          </div>
+          <p id="atsClientSelected" style="font-size:12px;color:var(--success);margin-top:5px;display:none;">
+            <?= icon('check',12) ?>&nbsp; <span id="atsClientSelectedName"></span>
+          </p>
+        </div>
+
+        <!-- Area + Qty on same row -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+          <div class="input-group">
+            <label class="input-label">Area / Room</label>
+            <input type="text" name="selection_area" class="input-field"
+                   placeholder="e.g. Living Room"/>
+          </div>
+          <div class="input-group">
+            <label class="input-label">Qty Required (sqft)</label>
+            <input type="number" name="quantity_required" class="input-field"
+                   min="0" step="0.01" placeholder="0"/>
+          </div>
+        </div>
+
+        <div class="input-group">
+          <label class="input-label">Notes</label>
+          <textarea name="extra_notes" class="input-field" rows="2"
+                    placeholder="Special requirements, finish preferences…"></textarea>
+        </div>
+
+        <div style="display:flex;gap:10px;">
+          <button type="submit" class="btn btn-gold btn-block">
+            <?= icon('check',15) ?>&nbsp; Save to Selection
+          </button>
+          <button type="button" onclick="closeAddToSelection()" class="btn btn-secondary">
+            Cancel
+          </button>
+        </div>
+      </form>
+      <?php endif; ?>
+    </div>
+
+  </div>
+</div>
+<!-- /addToSelModal -->
+
+<script>
+// ── Modal open/close ─────────────────────────────────────────────────────────
+function openAddToSelection() {
+  const modal = document.getElementById('addToSelModal');
+  if (modal) { modal.style.display = 'flex'; document.body.style.overflow = 'hidden'; }
+  setTimeout(() => document.getElementById('atsClientSearch')?.focus(), 100);
+}
+function closeAddToSelection() {
+  const modal = document.getElementById('addToSelModal');
+  if (modal) { modal.style.display = 'none'; document.body.style.overflow = ''; }
+}
+document.getElementById('addToSelModal')?.addEventListener('click', function(e) {
+  if (e.target === this) closeAddToSelection();
+});
+
+// ── Client AJAX search ───────────────────────────────────────────────────────
+(function () {
+  const inp      = document.getElementById('atsClientSearch');
+  const hidden   = document.getElementById('atsClientId');
+  const drop     = document.getElementById('atsClientDrop');
+  const selLabel = document.getElementById('atsClientSelected');
+  const selName  = document.getElementById('atsClientSelectedName');
+  if (!inp || !drop) return;
+
+  let timer = null;
+
+  function esc(s) {
+    const d = document.createElement('div');
+    d.textContent = String(s);
+    return d.innerHTML;
+  }
+
+  function renderDrop(clients) {
+    if (!clients.length) {
+      drop.innerHTML = '<div style="padding:12px 14px;font-size:13px;color:var(--text3);">No clients found. <a href=\"index.php?page=client_form\" style=\"color:var(--black);font-weight:600;\">Add one</a></div>';
+    } else {
+      drop.innerHTML = clients.map(c =>
+        '<div class="ats-drop-item" data-id="'+c.id+'" data-label="'+esc(c.client_name)+' ('+esc(c.client_mobile)+')" '+
+        'style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);transition:background .1s;">' +
+        '<strong style="font-size:13px;">'+esc(c.client_name)+'</strong>' +
+        '<br><span style="font-size:11px;color:var(--text3);">'+esc(c.client_mobile)+
+        (c.mansoner_name ? ' &nbsp;·&nbsp; Mason: '+esc(c.mansoner_name) : '')+
+        '</span></div>'
+      ).join('');
+    }
+    drop.style.display = 'block';
+    drop.querySelectorAll('.ats-drop-item').forEach(function(item) {
+      item.addEventListener('mouseenter', () => item.style.background = 'var(--gray-50)');
+      item.addEventListener('mouseleave', () => item.style.background = '');
+      item.addEventListener('mousedown', function(e) { e.preventDefault(); });
+      item.addEventListener('click', function() {
+        hidden.value   = item.dataset.id;
+        inp.value      = item.dataset.label;
+        selName.textContent = item.dataset.label;
+        selLabel.style.display = 'flex';
+        drop.style.display = 'none';
+        inp.style.borderColor = '';
+      });
+    });
+  }
+
+  async function doSearch(q) {
+    try {
+      const r = await fetch('index.php?page=clients&ajax_search=1&q=' + encodeURIComponent(q));
+      const d = await r.json();
+      renderDrop(d.clients || []);
+    } catch(e) { drop.style.display = 'none'; }
+  }
+
+  inp.addEventListener('input', function() {
+    hidden.value = '';
+    selLabel.style.display = 'none';
+    const v = this.value.trim();
+    clearTimeout(timer);
+    if (v.length === 0) {
+      timer = setTimeout(() => doSearch(''), 100);
+      return;
+    }
+    timer = setTimeout(() => doSearch(v), 220);
+  });
+
+  inp.addEventListener('focus', function() {
+    doSearch(this.value.trim());
+  });
+
+  inp.addEventListener('blur', function() {
+    setTimeout(() => { drop.style.display = 'none'; }, 220);
+  });
+
+  // Preload on modal open
+  document.querySelector('[onclick="openAddToSelection()"]')?.addEventListener('click', () => {
+    setTimeout(() => doSearch(''), 200);
+  });
+
+  // Validate
+  document.getElementById('addToSelForm')?.addEventListener('submit', function(e) {
+    if (!hidden.value) {
+      e.preventDefault();
+      inp.focus();
+      inp.style.borderColor = 'var(--danger)';
+      inp.style.boxShadow = '0 0 0 3px rgba(185,28,28,.1)';
+      setTimeout(() => { inp.style.borderColor = ''; inp.style.boxShadow = ''; }, 2500);
+    }
+  });
+})();
+</script>
 
 <?php include BASE_PATH . '/layouts/footer.php'; ?>
