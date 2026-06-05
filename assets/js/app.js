@@ -1,11 +1,11 @@
-/* ── Toast auto-dismiss ─────────────────────────────────────────────────── */
+/* ── Toast auto-dismiss ─────────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', () => {
   const toast = document.getElementById('app-toast') || document.getElementById('admin-toast');
   if (toast) {
     setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity .5s'; }, 3200);
   }
 
-  /* ── Password toggle ─────────────────────────────────────────────────── */
+  /* ── Password toggle ─────────────────────────────────────────────── */
   document.querySelectorAll('.pwd-toggle').forEach(btn => {
     btn.addEventListener('click', () => {
       const inp = document.getElementById(btn.dataset.target);
@@ -18,7 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  /* ── Password strength ───────────────────────────────────────────────── */
+  /* ── Password strength ───────────────────────────────────────────── */
   const pwdInput = document.getElementById('regPwd') || document.getElementById('newPwd');
   const strength = document.getElementById('pwdStrength');
   if (pwdInput && strength) {
@@ -33,7 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  /* ── Role option click ───────────────────────────────────────────────── */
+  /* ── Role option click ───────────────────────────────────────────── */
   document.querySelectorAll('.role-option').forEach(el => {
     el.addEventListener('click', () => {
       document.querySelectorAll('.role-option').forEach(o => o.classList.remove('selected'));
@@ -41,16 +41,43 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  /* ── Exp chip click ──────────────────────────────────────────────────── */
+  /* ── Exp chip click ──────────────────────────────────────────────── */
   document.querySelectorAll('.exp-chip').forEach(el => {
     el.addEventListener('click', () => {
       document.querySelectorAll('.exp-chip').forEach(o => o.classList.remove('active'));
       el.classList.add('active');
     });
   });
+
+  /* ── Close mobile menu on outside click ─────────────────────────── */
+  document.addEventListener('click', e => {
+    const menu = document.getElementById('mobileMenu');
+    const btn  = document.getElementById('hamburgerBtn');
+    if (menu && menu.classList.contains('open') && !menu.contains(e.target) && btn && !btn.contains(e.target)) {
+      closeMobileMenu();
+    }
+  });
 });
 
-/* ── Quick chip for inquiry ─────────────────────────────────────────────── */
+/* ── Mobile menu ─────────────────────────────────────────────────────── */
+function toggleMobileMenu() {
+  const menu = document.getElementById('mobileMenu');
+  const btn  = document.getElementById('hamburgerBtn');
+  if (!menu) return;
+  const open = menu.classList.toggle('open');
+  if (btn) btn.classList.toggle('open', open);
+  document.body.style.overflow = open ? 'hidden' : '';
+}
+
+function closeMobileMenu() {
+  const menu = document.getElementById('mobileMenu');
+  const btn  = document.getElementById('hamburgerBtn');
+  if (menu) menu.classList.remove('open');
+  if (btn)  btn.classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+/* ── Quick chip for inquiry form ────────────────────────────────────── */
 function addChip(btn, text) {
   const ta = document.getElementById('inqMessage');
   if (!ta) return;
@@ -58,4 +85,13 @@ function addChip(btn, text) {
   ta.value += sep + text;
   ta.focus();
   btn.classList.add('used');
+}
+
+/* ── FAQ accordion ──────────────────────────────────────────────────── */
+function toggleFaq(i) {
+  const a    = document.getElementById('faqA' + i);
+  const chev = document.getElementById('chev' + i);
+  if (!a) return;
+  const open = a.classList.toggle('open');
+  if (chev) chev.classList.toggle('open', open);
 }

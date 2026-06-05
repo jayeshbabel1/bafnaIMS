@@ -10,11 +10,11 @@ startSecureSession();
 
 $page = preg_replace('/[^a-z_]/', '', $_GET['page'] ?? 'catalog');
 
-// ── Handle POST actions ───────────────────────────────────────────────────────
+// ── Handle POST actions ──────────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
 
-    // ── Auth actions (no login required) ─────────────────────────────────────
+    // ── Public auth actions ──────────────────────────────────────────────
     if ($action === 'login') {
         $result = loginUser($_POST['email'] ?? '', $_POST['password'] ?? '');
         if ($result['success']) {
@@ -99,7 +99,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         include BASE_PATH . '/pages/reset_password.php'; exit;
     }
 
-    // ── Authenticated actions ─────────────────────────────────────────────────
+    // ── Authenticated actions ────────────────────────────────────────────
     requireLogin();
 
     if ($action === 'logout') {
@@ -121,21 +121,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect($returnUrl);
     }
 
-    if ($action === 'send_inquiry') {
-        $pid  = (int)($_POST['product_id'] ?? 0);
-        $msg  = trim($_POST['message']      ?? '');
-        $qty  = trim($_POST['qty_required'] ?? '');
-        if (!$pid || !$msg) {
-            $inlineError = 'Please write a message before sending.';
-            include BASE_PATH . '/pages/inquiry_form.php'; exit;
-        }
-        $db = getDB();
-        $db->prepare("INSERT INTO inquiries (user_id,product_id,message,qty_required) VALUES (?,?,?,?)")
-           ->execute([$_SESSION['user_id'], $pid, $msg, $qty]);
-        flash('toast', 'Inquiry sent! The Bafna team will respond soon.');
-        redirect('index.php?page=inquiries');
-    }
-
     if ($action === 'update_profile') {
         $user = currentUser();
         $db   = getDB();
@@ -150,7 +135,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                $user['id'],
            ]);
         flash('toast', 'Profile updated.');
-        redirect('index.php?page=profile&section=settings');
+        redirect('index.php?page=profile');
     }
 
     if ($action === 'change_password') {
@@ -165,13 +150,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $hash = password_hash($new, PASSWORD_DEFAULT);
         getDB()->prepare("UPDATE users SET password=? WHERE id=?")->execute([$hash, $user['id']]);
         flash('toast', 'Password changed successfully.');
-        redirect('index.php?page=profile&section=settings');
+        redirect('index.php?page=profile');
     }
 }
 
-// ── Page routing ──────────────────────────────────────────────────────────────
-$publicPages    = ['login','register','forgot_password','reset_password','support'];
-$protectedPages = ['catalog','product','shortlist','inquiries','profile','inquiry_form','support','notifications'];
+// ── Page routing ─────────────────────────────────────────────────────────
+$publicPages    = ['login','register','forgot_password','reset_password'];
+$protectedPages = ['catalog','product','shortlist','profile','support','notifications'];
 
 if (!in_array($page, $publicPages) && !in_array($page, $protectedPages)) {
     $page = isLoggedIn() ? 'catalog' : 'login';
