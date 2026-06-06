@@ -101,6 +101,7 @@ $totalPages = max(1, (int)ceil($total / $perPage));
         <th>Area</th>
         <th>Notes</th>
         <th>Added</th>
+        <th>Share</th>
       </tr>
     </thead>
     <tbody>
@@ -137,6 +138,42 @@ $totalPages = max(1, (int)ceil($total / $perPage));
         <td style="font-size:12px;"><?= h($sel['selection_area'] ?: '—') ?></td>
         <td style="font-size:11px;color:var(--text3);max-width:140px;"><?= $sel['extra_notes'] ? h(mb_strimwidth($sel['extra_notes'], 0, 50, '…')) : '—' ?></td>
         <td style="font-size:11px;color:var(--text3);white-space:nowrap;"><?= date('d M Y', $sel['created_at']) ?></td>
+        <td>
+          <?php
+          // Build WhatsApp share message
+          $slab_wa = formatDimension($sel['sizes_l'] ?? '', $sel['sizes_h'] ?? '');
+          $cut_wa  = formatDimension($sel['cutter_size_l'] ?? '', $sel['cutter_size_h'] ?? '');
+          $wa_msg  = "*Product Selection — " . APP_NAME . "*\n\n";
+          $wa_msg .= "*Client:* " . $client['client_name'] . "\n";
+          $wa_msg .= "*Mobile:* " . $client['client_mobile'] . "\n";
+          if ($client['mansoner_name']) {
+              $wa_msg .= "*Mason:* " . $client['mansoner_name'] . "\n";
+              if ($client['mansoner_mobile']) {
+                  $wa_msg .= "*Mason Mobile:* " . $client['mansoner_mobile'] . "\n";
+              }
+          }
+          if ($client['site_address']) {
+              $wa_msg .= "*Site:* " . $client['site_address'] . "\n";
+          }
+          $wa_msg .= "\n*Product Details*\n";
+          $wa_msg .= "Name: " . $sel['product_name'] . "\n";
+          $wa_msg .= "Quarry: " . $sel['quarry_number'] . "\n";
+          $wa_msg .= "Category: " . $sel['category'] . "\n";
+          if ($sel['thickness'])   $wa_msg .= "Thickness: " . $sel['thickness'] . "\n";
+          if ($slab_wa)            $wa_msg .= "Slab Size: " . $slab_wa . "\n";
+          if ($cut_wa)             $wa_msg .= "Italian Size: " . $cut_wa . "\n";
+          $wa_msg .= "Available: " . number_format((float)$sel['quantity_available']) . " sqft\n";
+          if ($sel['quantity_required'] > 0) $wa_msg .= "Required: " . number_format((float)$sel['quantity_required']) . " sqft\n";
+          if ($sel['selection_area'])  $wa_msg .= "Area: " . $sel['selection_area'] . "\n";
+          if ($sel['extra_notes'])     $wa_msg .= "Notes: " . $sel['extra_notes'] . "\n";
+          $wa_url = 'https://wa.me/?text=' . rawurlencode($wa_msg);
+          ?>
+          <a href="<?= h($wa_url) ?>" target="_blank" rel="noopener"
+             class="btn-admin-secondary btn-admin-sm"
+             style="display:inline-flex;align-items:center;gap:4px;color:#25D366;border-color:#25D366;white-space:nowrap;text-decoration:none;">
+            <?= icon('whatsapp', 13) ?> Share
+          </a>
+        </td>
       </tr>
       <?php endforeach; endif; ?>
     </tbody>

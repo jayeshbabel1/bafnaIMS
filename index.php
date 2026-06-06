@@ -206,7 +206,7 @@ if ($action === 'delete_selection') {
     if ($action === 'update_profile') {
         $user = currentUser();
         $db   = getDB();
-        $name = trim($_POST['name'] ?? '');
+        $name = titleCase(trim($_POST['name'] ?? ''));
         if (!$name) { $inlineError = 'Name is required.'; include BASE_PATH.'/pages/profile.php'; exit; }
         $db->prepare("UPDATE users SET name=?,firm=?,city=?,phone=? WHERE id=?")
            ->execute([

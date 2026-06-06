@@ -39,7 +39,7 @@ if ($slMax   !== null) $filters['sl_max']             = $slMax;
 if ($shMin   !== null) $filters['sh_min']             = $shMin;
 if ($shMax   !== null) $filters['sh_max']             = $shMax;
 
-// ── Query builder ───────────────────────────────────────────────────────────
+// Query Builder 
 function getSortedProducts(array $filters, string $sort): array {
     $db  = getDB();
     $sql = "SELECT p.*,
@@ -52,17 +52,35 @@ function getSortedProducts(array $filters, string $sort): array {
     if (!empty($filters['color_subcategory'])) { $sql .= " AND p.color_subcategory=?";    $params[] = $filters['color_subcategory']; }
     if (!empty($filters['search']))            { $sql .= " AND (p.name LIKE ? OR p.quarry_number LIKE ?)"; $params[] = '%'.$filters['search'].'%'; $params[] = '%'.$filters['search'].'%'; }
 
-    // Available sqft
-    if (isset($filters['sqft_min'])) { $sql .= " AND p.quantity_available >= ?"; $params[] = $filters['sqft_min']; }
-    if (isset($filters['sqft_max'])) { $sql .= " AND p.quantity_available <= ?"; $params[] = $filters['sqft_max']; }
+   // Available sqft — BETWEEN / >= / <=
+    if (isset($filters['sqft_min']) && isset($filters['sqft_max'])) {
+        $sql .= " AND p.quantity_available BETWEEN ? AND ?";
+        $params[] = $filters['sqft_min']; $params[] = $filters['sqft_max'];
+    } elseif (isset($filters['sqft_min'])) {
+        $sql .= " AND p.quantity_available >= ?"; $params[] = $filters['sqft_min'];
+    } elseif (isset($filters['sqft_max'])) {
+        $sql .= " AND p.quantity_available <= ?"; $params[] = $filters['sqft_max'];
+    }
 
-    // Slab Length (sizes_l)
-    if (isset($filters['sl_min'])) { $sql .= " AND CAST(p.sizes_l AS DECIMAL(10,2)) >= ?"; $params[] = $filters['sl_min']; }
-    if (isset($filters['sl_max'])) { $sql .= " AND CAST(p.sizes_l AS DECIMAL(10,2)) <= ?"; $params[] = $filters['sl_max']; }
+   // Slab Length (sizes_l) — BETWEEN / >= / <=
+    if (isset($filters['sl_min']) && isset($filters['sl_max'])) {
+        $sql .= " AND CAST(p.sizes_l AS DECIMAL(10,2)) BETWEEN ? AND ?";
+        $params[] = $filters['sl_min']; $params[] = $filters['sl_max'];
+    } elseif (isset($filters['sl_min'])) {
+        $sql .= " AND CAST(p.sizes_l AS DECIMAL(10,2)) >= ?"; $params[] = $filters['sl_min'];
+    } elseif (isset($filters['sl_max'])) {
+        $sql .= " AND CAST(p.sizes_l AS DECIMAL(10,2)) <= ?"; $params[] = $filters['sl_max'];
+    }
 
-    // Slab Height (sizes_h)
-    if (isset($filters['sh_min'])) { $sql .= " AND CAST(p.sizes_h AS DECIMAL(10,2)) >= ?"; $params[] = $filters['sh_min']; }
-    if (isset($filters['sh_max'])) { $sql .= " AND CAST(p.sizes_h AS DECIMAL(10,2)) <= ?"; $params[] = $filters['sh_max']; }
+    // Slab Height (sizes_h) — BETWEEN / >= / <=
+    if (isset($filters['sh_min']) && isset($filters['sh_max'])) {
+        $sql .= " AND CAST(p.sizes_h AS DECIMAL(10,2)) BETWEEN ? AND ?";
+        $params[] = $filters['sh_min']; $params[] = $filters['sh_max'];
+    } elseif (isset($filters['sh_min'])) {
+        $sql .= " AND CAST(p.sizes_h AS DECIMAL(10,2)) >= ?"; $params[] = $filters['sh_min'];
+    } elseif (isset($filters['sh_max'])) {
+        $sql .= " AND CAST(p.sizes_h AS DECIMAL(10,2)) <= ?"; $params[] = $filters['sh_max'];
+    }
 
     switch ($sort) {
         case 'name_az':  $sql .= " ORDER BY p.name ASC"; break;
@@ -70,7 +88,6 @@ function getSortedProducts(array $filters, string $sort): array {
         case 'qty_desc': $sql .= " ORDER BY p.quantity_available DESC"; break;
         default:         $sql .= " ORDER BY p.featured DESC, p.sort_order ASC, p.id DESC"; break;
     }
-
     $st = $db->prepare($sql);
     $st->execute($params);
     return $st->fetchAll();

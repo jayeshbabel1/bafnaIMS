@@ -110,7 +110,7 @@ $specs = [
 
     <div class="gold-bar"></div>
     <h1 class="detail-title"><?= h($p['name']) ?></h1>
-    <p class="detail-quarry">Lot <?= h($p['quarry_number']) ?><?= $p['origin'] ? ' · '.h($p['origin']) : '' ?></p>
+    <p class="detail-quarry">Quarry No. <?= h($p['quarry_number']) ?><?= $p['origin'] ? ' · '.h($p['origin']) : '' ?></p>
     <?php if ($p['description']): ?>
     <p class="detail-desc"><?= h($p['description']) ?></p>
     <?php endif; ?>
@@ -456,17 +456,17 @@ document.getElementById('addToSelModal')?.addEventListener('click', function(e) 
   inp.addEventListener('input', function() {
     hidden.value = '';
     selLabel.style.display = 'none';
+    drop.style.display = 'none';
     const v = this.value.trim();
     clearTimeout(timer);
-    if (v.length === 0) {
-      timer = setTimeout(() => doSearch(''), 100);
-      return;
-    }
-    timer = setTimeout(() => doSearch(v), 220);
+    if (v.length < 2) return;          // ← wait for 2 chars minimum
+    timer = setTimeout(() => doSearch(v), 300);  // 300 ms debounce
   });
 
   inp.addEventListener('focus', function() {
-    doSearch(this.value.trim());
+    // only trigger search on focus if already has 2+ chars
+    const v = this.value.trim();
+    if (v.length >= 2) doSearch(v);
   });
 
   inp.addEventListener('blur', function() {

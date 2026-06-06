@@ -7,7 +7,7 @@
 <title><?= h($pageTitle ?? APP_NAME) ?></title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
 <style><?= getCSSVariables() ?></style>
 <link rel="stylesheet" href="assets/css/style.css"/>
 <link rel="stylesheet" href="assets/css/watermark.css"/>
@@ -103,6 +103,12 @@ $_authLogo = getLogo(false);
       <div class="navbar-avatar"><?= h($initials) ?></div>
       <span class="navbar-user-name"><?= h(explode(' ', $user['name'] ?? 'User')[0]) ?></span>
     </a>
+    <form method="POST" action="index.php" class="navbar-signout-form" style="display:contents;">
+      <input type="hidden" name="action" value="logout"/>
+      <button type="submit" class="navbar-signout">
+        <?= icon('logout',14) ?> Sign Out
+      </button>
+    </form>
     <!-- Hamburger -->
     <div class="navbar-hamburger" id="hamburgerBtn" onclick="toggleMobileMenu()">
       <div class="hamburger-line"></div>

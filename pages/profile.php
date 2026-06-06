@@ -1,4 +1,3 @@
-cat > /home/claude/bafna/pages/profile.php << 'PHPEOF'
 <?php
 $pageTitle = 'Profile — ' . APP_NAME;
 $showNav   = true;

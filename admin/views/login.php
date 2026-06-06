@@ -11,8 +11,23 @@
 <body style="display:flex;align-items:center;justify-content:center;min-height:100vh;background:var(--bg);">
 <div style="width:100%;max-width:380px;padding:24px;">
   <div style="text-align:center;margin-bottom:32px;">
-    <div style="width:56px;height:56px;background:linear-gradient(135deg,var(--accent2),var(--text));border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;">
-      <svg width="28" height="28" viewBox="0 0 36 36" fill="none"><polygon points="18,4 32,28 4,28" fill="rgba(255,255,255,0.2)" stroke="white" stroke-width="1.5"/><polygon points="18,10 26,24 10,24" fill="rgba(255,255,255,0.35)" stroke="white" stroke-width="1"/></svg>
+    <?php
+    if (!function_exists('getLogo')) {
+        require_once BASE_PATH . '/includes/logo.php';
+    }
+    $_loginLogo = getLogo(false);  // relative path from admin/ dir uses admin=false but we fix prefix below
+    // getLogo(true) gives ../uploads/logo/... which works from admin/views/
+    $_loginLogo = getLogo(true);
+    ?>
+    <div style="width:64px;height:64px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;">
+      <?php if ($_loginLogo): ?>
+        <img src="<?= h($_loginLogo) ?>" alt="<?= h(APP_NAME) ?>"
+             style="max-width:100%;max-height:100%;object-fit:contain;filter:brightness(0) invert(1);"/>
+      <?php else: ?>
+        <img src="https://i0.wp.com/www.bafnamarble.com/wp-content/uploads/2023/11/cropped-logo-01.png?fit=317%2C250&ssl=1"
+             alt="<?= h(APP_NAME) ?>"
+             style="max-width:100%;max-height:100%;object-fit:contain;filter:brightness(0) invert(1);"/>
+      <?php endif; ?>
     </div>
     <h1 style="font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:600;color:var(--text);">Admin Panel</h1>
     <p style="font-size:13px;color:var(--text3);margin-top:4px;"><?= APP_NAME ?></p>

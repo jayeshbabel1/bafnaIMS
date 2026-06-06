@@ -54,7 +54,7 @@ function registerUser(array $data): array {
     $hash = password_hash($data['password'], PASSWORD_DEFAULT);
     $st   = $db->prepare("INSERT INTO users (name,email,password,phone,firm,city,role,experience) VALUES (?,?,?,?,?,?,?,?)");
     $st->execute([
-        trim($data['name']),
+        titleCase($data['name']),
         $email,
         $hash,
         trim($data['phone']  ?? ''),

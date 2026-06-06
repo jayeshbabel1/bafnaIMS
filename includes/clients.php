@@ -62,9 +62,9 @@ function getClientById(int $id): ?array {
 }
 
 function createClient(int $userId, array $data): array {
-    $name    = trim($data['client_name']    ?? '');
+    $name    = titleCase($data['client_name']   ?? '');
     $mobile  = sanitizeMobile($data['client_mobile']  ?? '');
-    $mName   = trim($data['mansoner_name']   ?? '');
+    $mName   = titleCase($data['mansoner_name'] ?? '');
     $mMobile = sanitizeMobile($data['mansoner_mobile'] ?? '');
     $addr    = mb_substr(trim($data['site_address'] ?? ''), 0, 500);
 
@@ -82,9 +82,9 @@ function createClient(int $userId, array $data): array {
 }
 
 function updateClient(int $id, int $userId, array $data): array {
-    $name    = trim($data['client_name']    ?? '');
+    $name    = titleCase($data['client_name']   ?? '');
     $mobile  = sanitizeMobile($data['client_mobile']  ?? '');
-    $mName   = trim($data['mansoner_name']   ?? '');
+    $mName   = titleCase($data['mansoner_name'] ?? '');
     $mMobile = sanitizeMobile($data['mansoner_mobile'] ?? '');
     $addr    = mb_substr(trim($data['site_address'] ?? ''), 0, 500);
 

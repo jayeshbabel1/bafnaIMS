@@ -55,10 +55,10 @@ $g   = fn($k) => h($p[$k] ?? '');
           </div>
           <div>
             <label class="admin-label">Sub-Category</label>
-            <input type="text" name="subcategory" class="admin-input" value="<?= $g('subcategory') ?>" placeholder="Premium, Classic, Standard…"/>
+            <input type="text" name="subcategory" class="admin-input" value="<?= $g('subcategory') ?>" placeholder=""/>
           </div>
           <div>
-            <label class="admin-label">Colour Family</label>
+            <label class="admin-label">Color Type</label>
             <select name="color_subcategory" class="admin-input admin-select">
               <option value="">— Select —</option>
               <?php foreach (COLOR_SUBCATEGORIES as $c): ?>
@@ -68,42 +68,42 @@ $g   = fn($k) => h($p[$k] ?? '');
           </div>
           <div>
             <label class="admin-label">Origin</label>
-            <input type="text" name="origin" class="admin-input" value="<?= $g('origin') ?>" placeholder="Carrara, Italy"/>
+            <input type="text" name="origin" class="admin-input" value="<?= $g('origin') ?>" placeholder=""/>
           </div>
           <div>
             <label class="admin-label">Finish</label>
-            <input type="text" name="finish" class="admin-input" value="<?= $g('finish') ?>" placeholder="Polished / Honed"/>
+            <input type="text" name="finish" class="admin-input" value="<?= $g('finish') ?>" placeholder=""/>
           </div>
           <div>
             <label class="admin-label">Thickness (mm)</label>
-            <input type="text" name="thickness" class="admin-input" value="<?= $g('thickness') ?>" placeholder="18 / 20"/>
+            <input type="text" name="thickness" class="admin-input" value="<?= $g('thickness') ?>" placeholder=""/>
           </div>
 
           <!-- Slab Sizes: L x H -->
           <div>
-            <label class="admin-label">Slab Size — Length (cm/inches)</label>
-            <input type="text" name="sizes_l" class="admin-input" value="<?= $g('sizes_l') ?>" placeholder="233"/>
+            <label class="admin-label">Useable Size — Length </label>
+            <input type="text" name="sizes_l" class="admin-input" value="<?= $g('sizes_l') ?>" placeholder=""/>
           </div>
           <div>
-            <label class="admin-label">Slab Size — Height (cm/inches)</label>
-            <input type="text" name="sizes_h" class="admin-input" value="<?= $g('sizes_h') ?>" placeholder="116"/>
+            <label class="admin-label">Useable Size — Height </label>
+            <input type="text" name="sizes_h" class="admin-input" value="<?= $g('sizes_h') ?>" placeholder=""/>
           </div>
 
           <!-- Cutter Size: L x H -->
           <div>
-            <label class="admin-label">Cutter Size — Length (inches)</label>
-            <input type="text" name="cutter_size_l" class="admin-input" value="<?= $g('cutter_size_l') ?>" placeholder="104"/>
+            <label class="admin-label">Italian Size — Length </label>
+            <input type="text" name="cutter_size_l" class="admin-input" value="<?= $g('cutter_size_l') ?>" placeholder=""/>
           </div>
           <div>
-            <label class="admin-label">Cutter Size — Height (inches)</label>
-            <input type="text" name="cutter_size_h" class="admin-input" value="<?= $g('cutter_size_h') ?>" placeholder="34"/>
+            <label class="admin-label">Italian Size — Height </label>
+            <input type="text" name="cutter_size_h" class="admin-input" value="<?= $g('cutter_size_h') ?>" placeholder=""/>
           </div>
         </div>
 
         <!-- Live dimension preview -->
         <div style="margin-top:8px;padding:10px 14px;background:var(--surface2);border-radius:8px;font-size:12px;color:var(--text2);display:flex;gap:24px;flex-wrap:wrap;" id="dimPreviewBar">
-          <span>Slab: <strong id="previewSizes">—</strong></span>
-          <span>Cutter: <strong id="previewCutter">—</strong></span>
+          <span>Useable Size: <strong id="previewSizes">—</strong></span>
+          <span>Italian Size: <strong id="previewCutter">—</strong></span>
         </div>
 
         <div style="margin-top:14px;">

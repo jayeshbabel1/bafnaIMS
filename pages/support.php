@@ -69,9 +69,38 @@ $showNav   = true;
         <div class="support-card-body">
           <p class="support-card-label">Visit Us</p>
           <p class="support-card-value">Bafna Marble & Granites <br> block No.40, Near Puniya Bhumi , Second VIP Road <br>Surat-395007 , Gujarat -INDIA <br>
-          <a href="https://maps.app.goo.gl/9WiRU9Zg3Sxw8xxA9">
-            click here for Google Location </a></p>
-          <p class="support-card-hint"><a href="https://api.whatsapp.com/send/?phone=919898074441&text=Hi%2C%20please%20check%20this%20location%20-%20https%3A%2F%2Fmaps.app.goo.gl%2F9WiRU9Zg3Sxw8xxA9&type=phone_number&app_absent=0">Share Location</a></p>
+          <a href="https://maps.app.goo.gl/9WiRU9Zg3Sxw8xxA9" target="_blank" class="location-pin-btn"><img src="https://maps.gstatic.com/mapfiles/api-3/images/spotlight-poi3_hdpi.png" alt="Location Pin" ><span> Google Location</span></a>
+
+<style>
+.location-pin-btn{
+    display:inline-flex;
+    align-items:center;
+    gap:10px;
+    padding:12px 18px;
+    background:#25D366;
+    color:#fff;
+    text-decoration:none;
+    border-radius:30px;
+    font-family:Arial,sans-serif;
+    font-size:15px;
+    font-weight:600;
+    transition:.3s ease;
+    box-shadow:0 4px 12px rgba(0,0,0,.15);
+   margin:20px;
+}
+
+.location-pin-btn img{
+    width:28px;
+    height:28px;
+    object-fit:contain;
+}
+
+.location-pin-btn:hover{
+    transform:translateY(-2px);
+    box-shadow:0 6px 18px rgba(0,0,0,.2);
+}
+</style>
+          </p>
         </div>
       </div>
     </div>

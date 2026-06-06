@@ -71,7 +71,7 @@ if (!empty($_GET['ajax_products'])) {
       <td><span class="badge badge-blue" style="font-size:10px;"><?= h($p['category']) ?></span></td>
       <td style="font-size:13px;"><?= number_format((float)$p['quantity_available'],0) ?> sq.ft.</td>
       <td style="font-size:13px;color:var(--text3);"><?= number_format((float)$p['quantity_on_hold'],0) ?> sq.ft.</td>
-      <td style="font-size:12px;"><?= h($p['thickness']) ?> mm</td>
+      <td style="font-size:12px;"><?= h($p['thickness']) ?> </td>
       <td><?= $p['in_stock'] ? '<span class="badge badge-green">In Stock</span>' : '<span class="badge badge-gray">Out</span>' ?></td>
       <td><?= $p['featured'] ? '<span class="badge badge-gold">✦ Yes</span>' : '<span style="color:var(--text3);font-size:12px;">—</span>' ?></td>
       <td>

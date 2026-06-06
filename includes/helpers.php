@@ -1,5 +1,6 @@
 <?php
 function h(string $s): string { return htmlspecialchars($s, ENT_QUOTES, 'UTF-8'); }
+function titleCase(string $s): string {return mb_convert_case(mb_strtolower(trim($s)), MB_CASE_TITLE, 'UTF-8');}
 function redirect(string $url): never { header("Location: $url"); exit; }
 function flash(string $key, string $msg): void  { $_SESSION['flash'][$key] = $msg; }
 function getFlash(string $key): ?string {
