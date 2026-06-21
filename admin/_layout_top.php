@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title><?= h($adminTitle ?? 'Admin') ?> — <?= APP_NAME ?></title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
-<style><?= getCSSVariables() ?></style>
+<link href="<?= getFontEmbedUrl(true) ?>" rel="stylesheet"/>
+<style><?= getCSSVariables(true) ?></style>
 <link rel="stylesheet" href="../assets/css/style.css"/>
 <link rel="stylesheet" href="../assets/css/admin.css"/>
   <link rel="stylesheet" href="../assets/css/watermark.css"/>
@@ -74,6 +74,7 @@ $_adminLogo = getLogo(true);
         ['page'=>'notifications', 'icon'=>'bell',    'label'=>'Notifications', 'badge'=>$_notifCount],
         ['page'=>'colors',        'icon'=>'palette', 'label'=>'Color Scheme'],
         ['page'=>'logo',          'icon'=>'image',   'label'=>'Logo'],
+        ['page'=>'smtp',          'icon'=>'mail',   'label'=>'Mail Settings'],
       ];
       foreach ($navItems as $n): ?>
       <a href="index.php?page=<?= $n['page'] ?>" class="admin-nav-item <?= $ap===$n['page']?'active':'' ?>">

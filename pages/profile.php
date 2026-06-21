@@ -8,7 +8,11 @@ $uRole     = ROLES[$user['role'] ?? ''] ?? ($user['role'] ?? 'Trade Professional
 
 $db   = getDB();
 $slSt = $db->prepare("SELECT COUNT(*) as c FROM shortlist WHERE user_id=?");
-$slSt->execute([$user['id']]); $slC = $slSt->fetch()['c'];
+$slCl = $db->prepare("SELECT COUNT(*) as c FROM clients WHERE user_id=?");
+$slCl->execute([$user['id']]);
+$slSt->execute([$user['id']]);
+$slCt = $slCl->fetch()['c'];
+$slC = $slSt->fetch()['c'];
 
 ?>
 <?php include BASE_PATH . '/layouts/header.php'; ?>
@@ -36,7 +40,7 @@ $slSt->execute([$user['id']]); $slC = $slSt->fetch()['c'];
           <div class="profile-stat-label">Saved</div>
         </div>
         <div class="profile-stat">
-          <div class="profile-stat-num">0</div>
+          <div class="profile-stat-num"><?= $slCt ?></div>
           <div class="profile-stat-label">Clients</div>
         </div>
         <div class="profile-stat">

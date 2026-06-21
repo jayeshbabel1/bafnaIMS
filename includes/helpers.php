@@ -56,17 +56,22 @@ function setSetting(string $key, string $value): void {
     getDB()->prepare("INSERT INTO settings (`key`,`value`) VALUES (?,?) ON DUPLICATE KEY UPDATE `value`=VALUES(`value`)")->execute([$key, $value]);
 }
 
-// ── Color CSS variables ────────────────────────────────────────────────────────
-function getCSSVariables(): string {
+/**
+ * PATCH 02 — includes/helpers.php
+ *
+ * FIND the existing getCSSVariables() function and REPLACE it with the
+ * version below. Also ADD the new getFontEmbedUrl() function immediately
+ * after getCSSVariables().
+ */
+
+function getCSSVariables(bool $isAdmin = false): string {
 
     $file = __DIR__ . '/../config/colors.php';
-
     if (!file_exists($file)) {
-        die("Missing colors.php : ".$file);
+        die("Missing colors.php : " . $file);
     }
 
     $defaults = require $file;
-
     if (!is_array($defaults)) {
         die("colors.php did not return array");
     }
@@ -77,25 +82,72 @@ function getCSSVariables(): string {
         WHERE `key` LIKE '--%'
     ")->fetchAll(PDO::FETCH_ASSOC);
 
-    $overrides = array_column($rows,'value','key');
+    $overrides = array_column($rows, 'value', 'key');
 
     $vars = $defaults;
-
-    foreach($overrides as $k=>$v){
-        if(!empty($v)){
-            $vars[$k]=$v;
+    foreach ($overrides as $k => $v) {
+        if ($v !== '') {
+            $vars[$k] = $v;
         }
     }
 
-    $css=":root{\n";
+    // Resolve font family based on panel
+    $fontFamily = $isAdmin
+        ? ($vars['--admin-font'] ?? "'DM Sans', sans-serif")
+        : ($vars['--user-font']  ?? "'Plus Jakarta Sans', sans-serif");
 
-    foreach($vars as $k=>$v){
-        $css.="{$k}:{$v};\n";
+    $css = ":root{\n";
+    foreach ($vars as $k => $v) {
+        $css .= "{$k}:{$v};\n";
     }
-
-    $css.="}";
+    // Inject resolved panel font as --font-body and --font-display
+    $css .= "--font-body:{$fontFamily};\n";
+    $css .= "--font-display:{$fontFamily};\n";
+    $css .= "}";
 
     return $css;
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// ADD this NEW function immediately after getCSSVariables():
+// ─────────────────────────────────────────────────────────────────────────
+
+/**
+ * Returns a Google Fonts embed URL for the fonts currently selected in
+ * admin and user panel settings.  Pass $isAdmin to get the right family.
+ *
+ * Usage in layouts:
+ *   <link rel="stylesheet" href="<?= getFontEmbedUrl(false) ?>"/>
+ */
+function getFontEmbedUrl(bool $isAdmin = false): string {
+    static $cache = [];
+    $cacheKey = $isAdmin ? 'admin' : 'user';
+    if (isset($cache[$cacheKey])) return $cache[$cacheKey];
+
+    $settingKey = $isAdmin ? '--admin-font' : '--user-font';
+    try {
+        $st = getDB()->prepare("SELECT `value` FROM settings WHERE `key`=?");
+        $st->execute([$settingKey]);
+        $val = (string)($st->fetchColumn() ?: '');
+    } catch (Throwable $e) {
+        $val = '';
+    }
+
+    // Fall back to defaults from colors.php if not overridden
+    if ($val === '') {
+        $defaults = require __DIR__ . '/../config/colors.php';
+        $val = $defaults[$settingKey] ?? ($isAdmin ? "'DM Sans', sans-serif" : "'Plus Jakarta Sans', sans-serif");
+    }
+
+    // Extract first family name (strip quotes)
+    preg_match("/['\"]?([A-Za-z][A-Za-z0-9 ]+)['\"]?/", $val, $m);
+    $family = trim($m[1] ?? ($isAdmin ? 'DM Sans' : 'Plus Jakarta Sans'));
+
+    // Build Google Fonts URL
+    $encoded = str_replace(' ', '+', $family);
+    $url = "https://fonts.googleapis.com/css2?family={$encoded}:wght@300;400;500;600;700;800&display=swap";
+    $cache[$cacheKey] = $url;
+    return $url;
 }
 
 // ── SVG Marble pattern ─────────────────────────────────────────────────────────

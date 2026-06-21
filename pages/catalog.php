@@ -12,7 +12,7 @@ $color    = $_GET['color']  ?? '';
 $search   = trim($_GET['q'] ?? '');
 $sort     = $_GET['sort']   ?? 'latest';
 $currentPage  = max(1, (int)($_GET['p'] ?? 1));
-$perPage  = 12;
+$perPage  = 9;
 $isAjax   = !empty($_GET['ajax']);
 
 // Available sqft range
@@ -212,114 +212,144 @@ function fv($v): string { return $v !== null ? h((string)$v) : ''; }
 <div class="page-content">
   <div class="catalog-layout" style="padding-top:24px;">
 
+
+   <?php
+/**
+ * PATCH B — pages/catalog.php
+ *
+ * FIND the entire <aside> block:
+ *   <aside class="catalog-filters-panel filter-sidebar">
+ *     ...all content...
+ *   </aside><!-- /filter-sidebar -->
+ *
+ * REPLACE WITH the block below.
+ *
+ * Changes:
+ *  - Wraps all filter sections inside <div class="filter-sidebar-content">
+ *  - Adds <div class="filter-sidebar-footer"> with Apply + Clear buttons
+ *  - filter-chip <a> tags changed to <button type="button"> so they don't navigate
+ *  - Range inputs lose their oninput/onchange wiring (handled by new JS)
+ */
+?>
+
     <!-- ══════════════════ LEFT SIDEBAR (desktop only) ═══════════════════ -->
     <aside class="catalog-filters-panel filter-sidebar">
 
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
-        <p style="font-family:var(--font-display);font-size:15px;font-weight:700;">Filters</p>
-        <?php if ($hasFilter): ?>
-        <a href="index.php?page=catalog" style="font-size:12px;font-weight:600;color:var(--text3);text-decoration:underline;">
-          Clear all
-        </a>
-        <?php endif; ?>
-      </div>
+      <!-- ── Scrollable content ───────────────────────────────────────── -->
+      <div class="filter-sidebar-content">
 
-      <!-- Stone Type -->
-      <div class="filter-sidebar-section">
-        <p class="filter-sidebar-title">Stone Type</p>
-        <div class="filter-option-list">
-          <a href="index.php?page=catalog<?= $color?'&color='.urlencode($color):'' ?><?= $search?'&q='.urlencode($search):'' ?>"
-             class="filter-chip<?= !$cat?' active':'' ?>">All</a>
-          <?php foreach ($categories as $c): ?>
-          <a href="index.php?page=catalog&cat=<?= urlencode($c) ?><?= $color?'&color='.urlencode($color):'' ?><?= $search?'&q='.urlencode($search):'' ?>"
-             class="filter-chip<?= $cat===$c?' active':'' ?>"><?= h($c) ?></a>
-          <?php endforeach; ?>
-        </div>
-      </div>
-
-      <!-- Colour -->
-      <div class="filter-sidebar-section">
-        <p class="filter-sidebar-title">Color</p>
-        <div class="filter-option-list">
-          <a href="index.php?page=catalog<?= $cat?'&cat='.urlencode($cat):'' ?><?= $search?'&q='.urlencode($search):'' ?>"
-             class="filter-chip<?= !$color?' active':'' ?>">All</a>
-          <?php foreach ($colorSubs as $cs): ?>
-          <a href="index.php?page=catalog<?= $cat?'&cat='.urlencode($cat):'' ?>&color=<?= urlencode($cs) ?><?= $search?'&q='.urlencode($search):'' ?>"
-             class="filter-chip<?= $color===$cs?' active':'' ?>">
-            <span class="color-dot color-<?= strtolower($cs) ?>"></span><?= h($cs) ?>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+          <p style="font-family:var(--font-display);font-size:15px;font-weight:700;">Filters</p>
+          <?php if ($hasFilter): ?>
+          <a href="index.php?page=catalog" style="font-size:12px;font-weight:600;color:var(--text3);text-decoration:underline;" id="sidebarClearAllLink">
+            Clear all
           </a>
-          <?php endforeach; ?>
-        </div>
-      </div>
-
-      <!-- Available Sqft -->
-      <div class="filter-sidebar-section">
-        <div class="filter-sidebar-title">
-          Available Quantity (in Sqft.)
-          <?php if ($sqftMin !== null || $sqftMax !== null): ?>
-          <span class="filter-clear-link" id="sidebarSqftClear">Clear</span>
           <?php endif; ?>
         </div>
-        <div class="range-filter">
-          <div>
-            <p class="range-label">Min</p>
-            <input type="number" class="range-input" id="sidebarSqftMin"
-                   min="0" step="1" placeholder="0" value="<?= fv($sqftMin) ?>"/>
-          </div>
-          <div>
-            <p class="range-label">Max</p>
-            <input type="number" class="range-input" id="sidebarSqftMax"
-                   min="0" step="1" placeholder="∞" value="<?= fv($sqftMax) ?>"/>
-          </div>
-        </div>
-      </div>
 
-      <!-- Slab Length (sizes_l) -->
-      <div class="filter-sidebar-section">
-        <div class="filter-sidebar-title">
-          Useable Length (L)
-          <?php if ($slMin !== null || $slMax !== null): ?>
-          <span class="filter-clear-link" id="sidebarSlClear">Clear</span>
-          <?php endif; ?>
-        </div>
-        <div class="range-filter">
-          <div>
-            <p class="range-label">Min</p>
-            <input type="number" class="range-input" id="sidebarSlMin"
-                   min="0" step="0.01" placeholder="0" value="<?= fv($slMin) ?>"/>
-          </div>
-          <div>
-            <p class="range-label">Max</p>
-            <input type="number" class="range-input" id="sidebarSlMax"
-                   min="0" step="0.01" placeholder="∞" value="<?= fv($slMax) ?>"/>
+        <!-- Stone Type -->
+        <div class="filter-sidebar-section">
+          <p class="filter-sidebar-title">Stone Type</p>
+          <div class="filter-option-list" id="sidebarCatList">
+            <button type="button" class="filter-chip<?= !$cat?' active':'' ?>"
+                    data-filter="cat" data-value=""
+                    onclick="sidebarPendingChip(this,'cat')">All</button>
+            <?php foreach ($categories as $c): ?>
+            <button type="button" class="filter-chip<?= $cat===$c?' active':'' ?>"
+                    data-filter="cat" data-value="<?= h($c) ?>"
+                    onclick="sidebarPendingChip(this,'cat')"><?= h($c) ?></button>
+            <?php endforeach; ?>
           </div>
         </div>
-      </div>
 
-      <!-- Slab Height (sizes_h) -->
-      <div class="filter-sidebar-section">
-        <div class="filter-sidebar-title">
-          Useable Height (H)
-          <?php if ($shMin !== null || $shMax !== null): ?>
-          <span class="filter-clear-link" id="sidebarShClear">Clear</span>
-          <?php endif; ?>
-        </div>
-        <div class="range-filter">
-          <div>
-            <p class="range-label">Min</p>
-            <input type="number" class="range-input" id="sidebarShMin"
-                   min="0" step="0.01" placeholder="0" value="<?= fv($shMin) ?>"/>
-          </div>
-          <div>
-            <p class="range-label">Max</p>
-            <input type="number" class="range-input" id="sidebarShMax"
-                   min="0" step="0.01" placeholder="∞" value="<?= fv($shMax) ?>"/>
+        <!-- Colour -->
+        <div class="filter-sidebar-section">
+          <p class="filter-sidebar-title">Color</p>
+          <div class="filter-option-list" id="sidebarColorList">
+            <button type="button" class="filter-chip<?= !$color?' active':'' ?>"
+                    data-filter="color" data-value=""
+                    onclick="sidebarPendingChip(this,'color')">All</button>
+            <?php foreach ($colorSubs as $cs): ?>
+            <button type="button" class="filter-chip<?= $color===$cs?' active':'' ?>"
+                    data-filter="color" data-value="<?= h($cs) ?>"
+                    onclick="sidebarPendingChip(this,'color')">
+              <span class="color-dot color-<?= strtolower($cs) ?>"></span><?= h($cs) ?>
+            </button>
+            <?php endforeach; ?>
           </div>
         </div>
+
+        <!-- Available Sqft -->
+        <div class="filter-sidebar-section">
+          <div class="filter-sidebar-title">
+            Available Quantity (sqft)
+          </div>
+          <div class="range-filter">
+            <div>
+              <p class="range-label">Min</p>
+              <input type="number" class="range-input" id="sidebarSqftMin"
+                     min="0" step="1" placeholder="0" value="<?= fv($sqftMin) ?>"/>
+            </div>
+            <div>
+              <p class="range-label">Max</p>
+              <input type="number" class="range-input" id="sidebarSqftMax"
+                     min="0" step="1" placeholder="∞" value="<?= fv($sqftMax) ?>"/>
+            </div>
+          </div>
+        </div>
+
+        <!-- Slab Length (L) -->
+        <div class="filter-sidebar-section">
+          <div class="filter-sidebar-title">Useable Length (L)</div>
+          <div class="range-filter">
+            <div>
+              <p class="range-label">Min</p>
+              <input type="number" class="range-input" id="sidebarSlMin"
+                     min="0" step="0.01" placeholder="0" value="<?= fv($slMin) ?>"/>
+            </div>
+            <div>
+              <p class="range-label">Max</p>
+              <input type="number" class="range-input" id="sidebarSlMax"
+                     min="0" step="0.01" placeholder="∞" value="<?= fv($slMax) ?>"/>
+            </div>
+          </div>
+        </div>
+
+        <!-- Slab Height (H) -->
+        <div class="filter-sidebar-section">
+          <div class="filter-sidebar-title">Useable Height (H)</div>
+          <div class="range-filter">
+            <div>
+              <p class="range-label">Min</p>
+              <input type="number" class="range-input" id="sidebarShMin"
+                     min="0" step="0.01" placeholder="0" value="<?= fv($shMin) ?>"/>
+            </div>
+            <div>
+              <p class="range-label">Max</p>
+              <input type="number" class="range-input" id="sidebarShMax"
+                     min="0" step="0.01" placeholder="∞" value="<?= fv($shMax) ?>"/>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /filter-sidebar-content -->
+
+      <!-- ── Sticky footer ────────────────────────────────────────────── -->
+      <div class="filter-sidebar-footer">
+        <button type="button" id="sidebarApplyBtn"
+                class="btn btn-primary btn-block sidebar-apply-btn">
+          <span class="pending-dot"></span>
+          Apply Filters
+        </button>
+        <a href="index.php?page=catalog"
+           class="btn btn-secondary btn-block"
+           style="text-align:center;">
+          Clear All
+        </a>
       </div>
 
     </aside><!-- /filter-sidebar -->
-
+    
     <!-- ══════════════════ MAIN CONTENT ══════════════════════════════════ -->
     <div class="catalog-main">
 
@@ -488,86 +518,149 @@ function fv($v): string { return $v !== null ? h((string)$v) : ''; }
   </div>
 </div>
 
+<?php
+/**
+ * PATCH C — pages/catalog.php  (the inline <script> block at the bottom)
+ *
+ * FIND the entire existing inline <script> block that starts with:
+ *   <script>
+ *   // ── Filter drawer open/close ──
+ *   function openFilterDrawer() { ...
+ *
+ * REPLACE the ENTIRE script block with the one below.
+ *
+ * Key changes vs original:
+ *  - Sidebar chips call sidebarPendingChip() instead of navigating
+ *  - Sidebar range inputs do NOT call catalogUpdateRange on change
+ *  - #sidebarApplyBtn click collects ALL pending state and fires one load
+ *  - Mobile drawer Apply button uses same path (catalogSetAllRanges)
+ *  - Clear all links work as normal navigation (reload to clean state)
+ *  - Pending dot shown on Apply button whenever state differs from applied
+ */
+?>
+
 <script>
-// ── Filter drawer open/close ────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+// SIDEBAR — pending state (not applied until Apply clicked)
+// ══════════════════════════════════════════════════════════════════════════════
+
+// Mirrors the currently *applied* catalog state from data attributes
+var _applied = {
+  cat:      document.getElementById('catalogContent')?.dataset.cat      || '',
+  color:    document.getElementById('catalogContent')?.dataset.color    || '',
+  sqft_min: document.getElementById('catalogContent')?.dataset.sqftMin  || '',
+  sqft_max: document.getElementById('catalogContent')?.dataset.sqftMax  || '',
+  sl_min:   document.getElementById('catalogContent')?.dataset.slMin    || '',
+  sl_max:   document.getElementById('catalogContent')?.dataset.slMax    || '',
+  sh_min:   document.getElementById('catalogContent')?.dataset.shMin    || '',
+  sh_max:   document.getElementById('catalogContent')?.dataset.shMax    || '',
+};
+
+// Pending state — updated by chip clicks / range inputs but NOT applied yet
+var _pending = Object.assign({}, _applied);
+
+//  Chip click handler (sidebar only) 
+  function sidebarPendingChip(btn, filterKey) {
+  // Update active state within the group
+  var list = btn.closest('.filter-option-list');
+  list.querySelectorAll('.filter-chip').forEach(function(b) {
+    b.classList.remove('active');
+  });
+  btn.classList.add('active');
+
+  // Store in pending
+  _pending[filterKey] = btn.dataset.value;
+  updateApplyBtnState();
+}
+
+//  Show/hide pending dot on Apply button 
+function updateApplyBtnState() {
+  var btn = document.getElementById('sidebarApplyBtn');
+  if (!btn) return;
+  var dirty = Object.keys(_pending).some(function(k) {
+    return (_pending[k] || '') !== (_applied[k] || '');
+  });
+  btn.classList.toggle('has-pending', dirty);
+}
+
+//  Apply sidebar filters 
+document.getElementById('sidebarApplyBtn')?.addEventListener('click', function() {
+  // Read range inputs into pending
+  _pending.sqft_min = (document.getElementById('sidebarSqftMin')?.value || '').trim();
+  _pending.sqft_max = (document.getElementById('sidebarSqftMax')?.value || '').trim();
+  _pending.sl_min   = (document.getElementById('sidebarSlMin')?.value   || '').trim();
+  _pending.sl_max   = (document.getElementById('sidebarSlMax')?.value   || '').trim();
+  _pending.sh_min   = (document.getElementById('sidebarShMin')?.value   || '').trim();
+  _pending.sh_max   = (document.getElementById('sidebarShMax')?.value   || '').trim();
+
+  // Push to catalog.js state and reload via AJAX
+  if (window.catalogApplyAllFilters) {
+    window.catalogApplyAllFilters(_pending);
+  }
+
+  // Update applied snapshot
+  _applied = Object.assign({}, _pending);
+  updateApplyBtnState();
+});
+
+// Range inputs: update pending state silently (no AJAX, no auto-apply)
+['sidebarSqftMin','sidebarSqftMax','sidebarSlMin','sidebarSlMax','sidebarShMin','sidebarShMax'].forEach(function(id) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  el.addEventListener('input', function() { updateApplyBtnState(); });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// MOBILE DRAWER — open/close
+// ══════════════════════════════════════════════════════════════════════════════
 function openFilterDrawer() {
+  // Sync drawer inputs from current applied state before opening
+  document.getElementById('drawerSqftMin').value = _applied.sqft_min || '';
+  document.getElementById('drawerSqftMax').value = _applied.sqft_max || '';
+  document.getElementById('drawerSlMin').value   = _applied.sl_min   || '';
+  document.getElementById('drawerSlMax').value   = _applied.sl_max   || '';
+  document.getElementById('drawerShMin').value   = _applied.sh_min   || '';
+  document.getElementById('drawerShMax').value   = _applied.sh_max   || '';
+
   document.getElementById('filterDrawer').classList.add('open');
   document.getElementById('filterOverlay').classList.add('open');
   document.body.style.overflow = 'hidden';
 }
+
 function closeFilterDrawer() {
   document.getElementById('filterDrawer').classList.remove('open');
   document.getElementById('filterOverlay').classList.remove('open');
   document.body.style.overflow = '';
 }
-document.getElementById('filterToggleBtn').addEventListener('click', openFilterDrawer);
 
-// ── Drawer: Apply button — reads all six range inputs and fires AJAX ────────
-document.getElementById('drawerApplyBtn').addEventListener('click', function () {
-  if (window.catalogSetAllRanges) {
-    window.catalogSetAllRanges({
-      sqft_min: document.getElementById('drawerSqftMin').value.trim(),
-      sqft_max: document.getElementById('drawerSqftMax').value.trim(),
-      sl_min:   document.getElementById('drawerSlMin').value.trim(),
-      sl_max:   document.getElementById('drawerSlMax').value.trim(),
-      sh_min:   document.getElementById('drawerShMin').value.trim(),
-      sh_max:   document.getElementById('drawerShMax').value.trim(),
-    });
+document.getElementById('filterToggleBtn')?.addEventListener('click', openFilterDrawer);
+
+// ── Drawer Apply button ────────────────────────────────────────────────────
+document.getElementById('drawerApplyBtn')?.addEventListener('click', function() {
+  var drawerState = {
+    sqft_min: (document.getElementById('drawerSqftMin')?.value || '').trim(),
+    sqft_max: (document.getElementById('drawerSqftMax')?.value || '').trim(),
+    sl_min:   (document.getElementById('drawerSlMin')?.value   || '').trim(),
+    sl_max:   (document.getElementById('drawerSlMax')?.value   || '').trim(),
+    sh_min:   (document.getElementById('drawerShMin')?.value   || '').trim(),
+    sh_max:   (document.getElementById('drawerShMax')?.value   || '').trim(),
+  };
+
+  // Merge with current cat/color state
+  var full = Object.assign({}, _applied, drawerState);
+
+  if (window.catalogApplyAllFilters) {
+    window.catalogApplyAllFilters(full);
   }
+
+  _applied = Object.assign({}, full);
+  _pending = Object.assign({}, full);
+  updateApplyBtnState();
   closeFilterDrawer();
 });
 
-// ── Sidebar range inputs wire up after catalog.js exposes the API ───────────
-(function () {
-  // Map: [inputId, stateKey, pairedInputId, pairedStateKey, clearBtnId]
-  var rangePairs = [
-    ['sidebarSqftMin', 'sqft_min', 'sidebarSqftMax', 'sqft_max', 'sidebarSqftClear'],
-    ['sidebarSqftMax', 'sqft_max', 'sidebarSqftMin', 'sqft_min', 'sidebarSqftClear'],
-    ['sidebarSlMin',   'sl_min',   'sidebarSlMax',   'sl_max',   'sidebarSlClear'],
-    ['sidebarSlMax',   'sl_max',   'sidebarSlMin',   'sl_min',   'sidebarSlClear'],
-    ['sidebarShMin',   'sh_min',   'sidebarShMax',   'sh_max',   'sidebarShClear'],
-    ['sidebarShMax',   'sh_max',   'sidebarShMin',   'sh_min',   'sidebarShClear'],
-  ];
-
-  var debounceTimers = {};
-
-  rangePairs.forEach(function (pair) {
-    var inputId = pair[0], stateKey = pair[1], clearId = pair[4];
-    var el = document.getElementById(inputId);
-    if (!el) return;
-
-    function onChange() {
-      clearTimeout(debounceTimers[stateKey]);
-      debounceTimers[stateKey] = setTimeout(function () {
-        if (window.catalogUpdateRange) {
-          window.catalogUpdateRange(stateKey, el.value.trim());
-        }
-      }, 600);
-    }
-
-    el.addEventListener('input',  onChange);
-    el.addEventListener('change', onChange);
-  });
-
-  // Clear buttons
-  var clearMap = {
-    'sidebarSqftClear': [['sidebarSqftMin','sqft_min'],['sidebarSqftMax','sqft_max']],
-    'sidebarSlClear':   [['sidebarSlMin',  'sl_min'],  ['sidebarSlMax',  'sl_max']],
-    'sidebarShClear':   [['sidebarShMin',  'sh_min'],  ['sidebarShMax',  'sh_max']],
-  };
-
-  Object.keys(clearMap).forEach(function (clearId) {
-    var btn = document.getElementById(clearId);
-    if (!btn) return;
-    btn.addEventListener('click', function () {
-      clearMap[clearId].forEach(function (pair) {
-        var el = document.getElementById(pair[0]);
-        if (el) el.value = '';
-        if (window.catalogUpdateRange) window.catalogUpdateRange(pair[1], '');
-      });
-    });
-  });
-}());
+// Init pending dot state on page load
+updateApplyBtnState();
 </script>
 
 <?php include BASE_PATH . '/layouts/footer.php'; ?>

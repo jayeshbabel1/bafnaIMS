@@ -312,7 +312,11 @@ body {
     font-size: 24px;
   }
 }
-
+/* ── WAITING APPROVAL PAGE ───────────────────────────────────────────────── */
+.auth-right-panel {
+  overflow-y: auto;
+  overflow-x: hidden;
+}
 /* Desktop */
 @media (min-width: 1024px) {
   .auth-page {
@@ -370,6 +374,7 @@ body {
     box-sizing: border-box;
     overflow: hidden;
   }
+
 
   .auth-logo-block {
     display: none !important;

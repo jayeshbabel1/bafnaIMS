@@ -1,0 +1,218 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   assets/css/watermark.css
+   Bafna logo watermark — WHITE, 150×150px, 50% opacity, centred
+   Strategy: ::after / ::before pseudo-element with the actual logo as
+   background-image + filter:brightness(0) invert(1) to force pure white
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── CSS custom property for the logo URL (single place to update) ─────── */
+:root {
+  --wm-logo: url("https://i0.wp.com/www.bafnamarble.com/wp-content/uploads/2023/11/cropped-logo-01.png?fit=317%2C250&ssl=1");
+  --wm-size-lg:  100px;  /* hero, lightbox, catalog cards          */
+  --wm-size-md:   50px;  /* featured strip, gallery items          */
+  --wm-size-sm:   40px;  /* list thumbs, shortlist                 */
+  --wm-size-xs:   25px;  /* admin table thumbnails                 */
+  --wm-opacity:     0.5;
+}
+
+/* ── Base watermark pseudo-element mixin (duplicated per target) ─────────
+   Cannot use @mixin in plain CSS, so we define a shared selector group.   */
+
+/* All large-watermark targets share these rules: */
+.product-thumb::after,
+.detail-hero .zoom-container::before,
+.zoom-container--lightbox::before {
+  content: '';
+  position: absolute;
+  top:  50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width:  var(--wm-size-lg);
+  height: var(--wm-size-lg);
+  background-image:    var(--wm-logo);
+  background-repeat:   no-repeat;
+  background-position: center;
+  background-size:     contain;
+  /* Force logo to pure white */
+  filter:    brightness(0) invert(1);
+  opacity:   var(--wm-opacity);
+  pointer-events: none;
+  z-index: 6;
+}
+
+/* ── Catalog grid — product-thumb ────────────────────────────────────────── */
+.product-thumb {
+  position: relative;
+  overflow: hidden;
+}
+/* (rules already in group above) */
+
+/* ── Product detail hero — zoom-container ───────────────────────────────── */
+/* detail-hero::after is used by the gradient overlay, so we target          */
+/* .zoom-container::before which is free                                     */
+.detail-hero .zoom-container {
+  position: relative;
+}
+
+/* ── Product hero SVG fallback (no photo) ───────────────────────────────── */
+.detail-hero-svg {
+  position: relative;
+}
+.detail-hero-svg::after {
+  content: '';
+  position: absolute;
+  top:  50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width:  var(--wm-size-lg);
+  height: var(--wm-size-lg);
+  background-image:    var(--wm-logo);
+  background-repeat:   no-repeat;
+  background-position: center;
+  background-size:     contain;
+  filter:  brightness(0) invert(1);
+  opacity: var(--wm-opacity);
+  pointer-events: none;
+  z-index: 4;
+}
+
+/* ── Lightbox zoom container ────────────────────────────────────────────── */
+.zoom-container--lightbox {
+  position: relative;
+}
+/* (rules already in group above) */
+
+/* ── Featured strip thumbnails ──────────────────────────────────────────── */
+.featured-thumb {
+  position: relative;
+  overflow: hidden;
+}
+.featured-thumb::after {
+  content: '';
+  position: absolute;
+  top:  50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width:  var(--wm-size-md);
+  height: var(--wm-size-md);
+  background-image:    var(--wm-logo);
+  background-repeat:   no-repeat;
+  background-position: center;
+  background-size:     contain;
+  filter:  brightness(0) invert(1);
+  opacity: var(--wm-opacity);
+  pointer-events: none;
+  z-index: 4;
+}
+
+/* ── Photo gallery items (product detail) ───────────────────────────────── */
+/* gallery-item::after is used by the hover overlay, so we use ::before     */
+.gallery-item::before {
+  content: '';
+  position: absolute;
+  top:  50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width:  var(--wm-size-md);
+  height: var(--wm-size-md);
+  background-image:    var(--wm-logo);
+  background-repeat:   no-repeat;
+  background-position: center;
+  background-size:     contain;
+  filter:  brightness(0) invert(1);
+  opacity: var(--wm-opacity);
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* ── Shortlist / list-view thumbs ───────────────────────────────────────── */
+.list-thumb {
+  position: relative;
+  overflow: hidden;
+}
+.list-thumb::after {
+  content: '';
+  position: absolute;
+  top:  50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width:  var(--wm-size-sm);
+  height: var(--wm-size-sm);
+  background-image:    var(--wm-logo);
+  background-repeat:   no-repeat;
+  background-position: center;
+  background-size:     contain;
+  filter:  brightness(0) invert(1);
+  opacity: var(--wm-opacity);
+  pointer-events: none;
+  z-index: 4;
+}
+
+/* ── Catalog list-view thumbs ───────────────────────────────────────────── */
+.catalog-list-thumb {
+  position: relative;
+  overflow: hidden;
+}
+.catalog-list-thumb::after {
+  content: '';
+  position: absolute;
+  top:  50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width:  var(--wm-size-sm);
+  height: var(--wm-size-sm);
+  background-image:    var(--wm-logo);
+  background-repeat:   no-repeat;
+  background-position: center;
+  background-size:     contain;
+  filter:  brightness(0) invert(1);
+  opacity: var(--wm-opacity);
+  pointer-events: none;
+  z-index: 4;
+}
+
+/* ── Admin table thumbnails (.tbl-thumb 40×40px) ────────────────────────── */
+.tbl-thumb {
+  position: relative;
+  overflow: hidden;
+}
+.tbl-thumb::after {
+  content: '';
+  position: absolute;
+  top:  50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width:  var(--wm-size-xs);
+  height: var(--wm-size-xs);
+  background-image:    var(--wm-logo);
+  background-repeat:   no-repeat;
+  background-position: center;
+  background-size:     contain;
+  filter:  brightness(0) invert(1);
+  opacity: var(--wm-opacity);
+  pointer-events: none;
+  z-index: 4;
+}
+
+/* ── Photo-grid items in admin product edit ─────────────────────────────── */
+.photo-grid-item {
+  position: relative;
+  overflow: hidden;
+}
+.photo-grid-item::after {
+  content: '';
+  position: absolute;
+  top:  50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width:  var(--wm-size-xs);
+  height: var(--wm-size-xs);
+  background-image:    var(--wm-logo);
+  background-repeat:   no-repeat;
+  background-position: center;
+  background-size:     contain;
+  filter:  brightness(0) invert(1);
+  opacity: var(--wm-opacity);
+  pointer-events: none;
+  z-index: 4;
+}

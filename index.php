@@ -8,6 +8,7 @@ require_once __DIR__ . '/includes/clients.php';
 
 startSecureSession();
 
+
 $page = preg_replace('/[^a-z_]/', '', $_GET['page'] ?? 'catalog');
 // Client AJAX search
 if (!empty($_GET['ajax_search']) && ($_GET['page'] ?? '') === 'clients' && isLoggedIn()) {
@@ -39,8 +40,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             unset($_SESSION['redirect_after_login']);
             redirect($redir);
         }
+        elseif (($result['error'] ?? '') === 'not_verified'){
+        redirect('index.php?page=waiting_approval');
+    }  else {
         $inlineError = $result['error'];
         include BASE_PATH . '/pages/login.php'; exit;
+    }
     }
 
     if ($action === 'register_step1') {
@@ -87,7 +92,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         unset($_SESSION['reg_data']);
         if ($result['success']) {
             flash('toast', 'Welcome to Bafna Marbles! Your account is ready.');
-            redirect('index.php?page=catalog');
+            redirect('index.php?page=waiting_approval');
         }
         $inlineError = $result['error'];
         $step = 2;
@@ -237,9 +242,19 @@ if ($action === 'delete_selection') {
 }
 
 // ── Page routing ─────────────────────────────────────────────────────────
-$publicPages    = ['login','register','forgot_password','reset_password'];
+$publicPages    = ['login','register','forgot_password','reset_password','waiting_approval'];
 $protectedPages = ['catalog','product','shortlist','profile','support','notifications',
                    'clients','client_form','client_selections'];
+if (in_array($page ?? '', $protectedPages) && isLoggedIn()) {
+    $db = getDB();
+    $st = $db->prepare("SELECT is_verified FROM users WHERE id=?");
+    $st->execute([$_SESSION['user_id']]);
+    $uv = $st->fetchColumn();
+    if (!(int)$uv) {
+        logoutUser();
+        redirect('index.php?page=waiting_approval');
+    }
+}
 if (!in_array($page, $publicPages) && !in_array($page, $protectedPages)) {
     $page = isLoggedIn() ? 'catalog' : 'login';
 }

@@ -18,12 +18,27 @@ $pal = $p ? (json_decode($p['palette']??'[]',true) ?: ['F2F0EC','D8CFC4','BFB0A0
 $g   = fn($k) => h($p[$k] ?? '');
 ?>
 
-<div style="margin-bottom:16px;display:flex;align-items:center;gap:10px;">
-  <a href="index.php?page=products" class="btn-admin-secondary btn-admin-sm"><?= icon('back',14) ?> Back</a>
-  <?php if ($p): ?>
-  <a href="../index.php?page=product&id=<?= $pid ?>" target="_blank" class="btn-admin-secondary btn-admin-sm"><?= icon('eye',14) ?> Preview</a>
-  <?php endif; ?>
-</div>
+    <div style="margin-bottom:16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <a href="index.php?page=products" class="btn-admin-secondary btn-admin-sm"><?= icon('back',14) ?> Back</a>
+      <?php if ($p): ?>
+      <a href="../index.php?page=product&id=<?= $pid ?>" target="_blank" class="btn-admin-secondary btn-admin-sm"><?= icon('eye',14) ?> Preview</a>
+      <?php
+        $waThumb = '';
+        if (!empty($existingPhotos)) {
+            $firstPhoto = $existingPhotos[0]['filename'] ?? '';
+            if ($firstPhoto && file_exists(PHOTOS_DIR.'/'.$firstPhoto)) {
+                $waThumb = '../assets/uploads/photos/' . $firstPhoto;
+            }
+        }
+      ?>
+      <button type="button"
+              onclick="openWaShare(<?= $pid ?>, <?= h(json_encode($p['name'])) ?>, <?= h(json_encode($p['quarry_number'])) ?>, <?= h(json_encode($waThumb)) ?>)"
+              class="btn-admin-secondary btn-admin-sm"
+              style="color:#25D366;border-color:#25D366;gap:6px;">
+        <?= icon('whatsapp', 14) ?> Share
+      </button>
+      <?php endif; ?>
+    </div>
 
 <form method="POST" action="index.php" enctype="multipart/form-data" id="productForm">
   <input type="hidden" name="action"     value="save_product"/>
@@ -249,7 +264,7 @@ $g   = fn($k) => h($p[$k] ?? '');
 </form>
 
 <script>
-// ── Live dimension preview ──────────────────────────────────────────────────
+//  Live dimension preview 
 (function () {
   function updateDimPreviews() {
     var slL = (document.querySelector('[name="sizes_l"]')?.value || '').trim();
@@ -271,5 +286,5 @@ $g   = fn($k) => h($p[$k] ?? '');
   updateDimPreviews();
 })();
 </script>
-
+ <?php include __DIR__ . '/_wa_share_modal.php'; ?>
 <?php include __DIR__ . '/../_layout_bottom.php'; ?>

@@ -36,9 +36,16 @@ function loginUser(string $email, string $password): array {
     $st = $db->prepare("SELECT * FROM users WHERE email=?");
     $st->execute([strtolower(trim($email))]);
     $user = $st->fetch();
+
     if (!$user || !password_verify($password, $user['password'])) {
         return ['success' => false, 'error' => 'Invalid email or password.'];
     }
+
+    // ── Verification gate ───────────────────────────────────────────────────
+    if (empty($user['is_verified']) || (int)$user['is_verified'] !== 1) {
+        return ['success' => false, 'error' => 'not_verified', 'user_id' => $user['id']];
+    }
+
     $_SESSION['user_id'] = $user['id'];
     return ['success' => true];
 }
@@ -109,13 +116,18 @@ function resetPassword(string $token, string $password): array {
 }
 
 function sendResetEmail(string $to, string $name, string $token): void {
+    // Use central mailer if loaded; fall back to native mail
+    if (function_exists('sendPasswordResetEmail')) {
+        sendPasswordResetEmail($to, $name, $token);
+        return;
+    }
+    // Native fallback (same as before)
     $link    = BASE_URL . '/index.php?page=reset_password&token=' . $token;
     $subject = 'Reset Your Password — ' . APP_NAME;
     $body    = "Hi $name,\n\nClick the link below to reset your password:\n$link\n\nThis link expires in 1 hour.\n\nIf you didn't request this, please ignore this email.\n\n— " . APP_NAME;
     $headers = "From: " . MAIL_FROM_NAME . " <" . MAIL_FROM . ">\r\nContent-Type: text/plain; charset=UTF-8";
     @mail($to, $subject, $body, $headers);
 }
-
 // ── Admin Auth ─────────────────────────────────────────────────────────────────
 
 function loginAdmin(string $username, string $password): bool {

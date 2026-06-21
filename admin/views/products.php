@@ -4,7 +4,7 @@
  */
 $adminTitle = 'Products';
 
-// ── AJAX handler — must run before any layout include ────────────────────────
+//  AJAX handler — must run before any layout include 
 if (!empty($_GET['ajax_products'])) {
     // Sanitise inputs
     $allowedPer = [25, 50, 75, 100];
@@ -75,8 +75,20 @@ if (!empty($_GET['ajax_products'])) {
       <td><?= $p['in_stock'] ? '<span class="badge badge-green">In Stock</span>' : '<span class="badge badge-gray">Out</span>' ?></td>
       <td><?= $p['featured'] ? '<span class="badge badge-gold">✦ Yes</span>' : '<span style="color:var(--text3);font-size:12px;">—</span>' ?></td>
       <td>
-        <div style="display:flex;gap:6px;">
+        <div style="display:flex;gap:6px;align-items:center;">
           <a href="index.php?page=product_edit&id=<?= $p['id'] ?>" class="btn-admin-secondary btn-admin-sm"><?= icon('edit',13) ?></a>
+          <?php
+                 $thumbSrc = ($p['primary_photo'] && file_exists(PHOTOS_DIR.'/'.$p['primary_photo']))
+              ? '../assets/uploads/photos/' . $p['primary_photo']
+            : '';
+          ?>
+          <button type="button"
+                  onclick="openWaShare(<?= $p['id'] ?>, <?= h(json_encode($p['name'])) ?>, <?= h(json_encode($p['quarry_number'])) ?>, <?= h(json_encode($thumbSrc)) ?>)"
+                  class="btn-admin-secondary btn-admin-sm"
+                  style="color:#25D366;border-color:#25D366;"
+                  title="Share via WhatsApp">
+            <?= icon('whatsapp', 13) ?>
+          </button>
           <form method="POST" action="index.php" style="display:inline;">
             <input type="hidden" name="action"     value="delete_product"/>
             <input type="hidden" name="product_id" value="<?= $p['id'] ?>"/>
@@ -235,5 +247,5 @@ $db = getDB();
   <p class="admin-products-count" id="adminProductsCount"></p>
   <div id="adminPaginationWrap"></div>
 </div>
-
+ <?php include __DIR__ . '/_wa_share_modal.php'; ?>
 <?php include __DIR__ . '/../_layout_bottom.php'; ?>

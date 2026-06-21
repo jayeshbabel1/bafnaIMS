@@ -50,9 +50,10 @@ $g = fn($k) => h($c[$k] ?? '');
           <input type="text" name="client_name" class="input-field"
                  placeholder="e.g. Ramesh Patel"
                  value="<?= $g('client_name') ?>" required/>
+         
         </div>
         <div class="input-group">
-          <label class="input-label">Client Mobile <span style="color:var(--danger);">*</span></label>
+ <label class="input-label">Client Mobile <span style="color:var(--danger);">*</span></label>
           <div class="input-prefix-group">
             <span class="input-prefix">+91</span>
             <input type="tel" name="client_mobile" class="input-field"
