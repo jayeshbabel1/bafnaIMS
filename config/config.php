@@ -1,5 +1,5 @@
 ﻿<?php
-define('APP_NAME',    'Bafna Marbles');
+define('APP_NAME',    'Bafna Marble');
 define('APP_VERSION', '2.0.0');
 define('BASE_PATH',   dirname(__DIR__));
 define('BASE_URL',    (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS']==='on' ? 'https' : 'http').'://'.($_SERVER['HTTP_HOST'] ?? 'localhost'));

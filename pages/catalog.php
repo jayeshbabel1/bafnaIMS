@@ -131,9 +131,9 @@ function renderProductGrid(array $products, string $view = 'grid'): string {
             $pal   = json_decode($p['palette']??'[]',true)?:['F2F0EC','D8CFC4','BFB0A0'];
             $saved = isShortlisted($p['id']);
             $parts = [];
-            if ($p['quarry_number'])        $parts[] = 'Lot '.h($p['quarry_number']);
-            if ($p['thickness'])            $parts[] = h($p['thickness']);
-            if ($p['quantity_available'])   $parts[] = number_format((float)$p['quantity_available']).' sqft';
+            if ($p['quarry_number'])        $parts[] = 'Quarry No. : '.h($p['quarry_number']);
+            if ($p['thickness'])            $parts[] = 'Thickness : '.h($p['thickness']);
+            if ($p['quantity_available'])   $parts[] = 'Available : '.number_format((float)$p['quantity_available']).' sqft';
             $h .= '<div class="list-card fade-up" style="animation-delay:'.round($i*.04,3).'s">';
             $h .= '<a href="index.php?page=product&id='.$p['id'].'" style="display:flex;align-items:center;flex:1;text-decoration:none;color:inherit;">';
             $h .= '<div class="list-thumb">';
@@ -143,7 +143,7 @@ function renderProductGrid(array $products, string $view = 'grid'): string {
             $h .= '</div>';
             $h .= '<div class="list-info">';
             $h .= '<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:4px;"><span class="badge badge-amber">'.h($p['category']).'</span>';
-            if (!$p['in_stock']) $h .= '<span class="badge badge-gray">Out of Stock</span>';
+           if (!$p['in_stock'] || (float)$p['quantity_available'] <= 0) $h .= '<span class="badge badge-gray">Out of Stock</span>';
             if ($p['featured'])  $h .= '<span class="badge badge-gold">★</span>';
             $h .= '</div>';
             $h .= '<p class="list-name">'.h($p['name']).'</p>';
@@ -172,16 +172,16 @@ function renderProductGrid(array $products, string $view = 'grid'): string {
         if ($p['primary_photo'] && file_exists(PHOTOS_DIR.'/'.$p['primary_photo']))
             $h .= '<img src="assets/uploads/photos/'.h($p['primary_photo']).'" alt="'.h($p['name']).'" loading="lazy"/>';
         else $h .= marbleSVG($pal,200,160,'pg'.$p['id']);
-        if (!$p['in_stock']) $h .= '<div class="product-out-overlay"><span class="badge badge-gray">Out of Stock</span></div>';
+        if (!$p['in_stock'] || (float)$p['quantity_available'] <= 0) $h .= '<div class="product-out-overlay"><span class="badge badge-gray">Out of Stock</span></div>';
         if ($p['featured'])  $h .= '<div style="position:absolute;top:10px;left:10px;"><span class="badge badge-gold">★ Featured</span></div>';
         $h .= '</div>';
         $h .= '<div class="product-body">';
         $h .= '<p class="product-cat">'.h($p['category']).'</p>';
         $h .= '<p class="product-name">'.h($p['name']).'</p>';
-        $h .= '<p class="product-quarry">'.h($p['quarry_number']).'</p>';
+        $h .= '<p class="product-quarry">Quarry No. : '.h($p['quarry_number']).'</p>';
         $h .= '<div class="product-footer">';
-        $h .= '<span class="product-qty">'.number_format((float)$p['quantity_available']).' sqft</span>';
-        if ($p['thickness']) $h .= '<span style="font-size:11px;color:var(--text4);">'.h($p['thickness']).'</span>';
+        $h .= '<span class="product-qty">Available Qty : '.number_format((float)$p['quantity_available']).' sqft</span>';
+        if ($p['thickness']) $h .= '<span style="font-size:11px;color:var(--text4);">Thickness : '.h($p['thickness']).'</span>';
         $h .= '</div></div></a>';
         $h .= '<form method="POST" action="index.php" class="shortlist-form" data-id="'.$p['id'].'">';
         $h .= '<input type="hidden" name="action" value="toggle_shortlist"/>';

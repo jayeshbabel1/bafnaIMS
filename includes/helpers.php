@@ -1,7 +1,18 @@
 <?php
 function h(string $s): string { return htmlspecialchars($s, ENT_QUOTES, 'UTF-8'); }
 function titleCase(string $s): string {return mb_convert_case(mb_strtolower(trim($s)), MB_CASE_TITLE, 'UTF-8');}
-function redirect(string $url): never { header("Location: $url"); exit; }
+function redirect(string $url): never {
+    // If a relative path was passed and we're inside the admin panel,
+    // anchor it to /admin/ explicitly so reverse proxies, trailing
+    // slashes, or directory-style URLs (e.g. /admin/ instead of
+    // /admin/index.php) can't cause the browser to double up the path
+    // segment (e.g. /admin/admin/index.php).
+    if (!preg_match('#^(https?://|/)#i', $url) && defined('ADMIN_PANEL') && ADMIN_PANEL) {
+        $url = '/admin/' . $url;
+    }
+    header("Location: $url");
+    exit;
+}
 function flash(string $key, string $msg): void  { $_SESSION['flash'][$key] = $msg; }
 function getFlash(string $key): ?string {
     $m = $_SESSION['flash'][$key] ?? null;
@@ -299,4 +310,57 @@ function timeAgo(int $timestamp): string {
     if ($diff < 86400) return floor($diff/3600)  . 'h ago';
     if ($diff < 604800)return floor($diff/86400) . 'd ago';
     return date('d M Y', $timestamp);
+}
+
+/**
+ * Case-insensitive file lookup.
+ * Tries the exact path first (fast path). If it doesn't exist, scans the
+ * parent directory for a case-insensitive match and returns the real path
+ * (relative to PHOTOS_DIR or whatever base dir was passed), or null if
+ * truly not found anywhere.
+ *
+ * Handles folder-casing drift between DB (e.g. "White/file.jpg") and the
+ * actual filesystem (e.g. "white/file.jpg") on case-sensitive servers.
+ */
+function resolvePhotoPath(string $baseDir, string $relativePath): ?string {
+    $fullPath = $baseDir . '/' . $relativePath;
+
+    // Fast path — exact match
+    if (file_exists($fullPath)) {
+        return $relativePath;
+    }
+
+    // Split into folder + filename and try a case-insensitive scan
+    $parts    = explode('/', $relativePath);
+    $filename = array_pop($parts);
+    $subDir   = implode('/', $parts); // '' if no subfolder
+
+    $searchDir = $subDir !== '' ? $baseDir . '/' . $subDir : $baseDir;
+
+    // If even the subfolder path (with correct case) doesn't exist,
+    // try to find a case-insensitively matching folder under baseDir
+    if ($subDir !== '' && !is_dir($searchDir)) {
+        $found = false;
+        foreach (scandir($baseDir) ?: [] as $entry) {
+            if ($entry === '.' || $entry === '..') continue;
+            if (is_dir($baseDir . '/' . $entry) && strcasecmp($entry, $subDir) === 0) {
+                $searchDir = $baseDir . '/' . $entry;
+                $subDir    = $entry; // use the real on-disk casing
+                $found     = true;
+                break;
+            }
+        }
+        if (!$found) return null;
+    }
+
+    if (!is_dir($searchDir)) return null;
+
+    // Case-insensitive filename match within the resolved directory
+    foreach (scandir($searchDir) ?: [] as $entry) {
+        if (strcasecmp($entry, $filename) === 0) {
+            return ($subDir !== '' ? $subDir . '/' : '') . $entry;
+        }
+    }
+
+    return null;
 }

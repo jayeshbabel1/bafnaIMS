@@ -50,6 +50,86 @@ function loginUser(string $email, string $password): array {
     return ['success' => true];
 }
 
+/**
+ * Generate a readable random password for admin-created accounts.
+ * Avoids ambiguous characters (0/O, 1/l/I) for easier manual sharing.
+ */
+function generateRandomPassword(int $length = 10): string {
+    $chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+    $max   = strlen($chars) - 1;
+    $pass  = '';
+    for ($i = 0; $i < $length; $i++) {
+        $pass .= $chars[random_int(0, $max)];
+    }
+    return $pass;
+}
+
+/**
+ * Create a user from the Admin Panel.
+ *
+ * Unlike self-registration (registerUser), admin-created accounts are
+ * auto-verified (is_verified=1) since an admin is vouching for them, and a
+ * password is generated automatically if one isn't supplied.
+ *
+ * Returns:
+ *   ['success'=>true,  'id'=>int, 'plain_password'=>string, 'user'=>array]
+ *   ['success'=>false, 'error'=>string]
+ *
+ * The plain_password is returned ONLY so the caller can email it once.
+ * It is never stored anywhere except as a bcrypt hash in the DB, and it
+ * must never be logged, flashed, or displayed in the admin UI.
+ */
+function createUserByAdmin(array $data): array {
+    $db    = getDB();
+    $name  = titleCase(trim($data['name']  ?? ''));
+    $email = strtolower(trim($data['email'] ?? ''));
+
+    if (!$name)  return ['success' => false, 'error' => 'Name is required.'];
+    if (!$email || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        return ['success' => false, 'error' => 'A valid email address is required.'];
+    }
+
+    $check = $db->prepare("SELECT id FROM users WHERE email=?");
+    $check->execute([$email]);
+    if ($check->fetch()) {
+        return ['success' => false, 'error' => 'This email is already registered.'];
+    }
+
+    $plainPassword = trim($data['password'] ?? '');
+    if ($plainPassword !== '' && strlen($plainPassword) < 8) {
+        return ['success' => false, 'error' => 'Password must be at least 8 characters.'];
+    }
+    if ($plainPassword === '') {
+        $plainPassword = generateRandomPassword(10);
+    }
+
+    $hash = password_hash($plainPassword, PASSWORD_DEFAULT);
+
+    $st = $db->prepare("INSERT INTO users
+        (name, email, password, phone, firm, city, role, experience, is_verified, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)");
+    $st->execute([
+        $name,
+        $email,
+        $hash,
+        trim($data['phone'] ?? ''),
+        trim($data['firm']  ?? ''),
+        trim($data['city']  ?? ''),
+        $data['role']       ?? '',
+        $data['experience'] ?? '',
+        time(),
+    ]);
+
+    $userId = (int)$db->lastInsertId();
+
+    return [
+        'success'        => true,
+        'id'             => $userId,
+        'plain_password' => $plainPassword,
+        'user'           => ['id' => $userId, 'name' => $name, 'email' => $email],
+    ];
+}
+
 function registerUser(array $data): array {
     $db    = getDB();
     $email = strtolower(trim($data['email']));

@@ -243,3 +243,46 @@ HTML;
     $html = emailTemplate($subject, $body, 'Reset your Bafna Marble Catalog password');
     return sendMail($to, $subject, $html, '', $name);
 }
+
+/**
+ * Send a welcome email to a user created from the Admin Panel.
+ * Contains the username (email), assigned password, and login URL.
+ *
+ * The plain password is included here ONLY — it must never be logged,
+ * displayed in the admin UI, or stored anywhere outside this one-time email.
+ */
+function sendNewUserEmail(string $to, string $name, string $plainPassword): array {
+    $loginUrl = BASE_URL . '/index.php?page=login';
+    $subject  = 'Your Account Has Been Created — ' . APP_NAME;
+    $body     = <<<HTML
+<h2 style="font-size:22px;font-weight:700;color:#0a0a0a;margin:0 0 8px;">Welcome, {$name}!</h2>
+<p style="color:#555;font-size:15px;line-height:1.7;margin:0 0 20px;">
+  An account has been created for you on the <strong>Bafna Marble Catalog Platform</strong>. You can use the credentials below to sign in.
+</p>
+<table cellpadding="0" cellspacing="0" width="100%" style="background:#f9f7f4;border:1px solid #e8e0d4;border-radius:10px;margin:0 0 24px;">
+  <tr>
+    <td style="padding:18px 22px;">
+      <p style="margin:0 0 10px;font-size:13px;color:#888;">
+        Username (Email)<br/>
+        <strong style="font-size:15px;color:#0a0a0a;">{$to}</strong>
+      </p>
+      <p style="margin:0;font-size:13px;color:#888;">
+        Temporary Password<br/>
+        <strong style="font-size:15px;color:#0a0a0a;letter-spacing:.5px;">{$plainPassword}</strong>
+      </p>
+    </td>
+  </tr>
+</table>
+<div style="text-align:center;margin:0 0 24px;">
+  <a href="{$loginUrl}" style="display:inline-block;background:#0a0a0a;color:#fff;text-decoration:none;padding:14px 36px;border-radius:8px;font-size:15px;font-weight:600;letter-spacing:.3px;">
+    Sign In Now →
+  </a>
+</div>
+<p style="color:#888;font-size:13px;line-height:1.6;border-top:1px solid #eee;padding-top:18px;margin:0;">
+  For your security, we recommend changing this password after your first login from the Profile page.
+  If you weren't expecting this email, please contact us at <a href="mailto:sales@bafnamarbles.com" style="color:#c9a84c;">sales@bafnamarbles.com</a>.
+</p>
+HTML;
+    $html = emailTemplate($subject, $body, 'Your Bafna Marble Catalog account is ready');
+    return sendMail($to, $subject, $html, '', $name);
+}

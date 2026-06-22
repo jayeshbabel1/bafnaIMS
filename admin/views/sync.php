@@ -33,7 +33,9 @@ $stepMeta = [
     ],
 ];
 
-// Count files in each dir for overview
+// Count files in each dir for overview — recurses to any depth so the
+// badge count matches what the actual sync (RecursiveIteratorIterator)
+// will find, regardless of how many subfolder levels exist.
 function countDir(string $dir, array $exts): int {
 
     if (!is_dir($dir)) {
@@ -42,38 +44,20 @@ function countDir(string $dir, array $exts): int {
 
     $count = 0;
 
-    $folders = array_diff(scandir($dir), ['.', '..']);
+    $iterator = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator(
+            $dir,
+            RecursiveDirectoryIterator::SKIP_DOTS
+        )
+    );
 
-    foreach ($folders as $item) {
-
-        $path = $dir . '/' . $item;
-
-        // If subfolder
-        if (is_dir($path)) {
-
-            foreach (array_diff(scandir($path), ['.', '..']) as $file) {
-
-                $filePath = $path . '/' . $file;
-
-                if (!is_file($filePath)) {
-                    continue;
-                }
-
-                $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
-
-                if (in_array($ext, $exts)) {
-                    $count++;
-                }
-            }
-
-        } else {
-
-            // Support old flat structure also
-            $ext = strtolower(pathinfo($item, PATHINFO_EXTENSION));
-
-            if (in_array($ext, $exts)) {
-                $count++;
-            }
+    foreach ($iterator as $fileInfo) {
+        if (!$fileInfo->isFile()) {
+            continue;
+        }
+        $ext = strtolower(pathinfo($fileInfo->getFilename(), PATHINFO_EXTENSION));
+        if (in_array($ext, $exts)) {
+            $count++;
         }
     }
 

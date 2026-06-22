@@ -58,25 +58,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($action === 'save_colors') {
         $defaults = array_keys(require __DIR__ . '/../config/colors.php');
-        // Also handle radius keys
-        $defaults[] = '--btn-radius';
-        $defaults[] = '--card-radius';
+        // Extend with all theme variable keys (buttons, inputs, labels, navbar, fonts, radius)
+        $extraKeys = [
+            '--btn-radius','--card-radius',
+            // Buttons
+            '--btn-bg','--btn-color','--btn-border-color',
+            '--btn-hover-bg','--btn-hover-color','--btn-hover-border',
+            '--btn-sec-bg','--btn-sec-color','--btn-sec-border',
+            '--btn-sec-hover-bg','--btn-sec-hover-color','--btn-sec-hover-border',
+            // Labels
+            '--label-color','--label-font-size','--label-font-weight',
+            // Inputs
+            '--input-bg','--input-color','--input-placeholder',
+            '--input-border','--input-focus-border','--input-focus-shadow',
+            '--input-hover-border','--input-radius','--input-font-size',
+            // Navbar
+            '--navbar-bg','--navbar-color','--navbar-icon-color',
+            '--navbar-hover-color','--navbar-active-color','--navbar-border',
+            // Fonts
+            '--admin-font','--user-font',
+        ];
+        $defaults = array_unique(array_merge($defaults, $extraKeys));
         foreach ($defaults as $k) {
             if (isset($_POST[$k])) {
-                $val = preg_replace('/[<>"\']/', '', $_POST[$k]);
-                setSetting($k, $val);
+                // Allow font-family values (contain spaces + quotes) — only strip dangerous chars
+                $val = strip_tags($_POST[$k]);
+                $val = preg_replace('/[<>]/', '', $val);
+                setSetting($k, trim($val));
             }
         }
-        flash('toast', 'Color scheme saved.');
+        // Clear getCSSVariables static cache in helpers
+        flash('toast', 'Theme settings saved.');
         redirect('index.php?page=colors');
     }
-
+  
     if ($action === 'reset_colors') {
         $defaults = require __DIR__ . '/../config/colors.php';
         foreach ($defaults as $k => $v) setSetting($k, $v);
-        flash('toast', 'Colors reset to defaults.');
+        flash('toast', 'All theme settings reset to defaults.');
         redirect('index.php?page=colors');
     }
+  
     if ($action === 'upload_logo') {
         $result = uploadLogo($_FILES['logo_file'] ?? []);
         if ($result['success']) {
@@ -146,6 +168,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // reuse your existing function
     requestPasswordReset($user['email']);
     flash('toast', 'Password reset email sent');
+    redirect('index.php?page=users');
+    exit;
+}
+  
+  // ─── CREATE USER (Admin Panel) ───────────────────────────────────────────── */
+if ($action === 'create_user') {
+    $result = createUserByAdmin([
+        'name'       => $_POST['name']       ?? '',
+        'email'      => $_POST['email']      ?? '',
+        'password'   => $_POST['password']   ?? '', // optional — auto-generated if blank
+        'phone'      => $_POST['phone']      ?? '',
+        'firm'       => $_POST['firm']       ?? '',
+        'city'       => $_POST['city']       ?? '',
+        'role'       => $_POST['role']       ?? '',
+        'experience' => $_POST['experience'] ?? '',
+    ]);
+ 
+    if (!$result['success']) {
+        flash('error', $result['error']);
+        redirect('index.php?page=users');
+        exit;
+    }
+ 
+    // User row is already committed at this point — email sending must
+    // never roll back or block the user-creation success response.
+    $emailSent = false;
+    try {
+        $mailResult = sendNewUserEmail(
+            $result['user']['email'],
+            $result['user']['name'],
+            $result['plain_password']
+        );
+        $emailSent = !empty($mailResult['success']);
+        if (!$emailSent) {
+            error_log('create_user: welcome email failed for user #' . $result['id'] . ': ' . ($mailResult['error'] ?? 'unknown error'));
+        }
+    } catch (Throwable $e) {
+        error_log('create_user: welcome email exception for user #' . $result['id'] . ': ' . $e->getMessage());
+    }
+ 
+    flash('toast', $emailSent
+        ? 'User created successfully. Login details emailed to ' . $result['user']['email'] . '.'
+        : 'User created successfully, but the welcome email could not be sent. Please share login details manually.');
     redirect('index.php?page=users');
     exit;
 }
@@ -434,10 +499,11 @@ function importPhotos(?array $files): void
         // Q23048-IMG-1.jpeg
         // Q23048-IMG-2.jpg
 
-        if (!preg_match('/^(Q\d+)/i', $fn, $m))
-            continue;
+       if (!preg_match('/^(.+)-IMG(?:-\d+)?\.[a-z]+$/i', $fn, $m))
+    continue;
+$quarry = strtoupper(trim($m[1]));
 
-        $quarry = strtoupper($m[1]);
+      
 
         // product lookup
         $st = $db->prepare("
@@ -520,7 +586,7 @@ function importPhotos(?array $files): void
 }
 function parseQuarryFromFilename(string $stem): string {
     // Pattern 1: Q228-IMG_jpg  or  Q23048-IMG-1  → everything before -IMG (case-insensitive)
-    if (preg_match('/^(.+?)-IMG/i', $stem, $m)) {
+    if (preg_match('/^(.+)-IMG/i', $stem, $m)) {
         return trim($m[1]);
     }
     // Pattern 2: QM-0421-1  → strip trailing hyphen + digits only
@@ -574,11 +640,7 @@ function syncPhotosFromDirectory(): void
         $fullPath = $fileObj->getPathname();
 
         // relative path from photos dir
-        $relativePath = str_replace(
-            PHOTOS_DIR . '/',
-            '',
-            $fullPath
-        );
+        $relativePath = str_replace(PHOTOS_DIR . '/','',$fullPath);
 
         $file = $fileObj->getFilename();
 
@@ -597,7 +659,7 @@ function syncPhotosFromDirectory(): void
         Q3336-W994-IMG-2.jpg
         */
 
-        if (!preg_match('/^(.+?)(?:-img)?(?:-\d+)?\.(jpg|jpeg|png|webp)$/i', $file, $m)) {
+        if (!preg_match('/^(.+)-IMG(?:-\d+)?\.(jpg|jpeg|png|webp)$/i', $file, $m)) {
     continue;
 }
 
@@ -1076,17 +1138,24 @@ function importExcel(?array $file): void {
         'Available Quantity' => 'quantity_available',
         'Total Piece'        => 'pieces',
         'Thickness'          => 'thickness',
-        'Net Useable Size L' => 'sizes_l',
-        'Net Useable Size H' => 'sizes_h',
+        'Net Usable Size L' => 'sizes_l',
+        'Net Usable Size H' => 'sizes_h',
         'Italian Size L'     => 'cutter_size_l',
         'Italian Size H'     => 'cutter_size_h',
     ];
 
-    $headers = [];
-    foreach ($excelHeaders as $h) {
-        $clean     = trim($h);
-        $headers[] = $headerMap[$clean] ?? strtolower(str_replace(' ', '_', $clean));
-    }
+    // Build a case-insensitive lookup once: normalized-key => db-column
+$headerMapCI = [];
+foreach ($headerMap as $k => $v) {
+    $headerMapCI[mb_strtolower(trim($k))] = $v;
+}
+
+$headers = [];
+foreach ($excelHeaders as $h) {
+    $clean     = trim($h);
+    $lookupKey = mb_strtolower($clean);
+    $headers[] = $headerMapCI[$lookupKey] ?? strtolower(str_replace(' ', '_', $clean));
+}
 
     // ── 4. Collect & validate rows ────────────────────────────────────────
     $importedQuarries = [];   // quarry_number => field array
@@ -1392,7 +1461,7 @@ function syncImages(): array {
             }
 
             // Save relative path
-            $relativePath = $colorFolder . '/' . $file;
+           $relativePath = ucfirst(strtolower($colorFolder)) . '/' . $file;
 
             // Skip duplicates
             $chk = $db->prepare("
@@ -1507,8 +1576,8 @@ function syncMeasurementSheets(): array {
         // Q23048-MS-1.pdf
         // A9993-W998899-MS.pdf
 
-        if (preg_match('/^MS-(.+)$/i', $stem, $m)) {
-
+       if (preg_match('/^MS-(.+)$/i', $stem, $m)) {
+            
             $quarry = trim($m[1]);
 
         } else {

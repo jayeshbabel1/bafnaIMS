@@ -1,4 +1,3 @@
-
 <?php
 $pageTitle = 'Shortlist — ' . APP_NAME;
 $showNav   = true;
@@ -49,7 +48,7 @@ $items = $st->fetchAll();
         <div class="shortlist-info">
           <div style="display:flex;gap:5px;margin-bottom:5px;">
             <span class="badge badge-amber"><?= h($p['category']) ?></span>
-            <?= $p['in_stock'] ? '<span class="badge badge-green">In Stock</span>' : '<span class="badge badge-gray">Out</span>' ?>
+            <?= ($p['in_stock'] && (float)$p['quantity_available'] > 0) ? '<span class="badge badge-green">In Stock</span>' : '<span class="badge badge-gray">Out Of Stock</span>' ?>
           </div>
           <p class="shortlist-name"><?= h($p['name']) ?></p>
           <p class="shortlist-meta">Lot <?= h($p['quarry_number']) ?></p>

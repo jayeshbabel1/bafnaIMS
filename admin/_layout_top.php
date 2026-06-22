@@ -9,7 +9,7 @@
 <style><?= getCSSVariables(true) ?></style>
 <link rel="stylesheet" href="../assets/css/style.css"/>
 <link rel="stylesheet" href="../assets/css/admin.css"/>
-  <link rel="stylesheet" href="../assets/css/watermark.css"/>
+<link rel="stylesheet" href="../assets/css/watermark.css"/>
 </head>
 <body class="admin-body">
 
@@ -18,12 +18,10 @@
 <?php if ($e): ?><div class="toast toast-error"   id="admin-toast"><?= h($e) ?></div><?php endif; ?>
 
 <?php
-// Ensure logo helper is loaded
 if (!function_exists('getLogo')) {
     require_once BASE_PATH . '/includes/logo.php';
 }
 
-// Notification count for bell badge
 $_notifCount = 0;
 try {
     $cutoff20 = time() - (20 * 86400);
@@ -32,7 +30,6 @@ try {
     $_notifCount = (int)$ns->fetchColumn();
 } catch (Throwable $_e) {}
 
-// Recent 5 for dropdown
 $_recentNotifs = [];
 try {
     $nsr = getDB()->prepare("SELECT * FROM notifications WHERE created_at >= ? ORDER BY created_at DESC LIMIT 5");
@@ -40,9 +37,52 @@ try {
     $_recentNotifs = $nsr->fetchAll();
 } catch (Throwable $_e) {}
 
-// Site logo for admin panel
 $_adminLogo = getLogo(true);
+$ap = $_GET['page'] ?? 'dashboard';
+
+// Settings sub-pages
+$settingsPages = ['colors','logo','smtp'];
+$isSettingsActive = in_array($ap, $settingsPages);
 ?>
+
+<style>
+/* ── Settings submenu ───────────────────────────────────────────── */
+.admin-nav-group { width:100%; }
+.admin-nav-group-header {
+  display:flex; align-items:center; gap:10px; padding:10px 12px;
+  border-radius:10px; color:rgba(255,255,255,.65); font-size:13px;
+  font-weight:500; cursor:pointer; transition:all .15s;
+  background:none; border:none; width:100%; text-align:left;
+  font-family:inherit;
+}
+.admin-nav-group-header:hover,
+.admin-nav-group-header.active { background:rgba(255,255,255,.12); color:#fff; }
+.admin-nav-group-header svg { flex-shrink:0; }
+.admin-nav-group-chevron {
+  margin-left:auto; transition:transform .2s;
+  flex-shrink:0; opacity:.6;
+}
+.admin-nav-group-chevron.open { transform:rotate(90deg); }
+.admin-nav-submenu {
+  display:none; flex-direction:column; gap:1px;
+  padding:2px 0 4px 28px;
+}
+.admin-nav-submenu.open { display:flex; }
+.admin-nav-subitem {
+  display:flex; align-items:center; gap:8px; padding:7px 12px;
+  border-radius:8px; color:rgba(255,255,255,.55); font-size:12px;
+  font-weight:500; cursor:pointer; transition:all .15s;
+  text-decoration:none; border:none; width:100%; text-align:left;
+  background:none; font-family:inherit;
+}
+.admin-nav-subitem:hover { background:rgba(255,255,255,.1); color:rgba(255,255,255,.9); }
+.admin-nav-subitem.active { background:rgba(255,255,255,.15); color:#fff; }
+.admin-nav-subitem-dot {
+  width:5px; height:5px; border-radius:50%;
+  background:rgba(255,255,255,.4); flex-shrink:0;
+}
+.admin-nav-subitem.active .admin-nav-subitem-dot { background:var(--gold,#B8975A); }
+</style>
 
 <div class="admin-shell">
   <aside class="admin-sidebar">
@@ -64,17 +104,12 @@ $_adminLogo = getLogo(true);
 
     <nav class="admin-nav">
       <?php
-      $ap = $_GET['page'] ?? 'dashboard';
       $navItems = [
         ['page'=>'dashboard',     'icon'=>'home',    'label'=>'Dashboard'],
         ['page'=>'products',      'icon'=>'grid',    'label'=>'Products'],
         ['page'=>'sync',          'icon'=>'refresh', 'label'=>'Sync Product Data'],
-       // ['page'=>'inquiries',     'icon'=>'msg',     'label'=>'Inquiries'],
         ['page'=>'users',         'icon'=>'users',   'label'=>'Users'],
         ['page'=>'notifications', 'icon'=>'bell',    'label'=>'Notifications', 'badge'=>$_notifCount],
-        ['page'=>'colors',        'icon'=>'palette', 'label'=>'Color Scheme'],
-        ['page'=>'logo',          'icon'=>'image',   'label'=>'Logo'],
-        ['page'=>'smtp',          'icon'=>'mail',   'label'=>'Mail Settings'],
       ];
       foreach ($navItems as $n): ?>
       <a href="index.php?page=<?= $n['page'] ?>" class="admin-nav-item <?= $ap===$n['page']?'active':'' ?>">
@@ -85,6 +120,31 @@ $_adminLogo = getLogo(true);
         <?php endif; ?>
       </a>
       <?php endforeach; ?>
+
+      <!-- Settings group -->
+      <div class="admin-nav-group">
+        <button class="admin-nav-group-header <?= $isSettingsActive ? 'active' : '' ?>"
+                onclick="toggleSettingsMenu()" id="settingsMenuBtn" type="button">
+          <?= icon('settings', 18) ?>
+          <span>Settings</span>
+          <svg class="admin-nav-group-chevron <?= $isSettingsActive ? 'open' : '' ?>" id="settingsChevron"
+               width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 18 15 12 9 6"/>
+          </svg>
+        </button>
+        <div class="admin-nav-submenu <?= $isSettingsActive ? 'open' : '' ?>" id="settingsSubmenu">
+          <a href="index.php?page=colors" class="admin-nav-subitem <?= $ap==='colors'?'active':'' ?>">
+            <span class="admin-nav-subitem-dot"></span> Color Scheme
+          </a>
+          <a href="index.php?page=logo" class="admin-nav-subitem <?= $ap==='logo'?'active':'' ?>">
+            <span class="admin-nav-subitem-dot"></span> Logo
+          </a>
+          <a href="index.php?page=smtp" class="admin-nav-subitem <?= $ap==='smtp'?'active':'' ?>">
+            <span class="admin-nav-subitem-dot"></span> Mail Settings
+          </a>
+        </div>
+      </div>
     </nav>
 
     <div class="admin-sidebar-footer">
@@ -145,7 +205,7 @@ $_adminLogo = getLogo(true);
             </div>
             <?php endif; ?>
           </div>
-        </div><!-- /notif-bell-wrap -->
+        </div>
 
         <span style="font-size:13px;color:var(--text2);">Welcome, <?= h($_SESSION['admin_name'] ?? 'Admin') ?></span>
       </div>
@@ -153,7 +213,6 @@ $_adminLogo = getLogo(true);
     <div class="admin-content">
 
 <style>
-/* Notification bell — inline here to avoid extra file for small block */
 .notif-bell-wrap { position: relative; }
 .notif-bell-btn {
   position: relative; width: 36px; height: 36px; border-radius: 8px;
@@ -200,4 +259,14 @@ document.addEventListener('click', function(e) {
   var dd   = document.getElementById('notifDropdown');
   if (wrap && dd && !wrap.contains(e.target)) dd.classList.remove('open');
 });
+
+function toggleSettingsMenu() {
+  var menu   = document.getElementById('settingsSubmenu');
+  var chev   = document.getElementById('settingsChevron');
+  var btn    = document.getElementById('settingsMenuBtn');
+  var isOpen = menu.classList.contains('open');
+  menu.classList.toggle('open', !isOpen);
+  chev.classList.toggle('open', !isOpen);
+  btn.classList.toggle('active', !isOpen || <?= json_encode($isSettingsActive) ?>);
+}
 </script>

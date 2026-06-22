@@ -50,9 +50,17 @@ $specs = [
     <div class="detail-hero-overlay"></div>
 
     <!-- Top bar -->
+    <!-- Top bar -->
     <div class="detail-hero-top">
       <a href="javascript:history.back()" class="hero-icon-btn"><?= icon('back',18) ?></a>
       <div class="detail-hero-actions">
+        <?php if ($photos && file_exists(PHOTOS_DIR.'/'.$photos[0]['filename'])): ?>
+        <a href="assets/uploads/photos/<?= h($photos[0]['filename']) ?>"
+           download="<?= h($p['quarry_number'] ?: 'product') ?>-<?= h(basename($photos[0]['filename'])) ?>"
+           class="hero-icon-btn" id="heroDownloadBtn" title="Download image">
+          <?= icon('download',16) ?>
+        </a>
+        <?php endif; ?>
         <button class="hero-icon-btn" onclick="openShareModal()"><?= icon('share',16) ?></button>
         <form method="POST" action="index.php" style="margin:0">
           <input type="hidden" name="action"     value="toggle_shortlist"/>
@@ -76,7 +84,7 @@ $specs = [
 
     <!-- Status -->
     <div class="detail-status">
-      <?= $p['in_stock'] ? '<span class="badge badge-green">● In Stock</span>' : '<span class="badge badge-gray">Out of Stock</span>' ?>
+     <?= ($p['in_stock'] && (float)$p['quantity_available'] > 0) ? '<span class="badge badge-green">● In Stock</span>' : '<span class="badge badge-gray">Out of Stock</span>' ?>
       <?php if ($p['featured']): ?><span class="badge badge-gold">★ Featured</span><?php endif; ?>
     </div>
 
@@ -84,7 +92,8 @@ $specs = [
     <?php if (count($photos) > 1): ?>
     <div class="detail-thumbs">
       <?php foreach ($photos as $i => $ph):
-        $imgSrc = file_exists(PHOTOS_DIR.'/'.$ph['filename']) ? 'assets/uploads/photos/'.h($ph['filename']) : null;
+        $resolved = resolvePhotoPath(PHOTOS_DIR, $ph['filename']);
+		$imgSrc   = $resolved ? 'assets/uploads/photos/'.h($resolved) : null;
       ?>
       <div class="detail-thumb <?= $i===0?'active':'' ?>"
            data-src="<?= $imgSrc ? h($imgSrc) : '' ?>"
@@ -164,7 +173,8 @@ $specs = [
     <p class="section-label">Gallery</p>
     <div class="photo-gallery">
       <?php foreach ($photos as $ph):
-        $imgSrc = file_exists(PHOTOS_DIR.'/'.$ph['filename']) ? 'assets/uploads/photos/'.h($ph['filename']) : null;
+       $resolved = resolvePhotoPath(PHOTOS_DIR, $ph['filename']);
+	   $imgSrc   = $resolved ? 'assets/uploads/photos/'.h($resolved) : null;
         if (!$imgSrc) continue;
       ?>
       <div class="gallery-item" onclick="openLightbox('<?= h($imgSrc) ?>')">
