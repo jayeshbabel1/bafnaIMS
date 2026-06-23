@@ -128,7 +128,7 @@ function _buildPdfWithTcpdf(
     string  $pdfPath
 ): void {
     // Autoload TCPDF from composer vendor
-    $autoload = BASE_PATH . '/../vendor/autoload.php';
+    $autoload = BASE_PATH . '/vendor/autoload.php';
     if (!file_exists($autoload)) {
         throw new \RuntimeException('Composer autoload not found — run: composer require tecnickcom/tcpdf');
     }
@@ -328,7 +328,7 @@ function _buildPdfFallback(
     string  $logoSrc,
     string  $pdfPath
 ): void {
-    $autoload = BASE_PATH . '/../vendor/autoload.php';
+    $autoload = BASE_PATH . '/vendor/autoload.php';
     if (!file_exists($autoload)) {
         throw new \RuntimeException('No PDF library available. Run: composer require tecnickcom/tcpdf');
     }
