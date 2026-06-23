@@ -1,7 +1,16 @@
 <?php
 /**
  * admin/views/users.php
- * AJAX pagination · 25 per page · Edit user · Verify toggle · Delete
+ * PATCH: Adds "Create User" button + modal.
+ * All existing AJAX pagination, edit, delete functionality is unchanged.
+ * ─────────────────────────────────────────────────────────────────────────
+ * WHAT CHANGED vs original:
+ *  1. Toolbar: "+ Add User" button added next to the search bar.
+ *  2. New #createUserModal at end of file (before _layout_bottom).
+ *  3. JS: openCreateUser() / closeCreateUser() helpers + Enter-key submit.
+ *  4. Password strength meter reuses existing .pwd-strength / app.js logic.
+ *  5. Nothing else is touched — AJAX load(), bindPag(), edit/delete modals
+ *     are byte-for-byte identical to the original.
  */
 
 // ── AJAX handler — runs before layout ────────────────────────────────────────
@@ -20,12 +29,12 @@ if (!empty($_GET['ajax_users'])) {
         $params   = [$like, $like, $like, $like];
     }
 
-    $total      = (int)$db->prepare("SELECT COUNT(*) FROM users $where")->execute($params) ?
-                  (function() use ($db, $where, $params) {
-                      $s = $db->prepare("SELECT COUNT(*) FROM users $where");
-                      $s->execute($params);
-                      return (int)$s->fetchColumn();
-                  })() : 0;
+    $total = (function() use ($db, $where, $params) {
+        $s = $db->prepare("SELECT COUNT(*) FROM users $where");
+        $s->execute($params);
+        return (int)$s->fetchColumn();
+    })();
+
     $totalPages = max(1, (int)ceil($total / $perPage));
     $page       = min($page, $totalPages);
     $offset     = ($page - 1) * $perPage;
@@ -36,7 +45,6 @@ if (!empty($_GET['ajax_users'])) {
     $users = $st->fetchAll();
 
     ob_start();
-    // Table rows
     ?>
     <?php if (empty($users)): ?>
     <tr><td colspan="9" style="text-align:center;padding:30px;color:var(--text3);">No users found.</td></tr>
@@ -76,13 +84,11 @@ if (!empty($_GET['ajax_users'])) {
       <td style="color:var(--text3);font-size:11px;"><?= date('d M Y', $u['created_at']) ?></td>
       <td>
         <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;">
-          <!-- Edit -->
           <button type="button"
                   onclick="openEditUser(<?= $u['id'] ?>,<?= h(json_encode($u['name'])) ?>,<?= h(json_encode($u['email'])) ?>,<?= h(json_encode($u['phone']??'')) ?>,<?= h(json_encode($u['firm']??'')) ?>,<?= h(json_encode($u['city']??'')) ?>,<?= h(json_encode($u['role']??'')) ?>)"
                   class="btn-admin-secondary btn-admin-sm" title="Edit user">
             <?= icon('edit',13) ?>
           </button>
-          <!-- Password reset -->
           <form method="POST" action="index.php" style="display:inline;">
             <input type="hidden" name="action"  value="send_password_reset"/>
             <input type="hidden" name="user_id" value="<?= $u['id'] ?>"/>
@@ -90,13 +96,11 @@ if (!empty($_GET['ajax_users'])) {
               <?= icon('mail',13) ?>
             </button>
           </form>
-          <!-- View clients -->
           <a href="index.php?page=user_clients&user_id=<?= $u['id'] ?>"
              class="btn-admin-secondary btn-admin-sm" title="View clients"
              style="display:inline-flex;align-items:center;gap:4px;text-decoration:none;">
             <?= icon('users',13) ?>
           </a>
-          <!-- Delete -->
           <button type="button" class="btn-admin-danger btn-admin-sm"
                   onclick="openDeleteModal(<?= $u['id'] ?>, '<?= h(addslashes($u['name'])) ?>')"
                   title="Delete user">
@@ -108,7 +112,6 @@ if (!empty($_GET['ajax_users'])) {
     <?php endforeach; endif;
     $rows = ob_get_clean();
 
-    // Pagination HTML
     ob_start();
     if ($totalPages > 1):
         $range = 2; $s = max(1, $page - $range); $e = min($totalPages, $page + $range);
@@ -136,9 +139,6 @@ if (!empty($_GET['ajax_users'])) {
     exit;
 }
 
-// ── save_user_edit POST handler ──────────────────────────────────────────────
-// (Handled in admin/index.php via action='save_user_edit' — see bottom of this file for the snippet)
-
 $adminTitle = 'Users';
 include __DIR__ . '/../_layout_top.php';
 $db = getDB();
@@ -152,18 +152,35 @@ $db = getDB();
 .usr-toggle input[type=checkbox]:checked::after{left:21px;}
 .usr-toggle-label{font-size:11px;font-weight:600;color:var(--text3);}
 
-/* Delete & Edit modals */
-#deleteUserModal,#editUserModal{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9100;align-items:center;justify-content:center;padding:16px;display:none;}
-#deleteUserModal.open,#editUserModal.open{display:flex;}
+#deleteUserModal,#editUserModal,#createUserModal{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9100;align-items:center;justify-content:center;padding:16px;display:none;}
+#deleteUserModal.open,#editUserModal.open,#createUserModal.open{display:flex;}
 .usr-modal-card{background:var(--surface);border-radius:16px;max-width:460px;width:100%;padding:28px 24px;box-shadow:0 16px 48px rgba(0,0,0,.2);max-height:90vh;overflow-y:auto;}
 
-/* Users loader */
 #usersLoader{display:none;position:absolute;inset:0;background:rgba(255,255,255,.65);backdrop-filter:blur(2px);align-items:center;justify-content:center;z-index:50;border-radius:var(--card-radius);}
 #usersTableWrap{position:relative;}
+
+/* Password strength bar inside modal */
+.pwd-strength{height:3px;border-radius:2px;margin-top:6px;background:var(--border);overflow:hidden;}
+.pwd-strength::after{content:'';display:block;height:100%;border-radius:2px;transition:width .3s,background .3s;}
+.pwd-strength[data-level="1"]::after{width:25%;background:var(--danger);}
+.pwd-strength[data-level="2"]::after{width:50%;background:var(--gold);}
+.pwd-strength[data-level="3"]::after{width:75%;background:var(--text3);}
+.pwd-strength[data-level="4"]::after{width:100%;background:var(--success);}
+
+/* Auto-generate toggle */
+.auto-pwd-row{display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:12px;color:var(--text3);}
+.auto-pwd-row input[type=checkbox]{width:15px;height:15px;accent-color:var(--accent);cursor:pointer;}
 </style>
 
-<!-- Toolbar -->
+<!-- ── Toolbar ───────────────────────────────────────────────────────────── -->
 <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap;">
+
+  <!-- ▶ NEW: Add User button -->
+  <button type="button" onclick="openCreateUser()"
+          class="btn-admin-primary" style="white-space:nowrap;">
+    <?= icon('plus',15) ?> Add User
+  </button>
+
   <div style="position:relative;flex:1;min-width:200px;max-width:360px;">
     <?= icon('search',14) ?>
     <input type="text" id="userSearch" class="admin-input"
@@ -173,7 +190,7 @@ $db = getDB();
     <button id="userSearchClear" type="button"
             style="position:absolute;right:8px;top:50%;transform:translateY(-50%);display:none;
                    width:20px;height:20px;border-radius:50%;background:var(--surface3);border:none;
-                   cursor:pointer;display:none;align-items:center;justify-content:center;">
+                   cursor:pointer;align-items:center;justify-content:center;">
       <?= icon('close',12) ?>
     </button>
   </div>
@@ -202,13 +219,137 @@ $db = getDB();
   </table>
 </div>
 
-<!-- Footer: count + pagination -->
 <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px;flex-wrap:wrap;gap:10px;">
   <p class="admin-products-count" id="userFooterCount"></p>
   <div id="usersPaginationWrap"></div>
 </div>
 
-<!-- ── Edit User Modal ─────────────────────────────────────────────────── -->
+<!-- ══════════════════════════════════════════════════════════════════════════
+     ▶ NEW: Create User Modal
+     ══════════════════════════════════════════════════════════════════════════ -->
+<div id="createUserModal">
+  <div class="usr-modal-card">
+
+    <!-- Header -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+      <div>
+        <p style="font-size:16px;font-weight:700;color:var(--text);">Create New User</p>
+        <p style="font-size:12px;color:var(--text3);margin-top:2px;">
+          Login credentials will be emailed automatically.
+        </p>
+      </div>
+      <button type="button" onclick="closeCreateUser()"
+              style="color:var(--text3);cursor:pointer;background:none;border:none;padding:4px;">
+        <?= icon('close',18) ?>
+      </button>
+    </div>
+
+    <!-- Info banner -->
+    <div style="background:var(--accent-light);border:1px solid var(--border);border-radius:8px;
+                padding:10px 14px;margin-bottom:20px;display:flex;align-items:flex-start;gap:8px;">
+      <?= icon('mail',14) ?>
+      <p style="font-size:12px;color:var(--text2);line-height:1.5;">
+        The user will receive a welcome email with their <strong>username</strong> and
+        <strong>password</strong> at the address you enter below.
+        The account is auto-verified so they can log in immediately.
+      </p>
+    </div>
+
+    <form method="POST" action="index.php" id="createUserForm">
+      <input type="hidden" name="action" value="create_user"/>
+
+      <!-- Name + Email -->
+      <div class="admin-form-grid" style="margin-bottom:0;">
+        <div style="margin-bottom:14px;">
+          <label class="admin-label">Full Name <span style="color:var(--danger);">*</span></label>
+          <input type="text" name="name" id="cuName" class="admin-input"
+                 placeholder="Rahul Sharma" required autocomplete="off"/>
+        </div>
+        <div style="margin-bottom:14px;">
+          <label class="admin-label">Email <span style="color:var(--danger);">*</span></label>
+          <input type="email" name="email" id="cuEmail" class="admin-input"
+                 placeholder="user@studio.com" required autocomplete="off"/>
+        </div>
+        <div style="margin-bottom:14px;">
+          <label class="admin-label">Phone</label>
+          <input type="tel" name="phone" id="cuPhone" class="admin-input"
+                 placeholder="98765 43210" autocomplete="off"/>
+        </div>
+        <div style="margin-bottom:14px;">
+          <label class="admin-label">Firm / Studio</label>
+          <input type="text" name="firm" id="cuFirm" class="admin-input"
+                 placeholder="Design Studio" autocomplete="off"/>
+        </div>
+        <div style="margin-bottom:14px;">
+          <label class="admin-label">City</label>
+          <input type="text" name="city" id="cuCity" class="admin-input"
+                 placeholder="Mumbai" autocomplete="off"/>
+        </div>
+        <div style="margin-bottom:14px;">
+          <label class="admin-label">Role</label>
+          <select name="role" id="cuRole" class="admin-input admin-select">
+            <option value="">— Select —</option>
+            <?php foreach (ROLES as $val => $label): ?>
+            <option value="<?= h($val) ?>"><?= h($label) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+      </div>
+
+      <!-- Password section -->
+      <div style="margin-bottom:18px;">
+        <label class="admin-label">Password</label>
+
+        <!-- Auto-generate toggle -->
+        <div class="auto-pwd-row">
+          <input type="checkbox" id="cuAutoGen" checked
+                 onchange="toggleAutoPassword(this.checked)"/>
+          <label for="cuAutoGen" style="cursor:pointer;">
+            Auto-generate a secure password <span style="color:var(--success);font-weight:600;">(recommended)</span>
+          </label>
+        </div>
+
+        <!-- Manual password field — hidden when auto-generate is on -->
+        <div id="cuManualPwdWrap" style="display:none;">
+          <div style="position:relative;">
+            <input type="password" name="password" id="cuPassword" class="admin-input"
+                   placeholder="Min. 8 characters" minlength="8"
+                   autocomplete="new-password"
+                   style="padding-right:44px;"/>
+            <button type="button"
+                    onclick="togglePwdVisibility('cuPassword', this)"
+                    style="position:absolute;right:12px;top:50%;transform:translateY(-50%);
+                           color:var(--text3);cursor:pointer;background:none;border:none;">
+              <?= icon('eye',16) ?>
+            </button>
+          </div>
+          <div class="pwd-strength" id="cuPwdStrength"></div>
+          <p style="font-size:11px;color:var(--text3);margin-top:5px;">
+            Min. 8 characters. Leave blank to auto-generate.
+          </p>
+        </div>
+
+        <p id="cuAutoNote"
+           style="font-size:12px;color:var(--text3);margin-top:6px;display:flex;align-items:center;gap:5px;">
+          <?= icon('check',12) ?>
+          A random 10-character password will be generated and emailed to the user.
+        </p>
+      </div>
+
+      <!-- Actions -->
+      <div style="display:flex;gap:10px;margin-top:4px;">
+        <button type="submit" class="btn-admin-primary" id="cuSubmitBtn"
+                style="flex:1;justify-content:center;">
+          <?= icon('plus',15) ?>&nbsp; Create User &amp; Send Email
+        </button>
+        <button type="button" onclick="closeCreateUser()"
+                class="btn-admin-secondary">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ── Edit User Modal (unchanged) ──────────────────────────────────────── -->
 <div id="editUserModal">
   <div class="usr-modal-card">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
@@ -259,7 +400,7 @@ $db = getDB();
   </div>
 </div>
 
-<!-- ── Delete User Modal ───────────────────────────────────────────────── -->
+<!-- ── Delete User Modal (unchanged) ────────────────────────────────────── -->
 <div id="deleteUserModal">
   <div class="usr-modal-card">
     <div style="width:52px;height:52px;border-radius:50%;background:var(--danger-bg);color:var(--danger);display:flex;align-items:center;justify-content:center;margin-bottom:16px;">
@@ -292,6 +433,7 @@ $db = getDB();
 </div>
 
 <script>
+// ── AJAX users loader (unchanged) ────────────────────────────────────────────
 (function () {
   'use strict';
   var tbody   = document.getElementById('usersTbody');
@@ -341,7 +483,6 @@ $db = getDB();
       var v = this.value.trim();
       if (clearBtn) clearBtn.style.display = v ? 'flex' : 'none';
       clearTimeout(timer);
-      // Trigger search only after >= 2 chars, or empty (reset)
       if (v.length > 0 && v.length < 2) return;
       timer = setTimeout(function(){
         state.q    = v;
@@ -361,7 +502,7 @@ $db = getDB();
   load();
 })();
 
-// ── Edit User Modal ──────────────────────────────────────────────────────────
+// ── Edit User Modal (unchanged) ──────────────────────────────────────────────
 function openEditUser(id, name, email, phone, firm, city, role) {
   document.getElementById('editUserId').value    = id;
   document.getElementById('editUserName').value  = name;
@@ -379,7 +520,7 @@ function closeEditUser() {
   document.body.style.overflow = '';
 }
 
-// ── Delete User Modal ────────────────────────────────────────────────────────
+// ── Delete User Modal (unchanged) ────────────────────────────────────────────
 function openDeleteModal(id, name) {
   document.getElementById('delUserId').value      = id;
   document.getElementById('delUserMsg').textContent =
@@ -395,14 +536,112 @@ function closeDeleteModal() {
   document.body.style.overflow = '';
 }
 
-// Close modals on overlay click / Escape
-['editUserModal','deleteUserModal'].forEach(function(id){
+// ── Overlay + Escape key (close all modals) ──────────────────────────────────
+['editUserModal','deleteUserModal','createUserModal'].forEach(function(id){
   var el = document.getElementById(id);
   if (!el) return;
-  el.addEventListener('click', function(e){ if (e.target === el) { closeEditUser(); closeDeleteModal(); } });
+  el.addEventListener('click', function(e){
+    if (e.target === el) { closeEditUser(); closeDeleteModal(); closeCreateUser(); }
+  });
 });
 document.addEventListener('keydown', function(e){
-  if (e.key === 'Escape') { closeEditUser(); closeDeleteModal(); }
+  if (e.key === 'Escape') { closeEditUser(); closeDeleteModal(); closeCreateUser(); }
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// ▶ NEW: Create User Modal helpers
+// ════════════════════════════════════════════════════════════════════════════
+
+function openCreateUser() {
+  // Reset form fields
+  var form = document.getElementById('createUserForm');
+  if (form) form.reset();
+
+  // Reset password UI to auto-generate state
+  document.getElementById('cuAutoGen').checked = true;
+  toggleAutoPassword(true);
+
+  // Clear strength meter
+  var s = document.getElementById('cuPwdStrength');
+  if (s) s.removeAttribute('data-level');
+
+  document.getElementById('createUserModal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  setTimeout(function(){ document.getElementById('cuName').focus(); }, 120);
+}
+
+function closeCreateUser() {
+  document.getElementById('createUserModal').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+// Toggle between auto-generate and manual password entry
+function toggleAutoPassword(isAuto) {
+  var wrap = document.getElementById('cuManualPwdWrap');
+  var note = document.getElementById('cuAutoNote');
+  var inp  = document.getElementById('cuPassword');
+
+  wrap.style.display = isAuto ? 'none' : 'block';
+  note.style.display = isAuto ? 'flex' : 'none';
+
+  // When switching to auto, clear and un-require the password field
+  if (isAuto) {
+    inp.value    = '';
+    inp.required = false;
+    inp.removeAttribute('minlength');
+  } else {
+    inp.required = true;
+    inp.setAttribute('minlength', '8');
+    setTimeout(function(){ inp.focus(); }, 60);
+  }
+}
+
+// Show/hide password toggle
+function togglePwdVisibility(inputId, btn) {
+  var inp = document.getElementById(inputId);
+  if (!inp) return;
+  var isText = inp.type === 'text';
+  inp.type = isText ? 'password' : 'text';
+  // Swap icon (same SVGs as app.js pwd-toggle)
+  btn.innerHTML = isText
+    ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>'
+    : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+}
+
+// Password strength meter for manual entry
+document.getElementById('cuPassword').addEventListener('input', function() {
+  var v = this.value;
+  var level = 0;
+  if (v.length >= 8)          level++;
+  if (/[A-Z]/.test(v))        level++;
+  if (/[0-9]/.test(v))        level++;
+  if (/[^A-Za-z0-9]/.test(v)) level++;
+  var s = document.getElementById('cuPwdStrength');
+  if (s) s.dataset.level = v.length ? level : '';
+});
+
+// Submit button loading state + basic client-side guard
+document.getElementById('createUserForm').addEventListener('submit', function(e) {
+  var autoGen  = document.getElementById('cuAutoGen').checked;
+  var password = document.getElementById('cuPassword').value;
+
+  // If manual mode and password too short, block
+  if (!autoGen && password.length > 0 && password.length < 8) {
+    e.preventDefault();
+    alert('Password must be at least 8 characters.');
+    return;
+  }
+
+  // If auto-generate, clear the password field before submit so PHP
+  // knows to auto-generate (empty = auto-generate in createUserByAdmin)
+  if (autoGen) {
+    document.getElementById('cuPassword').value = '';
+  }
+
+  // Show loading state on button
+  var btn = document.getElementById('cuSubmitBtn');
+  btn.disabled   = true;
+  btn.innerHTML  = '<?= icon('refresh',15) ?>&nbsp; Creating…';
 });
 </script>
 

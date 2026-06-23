@@ -28,6 +28,7 @@ require_once __DIR__ . '/../includes/logo.php';
 require_once __DIR__ . '/../includes/clients.php';
 require_once __DIR__ . '/../includes/mailer.php';
 require_once __DIR__ . '/../includes/wa_share.php';
+require_once __DIR__ . '/../includes/product_pdf.php';
 
 
 
@@ -295,7 +296,6 @@ if ($action === 'delete_user') {
                       JOIN clients c ON cs.client_id=c.id WHERE c.user_id=?")->execute([$uid]);
         $db->prepare("DELETE FROM clients WHERE user_id=?")->execute([$uid]);
         $db->prepare("DELETE FROM shortlist WHERE user_id=?")->execute([$uid]);
-        $db->prepare("DELETE FROM inquiries WHERE user_id=?")->execute([$uid]);
         $db->prepare("DELETE FROM users WHERE id=?")->execute([$uid]);
         $db->commit();
         flash('toast', 'User and all related data deleted.');
@@ -350,12 +350,11 @@ if (isset($_GET["ajax_sync"]) && isAdmin()) {
     exit;
 }
 
-// ── AJAX WhatsApp preview endpoint ─────────────────────────────────────
-    if (isset($_GET['wa_preview']) && isAdmin()) {
-        require_once BASE_PATH . '/includes/wa_share.php';
-        handleWaPreviewAjax(); // outputs JSON + exits
-    }
 
+// ── AJAX WhatsApp PDF generation endpoint ───────────────────────────────────
+if (isset($_GET['wa_pdf']) && isAdmin()) {
+    handleWaPdfAjax(); // outputs JSON + exits
+}
 // ── Routing ───────────────────────────────────────────────────────────────────
 $page = preg_replace('/[^a-z_]/', '', $_GET['page'] ?? 'dashboard');
 

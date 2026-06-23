@@ -7,4 +7,6 @@ $baseDir = dirname($vendorDir);
 
 return array(
     'Composer\\InstalledVersions' => $vendorDir . '/composer/InstalledVersions.php',
+    'TCPDF' => $vendorDir . '/tecnickcom/tcpdf/tcpdf.php',
+    'TCPDF_ENGINE' => $vendorDir . '/tecnickcom/tcpdf/tcpdf.php',
 );
