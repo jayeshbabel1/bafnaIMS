@@ -13,6 +13,15 @@
 </head>
 <body class="admin-body">
 
+<button type="button" class="admin-hamburger-btn" id="adminHamburgerBtn" aria-label="Open menu" aria-expanded="false" aria-controls="adminSidebar">
+  <span class="admin-hamburger-line"></span>
+  <span class="admin-hamburger-line"></span>
+  <span class="admin-hamburger-line"></span>
+</button>
+<div class="admin-mobile-topbar">
+  <span class="admin-mobile-topbar-title"><?= h(APP_NAME) ?></span>
+</div>
+<div class="admin-sidebar-overlay" id="adminSidebarOverlay"></div>
 <?php $t = getFlash('toast'); $e = getFlash('error'); ?>
 <?php if ($t): ?><div class="toast toast-success" id="admin-toast"><?= h($t) ?></div><?php endif; ?>
 <?php if ($e): ?><div class="toast toast-error"   id="admin-toast"><?= h($e) ?></div><?php endif; ?>
@@ -85,7 +94,7 @@ $isSettingsActive = in_array($ap, $settingsPages);
 </style>
 
 <div class="admin-shell">
-  <aside class="admin-sidebar">
+  <aside class="admin-sidebar" id="adminSidebar">
     <div class="admin-logo">
       <div class="admin-logo-icon">
         <?php if ($_adminLogo): ?>
@@ -269,4 +278,49 @@ function toggleSettingsMenu() {
   chev.classList.toggle('open', !isOpen);
   btn.classList.toggle('active', !isOpen || <?= json_encode($isSettingsActive) ?>);
 }
+                       
+            
+document.addEventListener('DOMContentLoaded', function () {
+  var sidebar = document.getElementById('adminSidebar');
+  var overlay = document.getElementById('adminSidebarOverlay');
+  var hamBtn  = document.getElementById('adminHamburgerBtn');
+
+  if (!sidebar || !overlay || !hamBtn) {
+    console.warn('Admin sidebar drawer: missing element(s)', {
+      sidebar: !!sidebar, overlay: !!overlay, hamBtn: !!hamBtn
+    });
+    return;
+  }
+
+  function openSidebar() {
+    sidebar.classList.add('open');
+    overlay.classList.add('open');
+    hamBtn.classList.add('open');
+    hamBtn.setAttribute('aria-expanded', 'true');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeSidebar() {
+    sidebar.classList.remove('open');
+    overlay.classList.remove('open');
+    hamBtn.classList.remove('open');
+    hamBtn.setAttribute('aria-expanded', 'false');
+    document.body.style.overflow = '';
+  }
+
+  hamBtn.addEventListener('click', function () {
+    sidebar.classList.contains('open') ? closeSidebar() : openSidebar();
+  });
+  overlay.addEventListener('click', closeSidebar);
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') closeSidebar();
+  });
+  sidebar.addEventListener('click', function (e) {
+    if (e.target.closest('a, button[type="submit"]') && window.innerWidth <= 1024) {
+      closeSidebar();
+    }
+  });
+  window.addEventListener('resize', function () {
+    if (window.innerWidth > 1024) closeSidebar();
+  });
+});
 </script>
