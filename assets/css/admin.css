@@ -37,9 +37,9 @@ div.dashboard-grid {
 }
 
 @media (max-width: 1024px){
-  div.dashboard-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    gap: 12px !important;
+  .dashboard-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
   }
 .admin-shell {
     display: block; /* override flex row layout from desktop */
@@ -61,31 +61,37 @@ div.dashboard-grid {
 }
 
 @media (max-width: 600px){
-  div.dashboard-grid {
-    grid-template-columns: repeat(1, minmax(0, 1fr)) !important;
-    gap: 10px !important;
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
   }
+  .dash-value { font-size: 24px; }
 .admin-content { padding: 14px; }
   .dashboard-grid { gap: 10px; }
 }
+
 div.dashboard-grid > .dash-card {
   width: auto !important;
   min-width: 0;
 }
 
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
 .dash-card {
   background: var(--surface);
-  border: 1px solid var(--surface2);
+  border: 1px solid var(--border);
   border-radius: 14px;
-  padding: 16px;
-  transition: 0.25s;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+  padding: 20px 18px;
+  transition: box-shadow .2s, transform .2s;
+  min-width: 0;
 }
 
-.dash-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 10px 25px rgba(0,0,0,0.08);
-}
+.dash-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,.08); }
+
 
 .dash-left {
   display: flex;
@@ -94,39 +100,41 @@ div.dashboard-grid > .dash-card {
 }
 
 .dash-icon {
-  width: 44px;
-  height: 44px;
+  width: 48px;
+  height: 48px;
   border-radius: 12px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  font-weight:bold;
-  font-size:14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
-.accent{background:var(--accent-light); color:var(--accent);}
-.success{background:var(--success-bg); color:var(--success);}
-.warning{background:var(--gold-bg); color:var(--gold);}
-.muted{background:var(--surface2); color:var(--text3);}
 
-.dash-value{
-  font-size: 26px;
+.dash-icon.accent  { background: var(--accent-light); color: var(--accent); }
+.dash-icon.success { background: var(--success-bg);   color: var(--success); }
+.dash-icon.warning { background: var(--gold-bg);       color: var(--gold); }
+.dash-icon.muted   { background: var(--surface2);      color: var(--text3); }
+
+.dash-value {
+  font-size: 28px;
   font-weight: 700;
   color: var(--text);
+  line-height: 1.1;
 }
 
-.dash-label{
+.dash-label {
   font-size: 12px;
   color: var(--text3);
-  margin-top: 2px;
-  display:flex;
-  gap:6px;
-  align-items:center;
+  margin-top: 3px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
 }
 
-.dash-info{
-  display:flex;
-  flex-direction:column;
+.dash-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
 }
 
 .dash-badge{
@@ -547,26 +555,61 @@ div.dashboard-grid > .dash-card {
   .admin-search-wrap { min-width: unset; }
   .admin-perpage-wrap { justify-content: flex-start; }
 }
-/* 
-   RESPONSIVE ADMIN SIDEBAR — mobile/tablet drawer + hamburger
-   Desktop (>1024px): unchanged fixed sidebar, no visual difference.
-   Tablet/Mobile (1024px): sidebar becomes an off-canvas drawer.
-    */
+
 
 /* Mobile/tablet topbar with hamburger — hidden on desktop */
 .admin-mobile-topbar {
-  display: none;
+  display: none;                    /* hidden on desktop */
   position: fixed;
   top: 0; left: 0; right: 0;
   height: 56px;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
   z-index: 200;
+ 
+  /* Full-width flex row: brand-left, hamburger-right */
   align-items: center;
-  padding: 0 16px 0 60px;
+  justify-content: space-between;
+  padding: 0 14px;
   box-sizing: border-box;
+  gap: 8px;
 }
 
+/* Brand group (logo + name)  */
+.amt-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex-shrink: 1;
+}
+ 
+.amt-logo {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+ 
+.amt-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: var(--font-display);
+  line-height: 1.2;
+}
+ 
+.amt-sub {
+  font-size: 10px;
+  color: var(--text3);
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  line-height: 1;
+}
 .admin-mobile-topbar-title {
   font-size: 15px;
   font-weight: 700;
@@ -578,22 +621,30 @@ div.dashboard-grid > .dash-card {
 }
 
 .admin-hamburger-btn {
-  display: none;
+  /* Reset any previously set fixed positioning */
+  position: static !important;
+  top: auto !important;
+  left: auto !important;
+ 
+  display: flex;
   flex-direction: column;
   justify-content: center;
+  align-items: center;
   gap: 5px;
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
   padding: 8px;
   background: var(--surface2);
   border: 1px solid var(--border);
   border-radius: 8px;
   cursor: pointer;
-  position: fixed;
-  top: 10px;
-  left: 12px;
-  z-index: 260;
+  flex-shrink: 0;
+  z-index: auto;
   box-sizing: border-box;
+}
+
+.admin-hamburger-btn:hover {
+  background: var(--surface3);
 }
 
 .admin-hamburger-line {
@@ -604,30 +655,57 @@ div.dashboard-grid > .dash-card {
   border-radius: 2px;
   transition: transform .25s, opacity .25s;
 }
-.admin-hamburger-btn.open .admin-hamburger-line:nth-child(1) { transform: translateY(7px) rotate(45deg); }
-.admin-hamburger-btn.open .admin-hamburger-line:nth-child(2) { opacity: 0; }
-.admin-hamburger-btn.open .admin-hamburger-line:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
 
-/* Overlay behind the drawer */
+/* Animated X when open */
+.admin-hamburger-btn.open .admin-hamburger-line:nth-child(1) {
+  transform: translateY(7px) rotate(45deg);
+}
+.admin-hamburger-btn.open .admin-hamburger-line:nth-child(2) {
+  opacity: 0;
+  transform: scaleX(0);
+}
+.admin-hamburger-btn.open .admin-hamburger-line:nth-child(3) {
+  transform: translateY(-7px) rotate(-45deg);
+}
+
 .admin-sidebar-overlay {
   display: none;
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,.5);
+  background: rgba(0, 0, 0, .50);
   z-index: 150;
   opacity: 0;
   pointer-events: none;
   transition: opacity .25s;
 }
+
 .admin-sidebar-overlay.open {
   opacity: 1;
   pointer-events: all;
 }
 
+.admin-sidebar {
+  position: fixed;
+  top: 0; left: 0;
+  width: 230px;
+  height: 100vh;
+  background: linear-gradient(180deg, var(--accent2) 0%, var(--text) 100%);
+  display: flex;
+  flex-direction: column;
+  z-index: 250;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  /* Desktop: no transform needed */
+  transform: translateX(0);
+  transition: transform .25s ease, box-shadow .25s ease;
+}
+
 /*  Tablet and mobile breakpoint (less than 1024px)  */
 @media (max-width: 1024px) {
 
-  .admin-mobile-topbar { display: flex; }
+  .admin-mobile-topbar {
+    display: flex;
+  }
   .admin-sidebar-overlay { display: block; }
   .admin-hamburger-btn { display: flex; }
 
@@ -646,7 +724,7 @@ div.dashboard-grid > .dash-card {
   }
    .admin-sidebar.open {
     transform: translateX(0);
-    box-shadow: 0 0 32px rgba(0,0,0,.25);
+    box-shadow: 4px 0 32px rgba(0, 0, 0, .25);
   }
 
   /* Always show full labels/icons inside the drawer — undo any icon-only
@@ -699,11 +777,10 @@ div.dashboard-grid > .dash-card {
     width: 86vw;
     max-width: 300px;
   }
-  .admin-main { margin-left: 0; }
   .admin-content { padding: 16px; }
   .admin-form-grid { grid-template-columns: 1fr; }
   .stats-grid { grid-template-columns: 1fr 1fr; }
-  .dashboard-grid { grid-template-columns: 1fr; }
+    .dashboard-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
 
   .admin-topbar {
     padding: 12px 16px;
@@ -728,11 +805,14 @@ div.dashboard-grid > .dash-card {
   .admin-sidebar { width: 90vw; }
   .dashboard-grid { grid-template-columns: 1fr; }
   .admin-mobile-topbar-title { font-size: 13px; }
+.amt-name       { font-size: 12px; }
+  .amt-sub        { display: none; } 
 }
 
 /*  Prevent horizontal page overflow on any screen size  */
 .admin-body, .admin-shell, .admin-main, .admin-content {
   max-width: 100vw;
   overflow-x: hidden;
+  box-sizing: border-box;
 }
 .admin-table-wrap { max-width: 100%; }
