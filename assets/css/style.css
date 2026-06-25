@@ -497,7 +497,7 @@ textarea.input-field { resize: vertical; min-height: 90px; line-height: 1.6; }
 .faq-a { font-size: 13px; color: var(--text2); line-height: 1.6; max-height: 0; overflow: hidden; transition: max-height .3s ease, padding .3s ease; padding: 0 20px; }
 .faq-a.open { max-height: 200px; padding: 0 20px 14px; }
 
-/*  Clients & Selections  */
+/*  Clients and Selections  */
 .client-cards-grid { min-width: 0; }
 .client-card { min-width: 0; overflow: hidden; }
 .client-card-name, .client-card-value { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -582,6 +582,7 @@ textarea.input-field { resize: vertical; min-height: 90px; line-height: 1.6; }
   .auth-hero { flex: 0 0 440px; }
   .auth-card { max-width: 600px; }
   .shortlist-grid { grid-template-columns: repeat(3, 1fr); }
+    
 }
 
 @media (min-width: 1280px) {

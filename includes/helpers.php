@@ -106,18 +106,51 @@ function getCSSVariables(bool $isAdmin = false): string {
     $fontFamily = $isAdmin
         ? ($vars['--admin-font'] ?? "'DM Sans', sans-serif")
         : ($vars['--user-font']  ?? "'Plus Jakarta Sans', sans-serif");
-
+ 
     $css = ":root{\n";
     foreach ($vars as $k => $v) {
         $css .= "{$k}:{$v};\n";
     }
+ 
+    // ── When rendering for the admin panel, overlay the dedicated
+    //    admin-* variables onto the standard variable names so that
+    //    all existing CSS that uses --bg, --surface, --accent, etc.
+    //    automatically picks up the admin-specific palette without
+    //    any changes to admin.css.
+    if ($isAdmin) {
+        $adminOverrides = [
+            '--bg'         => '--admin-bg',
+            '--surface'    => '--admin-surface',
+            '--surface2'   => '--admin-surface2',
+            '--surface3'   => '--admin-surface3',
+            '--accent'     => '--admin-accent',
+            '--accent2'    => '--admin-accent2',
+            '--accent-light' => '--admin-accent-light',
+            '--accent-mid'   => '--admin-accent-mid',
+            '--border'     => '--admin-table-border',
+            '--nav-bg'     => '--admin-sidebar-from',
+        ];
+        foreach ($adminOverrides as $target => $source) {
+            if (!empty($vars[$source])) {
+                $css .= "{$target}:{$vars[$source]};\n";
+            }
+        }
+ 
+        // Sidebar gradient — exposed as a single CSS variable for
+        // the linear-gradient() reference in admin.css
+        $from = $vars['--admin-sidebar-from'] ?? '#1A4D65';
+        $to   = $vars['--admin-sidebar-to']   ?? '#0D2E3D';
+        $css .= "--admin-sidebar-gradient:linear-gradient(180deg,{$from},{$to});\n";
+    }
+ 
     // Inject resolved panel font as --font-body and --font-display
     $css .= "--font-body:{$fontFamily};\n";
     $css .= "--font-display:{$fontFamily};\n";
     $css .= "}";
-
+ 
     return $css;
 }
+
 
 // ─────────────────────────────────────────────────────────────────────────
 // ADD this NEW function immediately after getCSSVariables():

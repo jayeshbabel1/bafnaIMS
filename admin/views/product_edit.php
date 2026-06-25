@@ -37,6 +37,14 @@ $g   = fn($k) => h($p[$k] ?? '');
               style="color:#25D366;border-color:#25D366;gap:6px;">
         <?= icon('whatsapp', 14) ?> Share
       </button>
+      
+      <button type="button" id="pdfDownloadBtn"
+              onclick="downloadProductPdf(<?= $pid ?>, <?= h(json_encode($p['name'])) ?>)"
+              class="btn-admin-secondary btn-admin-sm"
+              style="color:var(--danger);border-color:var(--danger);gap:6px;">
+        <?= icon('pdf', 14) ?> Product PDF
+      </button>
+      
       <?php endif; ?>
     </div>
 
@@ -285,6 +293,38 @@ $g   = fn($k) => h($p[$k] ?? '');
 
   updateDimPreviews();
 })();
+</script>
+<script>
+function downloadProductPdf(productId, productName) {
+  var btn = document.getElementById('pdfDownloadBtn');
+  var origHtml = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<?= icon('refresh', 14) ?> Generating…';
+
+  fetch('index.php?pdf_download=1&product_id=' + productId)
+    .then(function(r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.blob();
+    })
+    .then(function(blob) {
+      var safe = (productName || 'product').replace(/[^A-Za-z0-9 _\-]/g, '').trim().replace(/\s+/g, '_');
+      var url = URL.createObjectURL(blob);
+      var a   = document.createElement('a');
+      a.href     = url;
+      a.download = safe + '.pdf';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      btn.disabled = false;
+      btn.innerHTML = origHtml;
+    })
+    .catch(function(err) {
+      alert('PDF generation failed: ' + err.message);
+      btn.disabled = false;
+      btn.innerHTML = origHtml;
+    });
+}
 </script>
  <?php include __DIR__ . '/_wa_share_modal.php'; ?>
 <?php include __DIR__ . '/../_layout_bottom.php'; ?>

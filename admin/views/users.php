@@ -173,28 +173,33 @@ $db = getDB();
 </style>
 
 <!-- ── Toolbar ───────────────────────────────────────────────────────────── -->
-<div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap;">
-
-  <!-- ▶ NEW: Add User button -->
+<div class="users-toolbar">
+ 
+  <!-- Add User -->
   <button type="button" onclick="openCreateUser()"
-          class="btn-admin-primary" style="white-space:nowrap;">
-    <?= icon('plus',15) ?> Add User
+          class="admin-toolbar-btn admin-toolbar-btn--primary">
+    <?= icon('plus',14) ?> Add User
   </button>
-
-  <div style="position:relative;flex:1;min-width:200px;max-width:360px;">
-    <?= icon('search',14) ?>
-    <input type="text" id="userSearch" class="admin-input"
+ 
+  <!-- Search -->
+  <div class="users-search-wrap" id="userSearchWrap">
+    <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);
+                 color:var(--text3);pointer-events:none;line-height:0;">
+      <?= icon('search',14) ?>
+    </span>
+    <input type="text" id="userSearch"
            placeholder="Search name, email, firm, city…"
            autocomplete="off"
-           style="padding-left:34px;padding-right:32px;width:100%;"/>
-    <button id="userSearchClear" type="button"
-            style="position:absolute;right:8px;top:50%;transform:translateY(-50%);display:none;
-                   width:20px;height:20px;border-radius:50%;background:var(--surface3);border:none;
-                   cursor:pointer;align-items:center;justify-content:center;">
-      <?= icon('close',12) ?>
+           style="padding-left:34px;"/>
+    <button type="button" id="userSearchClear">
+      <?= icon('close',11) ?>
     </button>
   </div>
-  <div id="userCountEl" style="font-size:12px;color:var(--text3);white-space:nowrap;"></div>
+ 
+  <!-- Count badge -->
+  <div id="userCountEl"
+       style="font-size:12px;color:var(--text3);white-space:nowrap;flex-shrink:0;"></div>
+ 
 </div>
 
 <!-- Table -->

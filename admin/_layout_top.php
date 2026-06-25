@@ -45,10 +45,6 @@ $e = getFlash('error');
 <?php if ($t): ?><div class="toast toast-success" id="admin-toast"><?= h($t) ?></div><?php endif; ?>
 <?php if ($e): ?><div class="toast toast-error"   id="admin-toast"><?= h($e) ?></div><?php endif; ?>
 
-<!-- ══════════════════════════════════════════════════════════════
-     MOBILE TOPBAR  (hidden on desktop ≥ 1025 px)
-     Layout:  [ Logo + App name ]  ···  [ Hamburger button ]
-     ══════════════════════════════════════════════════════════════ -->
 <header class="admin-mobile-topbar" id="adminMobileTopbar">
 
   <!-- Left: logo + brand -->
@@ -80,11 +76,8 @@ $e = getFlash('error');
 <!-- Overlay (mobile/tablet) -->
 <div class="admin-sidebar-overlay" id="adminSidebarOverlay"></div>
 
-<!-- ══════════════════════════════════════════════════════════════
-     SIDEBAR
-     ══════════════════════════════════════════════════════════════ -->
 <style>
-/* ── Settings submenu ─────────────────────────────────────────── */
+/*  Settings submenu  */
 .admin-nav-group          { width:100%; }
 .admin-nav-group-header   {
   display:flex;align-items:center;gap:10px;padding:10px 12px;
@@ -113,7 +106,7 @@ $e = getFlash('error');
 .admin-nav-subitem-dot            { width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,.4);flex-shrink:0; }
 .admin-nav-subitem.active .admin-nav-subitem-dot { background:var(--gold,#B8975A); }
 
-/* ── Notification bell dropdown ──────────────────────────────── */
+/*  Notification bell dropdown  */
 .notif-bell-wrap { position:relative; }
 .notif-bell-btn  {
   position:relative;width:36px;height:36px;border-radius:8px;
@@ -312,9 +305,9 @@ $e = getFlash('error');
 
     <div class="admin-content">
 
-<!-- ── JS: sidebar drawer + notification dropdown + settings submenu ── -->
+<!--  JS: sidebar drawer + notification dropdown + settings submenu ── -->
 <script>
-/* ── Settings submenu ─────────────────────────────────────────── */
+/*  Settings submenu  */
 function toggleSettingsMenu() {
   var menu = document.getElementById('settingsSubmenu');
   var chev = document.getElementById('settingsChevron');
@@ -325,7 +318,7 @@ function toggleSettingsMenu() {
   btn.classList.toggle('active', !isOpen || <?= json_encode($isSettingsActive) ?>);
 }
 
-/* ── Notification dropdown ────────────────────────────────────── */
+/*  Notification dropdown  */
 function toggleNotifDropdown() {
   document.getElementById('notifDropdown').classList.toggle('open');
 }
@@ -335,7 +328,7 @@ document.addEventListener('click', function(e) {
   if (wrap && dd && !wrap.contains(e.target)) dd.classList.remove('open');
 });
 
-/* ── Sidebar drawer ───────────────────────────────────────────── */
+/*  Sidebar drawer  */
 document.addEventListener('DOMContentLoaded', function () {
   var sidebar = document.getElementById('adminSidebar');
   var overlay = document.getElementById('adminSidebarOverlay');

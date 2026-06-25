@@ -78,6 +78,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             '--navbar-hover-color','--navbar-active-color','--navbar-border',
             // Fonts
             '--admin-font','--user-font',
+            // ── Admin-panel-specific colors ─────────────────────────
+            '--admin-bg','--admin-surface','--admin-surface2','--admin-surface3',
+            '--admin-sidebar-from','--admin-sidebar-to',
+            '--admin-sidebar-text','--admin-sidebar-active',
+            '--admin-sidebar-hover','--admin-sidebar-border',
+            '--admin-topbar-bg','--admin-topbar-border','--admin-topbar-text',
+            '--admin-accent','--admin-accent2',
+            '--admin-accent-light','--admin-accent-mid',
+            '--admin-table-header-bg','--admin-table-row-hover',
+            '--admin-table-border',
+            '--admin-card-bg','--admin-card-border','--admin-card-radius',
+            '--admin-badge-bg','--admin-badge-color',
         ];
         $defaults = array_unique(array_merge($defaults, $extraKeys));
         foreach ($defaults as $k) {
@@ -273,6 +285,47 @@ if ($action === 'update_user_status') {
     flash('toast', $verified ? 'User verified & approval email sent.' : 'User access revoked.');
     redirect('index.php?page=users');
 }
+  
+  if ($action === 'save_user_edit') {
+    requireAdmin();
+    $uid = (int)($_POST['user_id'] ?? 0);
+    if (!$uid) {
+        flash('error', 'Invalid user.');
+        redirect('index.php?page=users');
+    }
+
+    $name  = titleCase(trim($_POST['name']  ?? ''));
+    $email = strtolower(trim($_POST['email'] ?? ''));
+    $phone = trim($_POST['phone'] ?? '');
+    $firm  = titlecase(trim($_POST['firm']  ?? ''));
+    $city  = titlecase(trim($_POST['city']  ?? ''));
+    $role  = $_POST['role'] ?? '';
+
+    if (!$name) {
+        flash('error', 'Name is required.');
+        redirect('index.php?page=users');
+    }
+    if (!$email || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        flash('error', 'A valid email address is required.');
+        redirect('index.php?page=users');
+    }
+
+    $db = getDB();
+
+    // Make sure email isn't already used by a different user
+    $chk = $db->prepare("SELECT id FROM users WHERE email=? AND id<>?");
+    $chk->execute([$email, $uid]);
+    if ($chk->fetch()) {
+        flash('error', 'This email is already used by another user.');
+        redirect('index.php?page=users');
+    }
+
+    $db->prepare("UPDATE users SET name=?, email=?, phone=?, firm=?, city=?, role=? WHERE id=?")
+       ->execute([$name, $email, $phone, $firm, $city, $role, $uid]);
+
+    flash('toast', 'User updated successfully.');
+    redirect('index.php?page=users');
+}
 
 // ─── DELETE USER ─────────────────────────────────────────────────────── */
 if ($action === 'delete_user') {
@@ -354,6 +407,43 @@ if (isset($_GET["ajax_sync"]) && isAdmin()) {
 // ── AJAX WhatsApp PDF generation endpoint ───────────────────────────────────
 if (isset($_GET['wa_pdf']) && isAdmin()) {
     handleWaPdfAjax(); // outputs JSON + exits
+}
+// ── Direct PDF download endpoint ────────────────────────────────────────────
+if (isset($_GET['pdf_download']) && isAdmin()) {
+    $pid = (int)($_GET['product_id'] ?? 0);
+    if (!$pid) { http_response_code(400); echo 'Missing product_id'; exit; }
+
+    $result = generateProductPdf($pid);
+
+    if (!$result['success']) {
+        http_response_code(500);
+        echo $result['error'] ?? 'PDF generation failed.';
+        exit;
+    }
+
+    // Build safe filename from product name
+    $db  = getDB();
+    $st  = $db->prepare("SELECT name FROM products WHERE id = ?");
+    $st->execute([$pid]);
+    $row = $st->fetch();
+    $rawName  = $row['name'] ?? 'product';
+    $safeName = preg_replace('/[^A-Za-z0-9 _\-]/u', '', $rawName);
+    $safeName = trim(preg_replace('/\s+/', '_', $safeName));
+    if ($safeName === '') $safeName = 'product_' . $pid;
+    $downloadName = $safeName . '.pdf';
+
+    // Stream to browser
+    header('Content-Type: application/pdf');
+    header('Content-Disposition: attachment; filename="' . $downloadName . '"');
+    header('Content-Length: ' . filesize($result['path']));
+    header('Cache-Control: no-cache, no-store, must-revalidate');
+    header('Pragma: no-cache');
+    header('Expires: 0');
+    readfile($result['path']);
+
+    // Delete temp file after streaming
+    @unlink($result['path']);
+    exit;
 }
 // ── Routing ───────────────────────────────────────────────────────────────────
 $page = preg_replace('/[^a-z_]/', '', $_GET['page'] ?? 'dashboard');

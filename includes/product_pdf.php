@@ -38,10 +38,62 @@ function generateProductPdf(int $productId): array
     $photoRow  = $photoPst->fetch();
     $photoPath = null;
     if ($photoRow) {
-        $candidate = PHOTOS_DIR . '/' . $photoRow['filename'];
-        if (file_exists($candidate)) {
-            $photoPath = realpath($candidate);
+        $dbFilename = $photoRow['filename'];
+        error_log('PDF photo lookup — DB filename: ' . $dbFilename);
+        error_log('PDF photo lookup — PHOTOS_DIR: ' . PHOTOS_DIR);
+
+        // Try 1: resolvePhotoPath (handles casing)
+        $resolved = resolvePhotoPath(PHOTOS_DIR, $dbFilename);
+        if ($resolved) {
+            $fullPath = PHOTOS_DIR . '/' . $resolved;
+            if (file_exists($fullPath)) {
+                $photoPath = realpath($fullPath);
+                error_log('PDF photo — resolved path: ' . $photoPath);
+            }
         }
+
+        // Try 2: direct path
+        if (!$photoPath) {
+            $candidate = PHOTOS_DIR . '/' . $dbFilename;
+            if (file_exists($candidate)) {
+                $photoPath = realpath($candidate);
+                error_log('PDF photo — direct path: ' . $photoPath);
+            } else {
+                error_log('PDF photo — direct path NOT found: ' . $candidate);
+            }
+        }
+
+        // Try 3: just the basename (no subfolder)
+        if (!$photoPath) {
+            $basename  = basename($dbFilename);
+            $candidate = PHOTOS_DIR . '/' . $basename;
+            if (file_exists($candidate)) {
+                $photoPath = realpath($candidate);
+                error_log('PDF photo — basename path: ' . $photoPath);
+            } else {
+                error_log('PDF photo — basename NOT found: ' . $candidate);
+            }
+        }
+
+        // Try 4: scan all subfolders for the filename
+        if (!$photoPath) {
+            $basename = basename($dbFilename);
+            $iterator = new \RecursiveIteratorIterator(
+                new \RecursiveDirectoryIterator(PHOTOS_DIR, \RecursiveDirectoryIterator::SKIP_DOTS)
+            );
+            foreach ($iterator as $file) {
+                if ($file->isFile() && strcasecmp($file->getFilename(), $basename) === 0) {
+                    $photoPath = $file->getRealPath();
+                    error_log('PDF photo — found by scan: ' . $photoPath);
+                    break;
+                }
+            }
+            if (!$photoPath) {
+                error_log('PDF photo — NOT FOUND anywhere on disk for: ' . $basename);
+            }
+        }
+    } else {
+        error_log('PDF photo — no photo row found in DB for product ' . $productId);
     }
 
     // 3. Safe filename
@@ -195,32 +247,93 @@ if (!defined('K_PATH_FONTS')) {
     $y = $pdf->GetY() + 4;
 
     // ── Product Photo ─────────────────────────────────────────────────────────
+    $imageRendered = false;
+    error_log('PDF _buildPdf — photoPath received: ' . ($photoPath ?? 'NULL'));
+    if ($photoPath) {
+        error_log('PDF _buildPdf — file_exists: ' . (file_exists($photoPath) ? 'YES' : 'NO'));
+        error_log('PDF _buildPdf — is_readable: ' . (is_readable($photoPath) ? 'YES' : 'NO'));
+        if (file_exists($photoPath)) {
+            error_log('PDF _buildPdf — filesize: ' . filesize($photoPath));
+            error_log('PDF _buildPdf — mime: ' . (function_exists('mime_content_type') ? mime_content_type($photoPath) : 'n/a'));
+        }
+    }
     if ($photoPath && file_exists($photoPath)) {
         $info = @getimagesize($photoPath);
         if ($info && $info[0] > 0 && $info[1] > 0) {
+            // Determine image type explicitly for TCPDF
+            $imgType = '';
+            switch ($info[2]) {
+                case IMAGETYPE_JPEG: $imgType = 'JPEG'; break;
+                case IMAGETYPE_PNG:  $imgType = 'PNG';  break;
+                case IMAGETYPE_WEBP: $imgType = 'WEBP'; break;
+                default:
+                    $ext = strtoupper(pathinfo($photoPath, PATHINFO_EXTENSION));
+                    $imgType = in_array($ext, ['JPG','JPEG','PNG','WEBP']) ? $ext : 'JPEG';
+            }
+            // Always copy image to sys_get_temp_dir() — TCPDF v7 / tc-lib-pdf-image
+            // refuses to read files outside certain paths even when readable.
+            // Copying to /tmp sidesteps this restriction entirely.
+            $tmpImg = sys_get_temp_dir() . '/tcpdf_img_' . getmypid() . '_' . time();
+
+            if ($imgType === 'WEBP' && function_exists('imagecreatefromwebp')) {
+                // Convert WEBP → JPEG via GD
+                $tmpImg .= '.jpg';
+                $gd = @imagecreatefromwebp($photoPath);
+                if ($gd) {
+                    imagejpeg($gd, $tmpImg, 90);
+                    imagedestroy($gd);
+                    $imgType = 'JPEG';
+                    $info    = @getimagesize($tmpImg) ?: $info;
+                } else {
+                    $tmpImg = null;
+                }
+            } elseif ($imgType === 'PNG') {
+                $tmpImg .= '.png';
+                copy($photoPath, $tmpImg);
+            } else {
+                // JPEG or fallback
+                $tmpImg .= '.jpg';
+                copy($photoPath, $tmpImg);
+            }
+
+            // Use temp path if copy succeeded, otherwise original
+            $renderPath = ($tmpImg && file_exists($tmpImg)) ? $tmpImg : $photoPath;
+            error_log('PDF render path: ' . $renderPath . ' | exists: ' . (file_exists($renderPath) ? 'yes' : 'no'));
+
             $maxW  = 130.0;
             $maxH  = 85.0;
-            $ratio = $info[0] / $info[1];
+            $ratio = $info[0] / max($info[1], 1);
             $imgW  = $maxW;
             $imgH  = $maxW / $ratio;
             if ($imgH > $maxH) { $imgH = $maxH; $imgW = $maxH * $ratio; }
             $imgX  = $mL + ($contW - $imgW) / 2;
 
-            // Light border behind image
+            // Light border
             $pdf->SetDrawColor(...$light);
             $pdf->SetLineWidth(0.3);
             $pdf->RoundedRect($imgX - 1, $y - 1, $imgW + 2, $imgH + 2, 2, '1111', 'D');
 
             try {
-                $pdf->Image($photoPath, $imgX, $y, $imgW, $imgH, '', '', '', true, 150);
+                $pdf->Image(
+                    $renderPath,
+                    $imgX, $y,
+                    $imgW, $imgH,
+                    $imgType,
+                    '', '', true, 150, '', false, false, 0, 'CM', false, false
+                );
                 $y += $imgH + 7;
+                $imageRendered = true;
             } catch (\Throwable $e) {
-                $y = _noImagePlaceholder($pdf, $mL, $contW, $y);
+                error_log('PDF image error for ' . $renderPath . ': ' . $e->getMessage());
+            } finally {
+                // Always clean up temp file
+                if ($tmpImg && file_exists($tmpImg)) {
+                    @unlink($tmpImg);
+                }
             }
-        } else {
-            $y = _noImagePlaceholder($pdf, $mL, $contW, $y);
         }
-    } else {
+    }
+    if (!$imageRendered) {
         $y = _noImagePlaceholder($pdf, $mL, $contW, $y);
     }
 
@@ -237,7 +350,6 @@ if (!defined('K_PATH_FONTS')) {
         ['Usable Size',     $sizesDisplay],
         ['Italian Size',    $italianDisplay],
         ['No. of Pieces',   ($p['pieces'] ?? 0) > 0 ? (string)(int)$p['pieces'] : ''],
-        ['No. of Slabs',    ($p['pieces'] ?? 0) > 0 ? (string)(int)$p['pieces'] : ''],
         ['Available Qty',   ((float)($p['quantity_available'] ?? 0)) > 0
                                 ? number_format((float)$p['quantity_available'], 0) . ' sq.ft.' : ''],
         ['On Hold',         ((float)($p['quantity_on_hold'] ?? 0)) > 0
@@ -286,11 +398,18 @@ if (!defined('K_PATH_FONTS')) {
     $pdf->SetTextColor(...$mid);
     $pdf->Cell($contW, 5, 'Regards, ' . APP_NAME, 0, 0, 'C');
 
-    // ── Save ──────────────────────────────────────────────────────────────────
-    $pdf->Output($pdfPath, 'F');
-
-    if (!file_exists($pdfPath) || filesize($pdfPath) === 0) {
-        throw new \RuntimeException('PDF file was not written to disk.');
+    // ── Save — write via PHP instead of TCPDF to avoid tc-lib-pdf path validation bug ──
+    $pdfString = $pdf->Output('', 'S');   // get as string
+    if (empty($pdfString)) {
+        throw new \RuntimeException('TCPDF returned empty PDF string.');
+    }
+    $written = file_put_contents($pdfPath, $pdfString);
+    if ($written === false || $written === 0) {
+        throw new \RuntimeException(
+            'file_put_contents failed writing PDF to: ' . $pdfPath .
+            ' | dir_writable=' . (is_writable(dirname($pdfPath)) ? 'yes' : 'no') .
+            ' | dir_exists=' . (is_dir(dirname($pdfPath)) ? 'yes' : 'no')
+        );
     }
 }
 

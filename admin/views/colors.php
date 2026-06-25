@@ -13,7 +13,7 @@ $rows = $db->query("SELECT `key`,`value` FROM settings WHERE `key` LIKE '--%'")-
 $saved = array_column($rows, 'value', 'key');
 $current = array_merge($defaults, $saved);
 
-// ─── Grouped colour swatches (existing) ───────────────────────────────────
+//  Grouped colour swatches — USER panel 
 $colorGroups = [
   'Background & Surfaces' => ['--bg','--surface','--surface2','--surface3'],
   'Accent Colors'         => ['--accent','--accent2','--accent-light','--accent-mid'],
@@ -22,8 +22,22 @@ $colorGroups = [
   'Status Colors'         => ['--success','--success-bg','--danger','--danger-bg'],
   'Highlights'            => ['--gold','--gold-bg','--nav-bg','--topbar-bg'],
 ];
+ 
+//  Grouped colour swatches — ADMIN panel 
+$adminColorGroups = [
+  'Admin Backgrounds'     => ['--admin-bg','--admin-surface','--admin-surface2','--admin-surface3'],
+  'Admin Sidebar'         => ['--admin-sidebar-from','--admin-sidebar-to',
+                              '--admin-sidebar-text','--admin-sidebar-active',
+                              '--admin-sidebar-hover','--admin-sidebar-border'],
+  'Admin Topbar'          => ['--admin-topbar-bg','--admin-topbar-border','--admin-topbar-text'],
+  'Admin Accent'          => ['--admin-accent','--admin-accent2',
+                              '--admin-accent-light','--admin-accent-mid'],
+  'Admin Table'           => ['--admin-table-header-bg','--admin-table-row-hover',
+                              '--admin-table-border'],
+  'Admin Cards'           => ['--admin-card-bg','--admin-card-border','--admin-card-radius'],
+];
 
-// ─── Font options ──────────────────────────────────────────────────────────
+//  Font options 
 $googleFonts = [
   'Plus Jakarta Sans'  => "'Plus Jakarta Sans', sans-serif",
   'DM Sans'            => "'DM Sans', sans-serif",
@@ -121,18 +135,116 @@ function fontLabel(string $val, array $map): string {
 
 <!-- Tab navigation -->
 <div class="theme-tabs">
-  <button class="theme-tab active" onclick="switchTab('colors')">🎨 Colors</button>
+  <button class="theme-tab" onclick="switchTab('admin-colors')">🎨 Admin Colors</button>
+  <button class="theme-tab active" onclick="switchTab('colors')">🎨 User Colors</button>
   <button class="theme-tab" onclick="switchTab('buttons')">🔲 Buttons</button>
   <button class="theme-tab" onclick="switchTab('inputs')">📝 Inputs</button>
   <button class="theme-tab" onclick="switchTab('labels')">🏷 Labels</button>
-  <button class="theme-tab" onclick="switchTab('navbar')">🧭 Navbar</button>
+  <button class="theme-tab" onclick="switchTab('navbar')">≡ Navbar</button>
   <button class="theme-tab" onclick="switchTab('fonts')">🔤 Fonts</button>
-  <button class="theme-tab" onclick="switchTab('radius')">⬜ Radius</button>
+  <button class="theme-tab" onclick="switchTab('radius')">▢ Radius</button>
 </div>
 
 <form method="POST" action="index.php" id="colorForm">
   <input type="hidden" name="action" value="save_colors"/>
-
+   
+  <!-- ══ TAB: Admin Colors ═════════════════════════════════════════════ -->
+  <div class="theme-panel" id="panel-admin-colors">
+ 
+    <div style="background:var(--accent-light);border:1px solid var(--border);
+                border-radius:10px;padding:12px 16px;margin-bottom:20px;
+                display:flex;gap:10px;align-items:flex-start;">
+      <?= icon('info',14) ?>
+      <p style="font-size:12px;color:var(--text2);line-height:1.6;margin:0;">
+        These variables style the <strong>Admin Panel only</strong> — sidebar, topbar,
+        tables, and cards. User-facing pages are not affected.
+        Changes take effect on next page load.
+      </p>
+    </div>
+ 
+    <!-- Live admin preview strip -->
+    <div class="admin-form-section" style="margin-bottom:20px;">
+      <p class="admin-form-section-title">Admin Preview</p>
+      <div style="border-radius:10px;overflow:hidden;border:1px solid var(--border);">
+ 
+        <!-- Mini sidebar -->
+        <div style="display:flex;height:120px;">
+          <div id="adminPreviewSidebar"
+               style="width:120px;flex-shrink:0;
+                      background:linear-gradient(180deg,var(--admin-sidebar-from,#1A4D65),var(--admin-sidebar-to,#0D2E3D));
+                      padding:10px 8px;display:flex;flex-direction:column;gap:4px;">
+            <div style="height:8px;width:60%;border-radius:4px;
+                        background:var(--admin-sidebar-text,rgba(255,255,255,.8));
+                        opacity:.9;margin-bottom:6px;"></div>
+            <?php foreach(['Dashboard','Products','Users','Settings'] as $item): ?>
+            <div style="height:6px;border-radius:3px;
+                        background:var(--admin-sidebar-text,rgba(255,255,255,.7));
+                        opacity:.45;width:<?= rand(50,85) ?>%;"></div>
+            <?php endforeach; ?>
+          </div>
+          <!-- Mini topbar + content -->
+          <div style="flex:1;display:flex;flex-direction:column;
+                      background:var(--admin-bg,#F2F5F9);">
+            <div id="adminPreviewTopbar"
+                 style="height:28px;background:var(--admin-topbar-bg,#fff);
+                        border-bottom:1px solid var(--admin-topbar-border,#DDE4EB);
+                        display:flex;align-items:center;padding:0 10px;gap:6px;">
+              <div style="height:6px;width:60px;border-radius:3px;
+                          background:var(--admin-topbar-text,#1A2837);opacity:.7;"></div>
+              <div style="margin-left:auto;height:6px;width:30px;border-radius:3px;
+                          background:var(--admin-accent,#2C6E8A);opacity:.8;"></div>
+            </div>
+            <div style="padding:8px;display:flex;gap:6px;flex-wrap:wrap;">
+              <div style="height:8px;width:40%;border-radius:3px;
+                          background:var(--admin-card-bg,#fff);
+                          border:1px solid var(--admin-card-border,#DDE4EB);"></div>
+              <div style="height:8px;width:30%;border-radius:3px;
+                          background:var(--admin-accent-light,#E3EFF4);"></div>
+            </div>
+          </div>
+        </div>
+ 
+      </div>
+    </div>
+ 
+    <?php foreach ($adminColorGroups as $groupName => $keys): ?>
+    <div class="admin-form-section">
+      <p class="admin-form-section-title"><?= h($groupName) ?></p>
+      <div class="color-swatch-grid">
+        <?php foreach ($keys as $key):
+          $val   = $current[$key] ?? '#cccccc';
+          $label = ltrim($key, '-');
+          // For non-hex values (rgba, gradient keywords) skip the hex swatch
+          $isPlainHex = preg_match('/^#[0-9a-f]{3,8}$/i', trim($val));
+          $swatchColor = $isPlainHex ? $val : '#aaaaaa';
+        ?>
+        <div class="color-swatch-item">
+          <?php if ($isPlainHex): ?>
+          <div class="color-preview" style="background:<?= h($swatchColor) ?>;"
+               title="<?= h($key) ?>"></div>
+          <?php else: ?>
+          <div style="width:36px;height:36px;border-radius:8px;
+                      border:1px solid var(--border);background:var(--surface2);
+                      flex-shrink:0;display:flex;align-items:center;
+                      justify-content:center;font-size:9px;color:var(--text3);">css</div>
+          <?php endif; ?>
+          <div class="color-swatch-info">
+            <div class="color-swatch-name"><?= h($label) ?></div>
+            <input type="text" name="<?= h($key) ?>"
+                   class="admin-input color-sync-input"
+                   value="<?= h($val) ?>"
+                   style="font-size:11px;padding:4px 8px;font-family:monospace;"
+                   data-key="<?= h($key) ?>"
+                   data-admin-preview="1"/>
+          </div>
+        </div>
+        <?php endforeach; ?>
+      </div>
+    </div>
+    <?php endforeach; ?>
+ 
+  </div><!-- /#panel-admin-colors -->
+   
   <!-- ══ TAB: Colors ════════════════════════════════════════════════════ -->
   <div class="theme-panel active" id="panel-colors">
     <?php foreach ($colorGroups as $groupName => $keys): ?>
@@ -549,13 +661,33 @@ function fontLabel(string $val, array $map): string {
 <script>
 // ── Tab switching ───────────────────────────────────────────────────────────
 function switchTab(name) {
-  document.querySelectorAll('.theme-tab').forEach((t,i) => {
+  document.querySelectorAll('.theme-tab').forEach(t => {
     t.classList.toggle('active', t.getAttribute('onclick').includes("'"+name+"'"));
   });
   document.querySelectorAll('.theme-panel').forEach(p => {
     p.classList.toggle('active', p.id === 'panel-'+name);
   });
 }
+ 
+// ── Admin preview live update ────────────────────────────────────────────────
+document.querySelectorAll('[data-admin-preview="1"]').forEach(inp => {
+  inp.addEventListener('input', () => {
+    const key = inp.dataset.key;
+    if (key) document.documentElement.style.setProperty(key, inp.value);
+    // Also update the mini preview boxes directly
+    const sidebar  = document.getElementById('adminPreviewSidebar');
+    const topbar   = document.getElementById('adminPreviewTopbar');
+    if (sidebar) {
+      sidebar.style.background =
+        'linear-gradient(180deg,'
+        + (document.querySelector('[name="--admin-sidebar-from"]')?.value || '#1A4D65')
+        + ','
+        + (document.querySelector('[name="--admin-sidebar-to"]')?.value   || '#0D2E3D')
+        + ')';
+    }
+    if (topbar && key === '--admin-topbar-bg') topbar.style.background = inp.value;
+  });
+});
 
 // ── Color swatch sync ───────────────────────────────────────────────────────
 document.querySelectorAll('.color-sync-input').forEach(inp => {

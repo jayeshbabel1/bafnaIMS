@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 define('APP_NAME',    'Bafna Marble');
 define('APP_VERSION', '2.0.0');
 define('BASE_PATH',   dirname(__DIR__));

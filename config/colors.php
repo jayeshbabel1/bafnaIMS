@@ -105,4 +105,50 @@ return [
     // ════════════════════════════════════════════════════════════════════
     '--admin-font'          => "'DM Sans', sans-serif",
     '--user-font'           => "'Plus Jakarta Sans', sans-serif",
+  
+  // ════════════════════════════════════════════════════════════
+    // ADMIN PANEL — Dedicated color variables
+    // These are only applied to admin pages (getCSSVariables(true))
+    // ════════════════════════════════════════════════════════════
+ 
+    // Admin shell backgrounds
+    '--admin-bg'               => '#F2F5F9',
+    '--admin-surface'          => '#FFFFFF',
+    '--admin-surface2'         => '#EEF2F7',
+    '--admin-surface3'         => '#E6ECF2',
+ 
+    // Admin sidebar
+    '--admin-sidebar-from'     => '#1A4D65',   // gradient start
+    '--admin-sidebar-to'       => '#0D2E3D',   // gradient end
+    '--admin-sidebar-text'     => 'rgba(255,255,255,0.80)',
+    '--admin-sidebar-active'   => 'rgba(255,255,255,0.18)',
+    '--admin-sidebar-hover'    => 'rgba(255,255,255,0.10)',
+    '--admin-sidebar-border'   => 'rgba(255,255,255,0.10)',
+ 
+    // Admin topbar
+    '--admin-topbar-bg'        => '#FFFFFF',
+    '--admin-topbar-border'    => '#DDE4EB',
+    '--admin-topbar-text'      => '#1A2837',
+ 
+    // Admin accent (buttons, links, highlights)
+    '--admin-accent'           => '#2C6E8A',
+    '--admin-accent2'          => '#1A4D65',
+    '--admin-accent-light'     => '#E3EFF4',
+    '--admin-accent-mid'       => '#4DA8C9',
+ 
+    // Admin table
+    '--admin-table-header-bg'  => '#F7FAFC',
+    '--admin-table-row-hover'  => '#F0F6FA',
+    '--admin-table-border'     => '#DDE4EB',
+ 
+    // Admin card / section
+    '--admin-card-bg'          => '#FFFFFF',
+    '--admin-card-border'      => '#DDE4EB',
+    '--admin-card-radius'      => '12px',
+ 
+    // Admin nav badge
+    '--admin-badge-bg'         => '#E84040',
+    '--admin-badge-color'      => '#FFFFFF',
+  
+  
 ];

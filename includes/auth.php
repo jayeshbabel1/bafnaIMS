@@ -55,7 +55,7 @@ function loginUser(string $email, string $password): array {
  * Avoids ambiguous characters (0/O, 1/l/I) for easier manual sharing.
  */
 function generateRandomPassword(int $length = 10): string {
-    $chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+    $chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789@$#*';
     $max   = strlen($chars) - 1;
     $pass  = '';
     for ($i = 0; $i < $length; $i++) {
@@ -83,7 +83,8 @@ function createUserByAdmin(array $data): array {
     $db    = getDB();
     $name  = titleCase(trim($data['name']  ?? ''));
     $email = strtolower(trim($data['email'] ?? ''));
-
+ 	$firm  = titleCase(trim($data['firm'] ?? ''));
+    $city  = titleCase(trim($data['city'] ?? ''));
     if (!$name)  return ['success' => false, 'error' => 'Name is required.'];
     if (!$email || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
         return ['success' => false, 'error' => 'A valid email address is required.'];
@@ -113,8 +114,8 @@ function createUserByAdmin(array $data): array {
         $email,
         $hash,
         trim($data['phone'] ?? ''),
-        trim($data['firm']  ?? ''),
-        trim($data['city']  ?? ''),
+        $firm,
+        $city,
         $data['role']       ?? '',
         $data['experience'] ?? '',
         time(),
@@ -145,8 +146,8 @@ function registerUser(array $data): array {
         $email,
         $hash,
         trim($data['phone']  ?? ''),
-        trim($data['firm']   ?? ''),
-        trim($data['city']   ?? ''),
+        titlecase(trim($data['firm']   ?? '')),
+        titlecase(trim($data['city']   ?? '')),
         $data['role']        ?? '',
         $data['experience']  ?? '',
     ]);

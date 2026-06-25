@@ -106,7 +106,7 @@ if (!empty($_GET['ajax_products'])) {
                   title="Share via WhatsApp">
             <?= icon('whatsapp', 13) ?>
           </button>
-          <form method="POST" action="index.php" style="display:inline;">
+                    <form method="POST" action="index.php" style="display:inline;">
             <input type="hidden" name="action"     value="delete_product"/>
             <input type="hidden" name="product_id" value="<?= $p['id'] ?>"/>
             <button type="submit" class="btn-admin-danger btn-admin-sm"
@@ -240,53 +240,64 @@ $filterLabels = [
 
 <!-- Toolbar -->
 <div class="admin-products-toolbar">
-  <a href="index.php?page=product_edit" class="btn-admin-primary"><?= icon('plus',16) ?> Add Product</a>
-
-  <!-- Export Excel — styled same as Import -->
+ 
+  <!-- Add Product -->
+  <a href="index.php?page=product_edit"
+     class="admin-toolbar-btn admin-toolbar-btn--primary">
+    <?= icon('plus',14) ?> Add Product
+  </a>
+ 
+  <!-- Export Excel -->
   <form method="post" class="admin-toolbar-form">
     <input type="hidden" name="action" value="export"/>
-    <button type="submit" class="admin-toolbar-file-btn">
+    <button type="submit" class="admin-toolbar-btn admin-toolbar-btn--solid">
       <?= icon('download',14) ?> Export Excel
     </button>
   </form>
-
+ 
   <!-- Import Excel -->
   <form method="POST" action="index.php" enctype="multipart/form-data" class="admin-toolbar-form">
     <input type="hidden" name="action" value="import"/>
-    <label class="admin-toolbar-file-btn">
+    <label class="admin-toolbar-btn admin-toolbar-btn--solid">
       <?= icon('upload',14) ?> Import Excel
       <input type="file" name="xls_file" onchange="this.form.submit()"/>
     </label>
   </form>
-
+ 
   <!-- Sync Photos -->
   <form method="POST" action="index.php" class="admin-toolbar-form">
     <input type="hidden" name="action" value="sync_photos"/>
-    <button type="submit" class="admin-toolbar-sync-btn"><?= icon('image',14) ?> Sync Photos</button>
+    <button type="submit" class="admin-toolbar-btn admin-toolbar-btn--dashed">
+      <?= icon('image',14) ?> Sync Photos
+    </button>
   </form>
-
+ 
   <!-- Sync Measurement PDFs -->
   <form method="POST" action="index.php" class="admin-toolbar-form">
     <input type="hidden" name="action" value="sync_measurements"/>
-    <button type="submit" class="admin-toolbar-sync-btn"><?= icon('file',14) ?> Sync Measurements</button>
+    <button type="submit" class="admin-toolbar-btn admin-toolbar-btn--dashed">
+      <?= icon('file',14) ?> Sync Measurements
+    </button>
   </form>
-
+ 
   <!-- Sync DNA PDFs -->
   <form method="POST" action="index.php" class="admin-toolbar-form">
     <input type="hidden" name="action" value="sync_dna"/>
-    <button type="submit" class="admin-toolbar-sync-btn"><?= icon('file',14) ?> Sync DNA</button>
+    <button type="submit" class="admin-toolbar-btn admin-toolbar-btn--dashed">
+      <?= icon('file',14) ?> Sync DNA
+    </button>
   </form>
-
+ 
   <!-- Upload Photos -->
   <form method="POST" action="index.php" enctype="multipart/form-data" class="admin-toolbar-form">
     <input type="hidden" name="action" value="import_photos"/>
-    <label class="admin-toolbar-file-btn admin-toolbar-file-btn--accent">
+    <label class="admin-toolbar-btn admin-toolbar-btn--upload">
       <?= icon('image',14) ?> Upload Photos
       <input type="file" name="photo_zip[]" accept=".zip,image/*" multiple onchange="this.form.submit()"/>
     </label>
   </form>
+ 
 </div>
-
 <!-- Active health filter banner -->
 <?php if ($activeFilter && isset($filterLabels[$activeFilter])): ?>
 <div class="filter-banner">
