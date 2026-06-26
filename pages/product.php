@@ -488,7 +488,7 @@ document.getElementById('addToSelModal')?.addEventListener('click', function(e) 
     setTimeout(() => doSearch(''), 200);
   });
 
-  // Validate
+// Validate
   document.getElementById('addToSelForm')?.addEventListener('submit', function(e) {
     if (!hidden.value) {
       e.preventDefault();
@@ -496,9 +496,173 @@ document.getElementById('addToSelModal')?.addEventListener('click', function(e) 
       inp.style.borderColor = 'var(--danger)';
       inp.style.boxShadow = '0 0 0 3px rgba(185,28,28,.1)';
       setTimeout(() => { inp.style.borderColor = ''; inp.style.boxShadow = ''; }, 2500);
+      return;
+    }
+
+    // If this is the programmatic re-submit after "Yes" was clicked, let it through.
+    if (this.dataset.qtyConfirmed === '1') {
+      this.dataset.qtyConfirmed = '';
+      return;
+    }
+
+    var availableQty = <?= json_encode((float)($p['quantity_available'] ?? 0)) ?>;
+    var qtyInput      = this.querySelector('[name="quantity_required"]');
+    var requiredQty   = qtyInput ? parseFloat(qtyInput.value) : 0;
+
+    if (requiredQty > 0 && requiredQty > availableQty) {
+      e.preventDefault();
+      var form = this;
+      showQtyExceedConfirm(function (confirmed) {
+        if (confirmed) {
+          form.dataset.qtyConfirmed = '1';
+          form.submit();
+        }
+      });
     }
   });
+
+  // ── Custom confirm popup (qty exceeds available) ────────────────────────
+  function showQtyExceedConfirm(callback) {
+    var existing = document.getElementById('qtyExceedConfirmModal');
+    if (existing) existing.remove();
+
+    var modal = document.createElement('div');
+    modal.id = 'qtyExceedConfirmModal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;';
+    modal.innerHTML =
+      '<div style="background:var(--white);border-radius:var(--radius-xl);max-width:380px;width:100%;padding:24px 22px;box-shadow:var(--shadow-xl);">' +
+        '<div style="width:48px;height:48px;border-radius:50%;background:var(--gold-light);color:var(--gold-dark);display:flex;align-items:center;justify-content:center;margin-bottom:14px;font-size:20px;font-weight:700;">!</div>' +
+        '<p style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:8px;">Quantity Exceeds Availability</p>' +
+        '<p style="font-size:13px;color:var(--text3);line-height:1.6;margin-bottom:20px;">Selected quantity is lower than available quantity. Do you still want to add this product?</p>' +
+        '<div style="display:flex;gap:10px;">' +
+          '<button type="button" id="qtyExceedNo" class="btn btn-secondary" style="flex:1;">No</button>' +
+          '<button type="button" id="qtyExceedYes" class="btn btn-gold" style="flex:1;">Yes</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(modal);
+
+    function cleanup(result) {
+      modal.remove();
+      callback(result);
+    }
+    document.getElementById('qtyExceedYes').addEventListener('click', function () { cleanup(true); });
+    document.getElementById('qtyExceedNo').addEventListener('click', function () { cleanup(false); });
+    modal.addEventListener('click', function (e) { if (e.target === modal) cleanup(false); });
+  }
 })();
 </script>
+<style>
+/* ── Product detail — responsive fixes ──────────────────────── */
+ 
+/* Mobile (default): single-column, full hero */
+.detail-page {
+  display: block;
+}
+.detail-hero {
+  aspect-ratio: 4 / 3;
+  height: auto;
+  position: relative;
+  top: auto;
+}
+.detail-body {
+  padding: 16px 16px 100px;
+  max-height: none;
+  overflow: visible;
+}
+.detail-title  { font-size: 20px; }
+.qty-strip     { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.qty-tile-value{ font-size: 17px; }
+.spec-grid     { grid-template-columns: 1fr 1fr; gap: 8px; }
+.photo-gallery { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.detail-cta    { flex-direction: row; gap: 8px; }
+.detail-cta .btn { flex: 1; justify-content: center; }
+.doc-card { flex-wrap: wrap; gap: 10px; }
+.doc-card .btn { font-size: 11px; padding: 6px 10px; }
+ 
+/* Tablet (≥ 640 px) */
+@media (min-width: 640px) {
+  .detail-hero   { aspect-ratio: 16/9; }
+  .detail-body   { padding: 20px 24px 100px; }
+  .detail-title  { font-size: 24px; }
+  .spec-grid     { grid-template-columns: repeat(3, 1fr); }
+  .photo-gallery { grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .qty-tile-value{ font-size: 20px; }
+}
+ 
+/* Desktop (≥ 1024 px) */
+@media (min-width: 1024px) {
+  .detail-page {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+    gap: 0;
+  }
+  .detail-hero {
+    height: calc(100vh - var(--nav-h));
+    aspect-ratio: unset;
+    position: sticky;
+    top: var(--nav-h);
+  }
+  .detail-body {
+    padding: 28px 32px 80px;
+    max-height: calc(100vh - var(--nav-h));
+    overflow-y: auto;
+  }
+  .detail-title  { font-size: 30px; }
+  .spec-grid     { grid-template-columns: repeat(4, 1fr); }
+  .photo-gallery { grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .qty-tile-value{ font-size: 22px; }
+}
+ 
+/* Lightbox */
+.lightbox { display: none; }
+.lightbox.open { display: flex; }
+ 
+/* Add-to-selection modal — full-width on mobile, sheet */
+#addToSelModal > div {
+  max-height: 92vh;
+  width: 100%;
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+}
+@media (min-width: 640px) {
+  #addToSelModal {
+    align-items: center;
+  }
+  #addToSelModal > div {
+    max-width: 480px;
+    border-radius: var(--radius-xl);
+  }
+}
+ 
+/* Spec table responsive */
+.spec-row {
+  flex-wrap: wrap;
+  gap: 2px;
+}
+.spec-key { flex: 0 0 45%; font-size: 12px; }
+.spec-val  { font-size: 12px; }
+ 
+@media (min-width: 480px) {
+  .spec-key { font-size: 13px; }
+  .spec-val  { font-size: 13px; }
+}
+ 
+/* qty strip — single row always */
+.qty-strip { overflow-x: auto; }
+ 
+/* Hero thumbs — better touch target on mobile */
+.detail-thumb { width: 40px; height: 40px; }
+@media (min-width: 480px) {
+  .detail-thumb { width: 48px; height: 48px; }
+}
+ 
+/* Doc card responsive */
+@media (max-width: 479px) {
+  .doc-card { gap: 8px; }
+  .doc-info  { min-width: 0; flex: 1; }
+  .doc-name  { font-size: 12px; white-space: normal; word-break: break-all; }
+}
+</style>
+
 
 <?php include BASE_PATH . '/layouts/footer.php'; ?>

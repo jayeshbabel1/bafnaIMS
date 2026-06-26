@@ -135,8 +135,9 @@ function fontLabel(string $val, array $map): string {
 
 <!-- Tab navigation -->
 <div class="theme-tabs">
-  <button class="theme-tab" onclick="switchTab('admin-colors')">🎨 Admin Colors</button>
-  <button class="theme-tab active" onclick="switchTab('colors')">🎨 User Colors</button>
+  <button class="theme-tab active" onclick="switchTab('admin-colors')">🖥️ Admin Colors</button>
+  <button class="theme-tab" onclick="switchTab('admin-components')">🧩 Admin Components</button>
+  <button class="theme-tab" onclick="switchTab('colors')">🎨 User Colors</button>
   <button class="theme-tab" onclick="switchTab('buttons')">🔲 Buttons</button>
   <button class="theme-tab" onclick="switchTab('inputs')">📝 Inputs</button>
   <button class="theme-tab" onclick="switchTab('labels')">🏷 Labels</button>
@@ -245,6 +246,310 @@ function fontLabel(string $val, array $map): string {
  
   </div><!-- /#panel-admin-colors -->
    
+  <!-- ══ TAB: Admin Components ════════════════════════════════════════ -->
+  <div class="theme-panel" id="panel-admin-components">
+ 
+    <?php
+    // ── Helper: renders a swatch + text input row inside a section ──────
+    // (inline PHP so we can reuse for all component rows)
+    function adminCompRow(string $key, string $label, string $type, array $current, string $hint = ''): void {
+        $val  = $current[$key] ?? '';
+        $isColor = ($type === 'color');
+        $isHex   = $isColor && preg_match('/^#[0-9a-f]{3,8}$/i', trim($val));
+        ?>
+        <div class="theme-row">
+          <span class="theme-row-label">
+            <?= htmlspecialchars($label) ?>
+            <?php if ($hint): ?><small><?= htmlspecialchars($hint) ?></small><?php endif; ?>
+          </span>
+          <div class="theme-row-control">
+            <?php if ($isColor): ?>
+              <div class="color-preview color-swatch-item-inline"
+                   style="background:<?= htmlspecialchars($isHex ? $val : '#aaaaaa') ?>;"
+                   title="<?= htmlspecialchars($key) ?>"></div>
+            <?php endif; ?>
+            <?php if ($type === 'select-weight'): ?>
+              <select name="<?= htmlspecialchars($key) ?>" class="admin-input admin-select"
+                      style="width:110px;"
+                      onchange="document.documentElement.style.setProperty('<?= $key ?>', this.value)">
+                <?php foreach (['300','400','500','600','700','800'] as $w): ?>
+                <option value="<?= $w ?>" <?= ($val === $w) ? 'selected' : '' ?>><?= $w ?></option>
+                <?php endforeach; ?>
+              </select>
+            <?php elseif ($type === 'select-transform'): ?>
+              <select name="<?= htmlspecialchars($key) ?>" class="admin-input admin-select"
+                      style="width:130px;"
+                      onchange="document.documentElement.style.setProperty('<?= $key ?>', this.value)">
+                <?php foreach (['uppercase','lowercase','capitalize','none'] as $t): ?>
+                <option value="<?= $t ?>" <?= ($val === $t) ? 'selected' : '' ?>><?= $t ?></option>
+                <?php endforeach; ?>
+              </select>
+            <?php else: ?>
+              <input type="text" name="<?= htmlspecialchars($key) ?>"
+                     class="admin-input <?= $isColor ? 'color-sync-input' : '' ?>"
+                     value="<?= htmlspecialchars($val) ?>"
+                     data-key="<?= htmlspecialchars($key) ?>"
+                     style="font-size:12px;padding:5px 10px;font-family:monospace;width:<?= $isColor ? '130px' : '180px' ?>;"/>
+            <?php endif; ?>
+          </div>
+        </div>
+        <?php
+    }
+    ?>
+ 
+    <!-- ── ADMIN TEXT ─────────────────────────────────────────────────── -->
+    <div class="admin-form-section">
+      <p class="admin-form-section-title">Admin Panel Text</p>
+      <p style="font-size:12px;color:var(--text3);margin-bottom:14px;line-height:1.6;">
+        Controls text colour throughout the admin panel — titles, table cells, secondary text, and muted captions.
+      </p>
+      <?php
+      adminCompRow('--admin-text',  'Primary Text',   'color', $current, 'Page titles, table data');
+      adminCompRow('--admin-text2', 'Secondary Text', 'color', $current, 'Sub-labels, descriptions');
+      adminCompRow('--admin-text3', 'Muted Text',     'color', $current, 'Captions, placeholders');
+      ?>
+      <!-- Live text preview -->
+      <div style="background:var(--admin-surface,#fff);border:1px solid var(--admin-table-border,#DDE4EB);
+                  border-radius:8px;padding:14px 18px;margin-top:10px;display:flex;flex-direction:column;gap:6px;">
+        <p style="font-size:16px;font-weight:700;color:var(--admin-text,#1A2837);">Dashboard — Primary Text</p>
+        <p style="font-size:13px;color:var(--admin-text2,#4A6070);">Secondary: sub-label or table cell content</p>
+        <p style="font-size:11px;color:var(--admin-text3,#8FA3B1);">Muted: captions, timestamps, badges</p>
+      </div>
+    </div>
+ 
+    <!-- ── ADMIN LABELS ───────────────────────────────────────────────── -->
+    <div class="admin-form-section">
+      <p class="admin-form-section-title">Admin Form Labels</p>
+      <p style="font-size:12px;color:var(--text3);margin-bottom:14px;line-height:1.6;">
+        Controls the appearance of all <code>.admin-label</code> elements in forms.
+      </p>
+      <?php
+      adminCompRow('--admin-label-color',          'Label Color',          'color',            $current, '.admin-label text');
+      adminCompRow('--admin-label-font-size',       'Font Size',            'text',             $current, 'e.g. 11px, 12px');
+      adminCompRow('--admin-label-font-weight',     'Font Weight',          'select-weight',    $current, '400–800');
+      adminCompRow('--admin-label-transform',       'Text Transform',       'select-transform', $current, 'uppercase / none');
+      adminCompRow('--admin-label-letter-spacing',  'Letter Spacing',       'text',             $current, 'e.g. 0.4px, 0.6px');
+      ?>
+      <!-- Live label preview -->
+      <div style="background:var(--admin-surface,#fff);border:1px solid var(--admin-table-border,#DDE4EB);
+                  border-radius:8px;padding:14px 18px;margin-top:10px;display:flex;flex-direction:column;gap:10px;">
+        <label style="display:block;
+          color:var(--admin-label-color,#4A6070);
+          font-size:var(--admin-label-font-size,11px);
+          font-weight:var(--admin-label-font-weight,700);
+          text-transform:var(--admin-label-transform,uppercase);
+          letter-spacing:var(--admin-label-letter-spacing,0.4px);">
+          Product Name
+        </label>
+        <label style="display:block;
+          color:var(--admin-label-color,#4A6070);
+          font-size:var(--admin-label-font-size,11px);
+          font-weight:var(--admin-label-font-weight,700);
+          text-transform:var(--admin-label-transform,uppercase);
+          letter-spacing:var(--admin-label-letter-spacing,0.4px);">
+          Quarry Number
+        </label>
+      </div>
+    </div>
+ 
+    <!-- ── ADMIN INPUTS ───────────────────────────────────────────────── -->
+    <div class="admin-form-section">
+      <p class="admin-form-section-title">Admin Text Inputs</p>
+      <p style="font-size:12px;color:var(--text3);margin-bottom:14px;line-height:1.6;">
+        Applies to all <code>&lt;input&gt;</code> and <code>&lt;select&gt;</code> fields with class <code>.admin-input</code>.
+      </p>
+      <?php
+      adminCompRow('--admin-input-bg',           'Background',       'color', $current);
+      adminCompRow('--admin-input-color',         'Text Color',       'color', $current);
+      adminCompRow('--admin-input-placeholder',   'Placeholder',      'color', $current);
+      adminCompRow('--admin-input-border',        'Border',           'color', $current);
+      adminCompRow('--admin-input-hover-border',  'Hover Border',     'color', $current);
+      adminCompRow('--admin-input-focus-border',  'Focus Border',     'color', $current);
+      adminCompRow('--admin-input-focus-shadow',  'Focus Shadow',     'text',  $current, 'rgba(…) value');
+      adminCompRow('--admin-input-radius',        'Border Radius',    'text',  $current, 'e.g. 8px');
+      adminCompRow('--admin-input-font-size',     'Font Size',        'text',  $current, 'e.g. 13px');
+      ?>
+      <!-- Live input preview -->
+      <div style="background:var(--admin-surface,#fff);border:1px solid var(--admin-table-border,#DDE4EB);
+                  border-radius:8px;padding:14px 18px;margin-top:10px;display:flex;flex-direction:column;gap:10px;max-width:380px;">
+        <input type="text" placeholder="Text input preview…" style="
+          width:100%;padding:9px 12px;
+          background:var(--admin-input-bg,#fff);
+          color:var(--admin-input-color,#1A2837);
+          border:1.5px solid var(--admin-input-border,#DDE4EB);
+          border-radius:var(--admin-input-radius,8px);
+          font-size:var(--admin-input-font-size,13px);
+          outline:none;font-family:inherit;" readonly/>
+        <select style="width:100%;padding:9px 12px;
+          background:var(--admin-input-bg,#fff);
+          color:var(--admin-input-color,#1A2837);
+          border:1.5px solid var(--admin-input-border,#DDE4EB);
+          border-radius:var(--admin-input-radius,8px);
+          font-size:var(--admin-input-font-size,13px);
+          outline:none;font-family:inherit;">
+          <option>Select preview…</option>
+        </select>
+      </div>
+    </div>
+ 
+    <!-- ── ADMIN TEXTAREA ─────────────────────────────────────────────── -->
+    <div class="admin-form-section">
+      <p class="admin-form-section-title">Admin Textarea</p>
+      <p style="font-size:12px;color:var(--text3);margin-bottom:14px;line-height:1.6;">
+        Applies to all <code>&lt;textarea&gt;</code> fields with class <code>.admin-input</code>.
+      </p>
+      <?php
+      adminCompRow('--admin-textarea-bg',           'Background',     'color', $current);
+      adminCompRow('--admin-textarea-color',         'Text Color',     'color', $current);
+      adminCompRow('--admin-textarea-border',        'Border',         'color', $current);
+      adminCompRow('--admin-textarea-focus-border',  'Focus Border',   'color', $current);
+      adminCompRow('--admin-textarea-radius',        'Border Radius',  'text',  $current, 'e.g. 8px');
+      ?>
+      <!-- Live textarea preview -->
+      <div style="background:var(--admin-surface,#fff);border:1px solid var(--admin-table-border,#DDE4EB);
+                  border-radius:8px;padding:14px 18px;margin-top:10px;max-width:380px;">
+        <textarea rows="3" placeholder="Textarea preview…" style="
+          width:100%;padding:9px 12px;resize:none;
+          background:var(--admin-textarea-bg,#fff);
+          color:var(--admin-textarea-color,#1A2837);
+          border:1.5px solid var(--admin-textarea-border,#DDE4EB);
+          border-radius:var(--admin-textarea-radius,8px);
+          font-size:var(--admin-input-font-size,13px);
+          outline:none;font-family:inherit;" readonly></textarea>
+      </div>
+    </div>
+ 
+    <!-- ── ADMIN PRIMARY BUTTON ───────────────────────────────────────── -->
+    <div class="admin-form-section">
+      <p class="admin-form-section-title">Admin Primary Button</p>
+      <p style="font-size:12px;color:var(--text3);margin-bottom:14px;line-height:1.6;">
+        Controls <code>.btn-admin-primary</code> — used for Save, Submit, Create actions.
+      </p>
+      <?php
+      adminCompRow('--admin-btn-primary-bg',           'Background',       'color', $current);
+      adminCompRow('--admin-btn-primary-color',         'Text Color',       'color', $current);
+      adminCompRow('--admin-btn-primary-border',        'Border Color',     'color', $current);
+      adminCompRow('--admin-btn-primary-hover-bg',      'Hover Background', 'color', $current);
+      adminCompRow('--admin-btn-primary-hover-color',   'Hover Text',       'color', $current);
+      adminCompRow('--admin-btn-primary-radius',        'Border Radius',    'text',  $current, 'e.g. 8px');
+      ?>
+      <!-- Live button preview -->
+      <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;align-items:center;">
+        <button type="button" style="
+          display:inline-flex;align-items:center;gap:6px;padding:9px 18px;
+          background:var(--admin-btn-primary-bg,var(--accent));
+          color:var(--admin-btn-primary-color,#fff);
+          border:1.5px solid var(--admin-btn-primary-border,var(--accent));
+          border-radius:var(--admin-btn-primary-radius,8px);
+          font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;"
+          onmouseover="this.style.background='var(--admin-btn-primary-hover-bg)';this.style.color='var(--admin-btn-primary-hover-color)'"
+          onmouseout="this.style.background='var(--admin-btn-primary-bg)';this.style.color='var(--admin-btn-primary-color)'">
+          <?= icon('check',14) ?> Save Changes
+        </button>
+      </div>
+    </div>
+ 
+    <!-- ── ADMIN SECONDARY BUTTON ─────────────────────────────────────── -->
+    <div class="admin-form-section">
+      <p class="admin-form-section-title">Admin Secondary Button</p>
+      <p style="font-size:12px;color:var(--text3);margin-bottom:14px;line-height:1.6;">
+        Controls <code>.btn-admin-secondary</code> — used for Cancel, Back, View actions.
+      </p>
+      <?php
+      adminCompRow('--admin-btn-sec-bg',           'Background',       'color', $current);
+      adminCompRow('--admin-btn-sec-color',         'Text Color',       'color', $current);
+      adminCompRow('--admin-btn-sec-border',        'Border Color',     'color', $current);
+      adminCompRow('--admin-btn-sec-hover-bg',      'Hover Background', 'color', $current);
+      adminCompRow('--admin-btn-sec-hover-color',   'Hover Text',       'color', $current);
+      adminCompRow('--admin-btn-sec-radius',        'Border Radius',    'text',  $current, 'e.g. 8px');
+      ?>
+      <!-- Live button preview -->
+      <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;align-items:center;">
+        <button type="button" style="
+          display:inline-flex;align-items:center;gap:6px;padding:9px 18px;
+          background:var(--admin-btn-sec-bg,#fff);
+          color:var(--admin-btn-sec-color,var(--text));
+          border:1.5px solid var(--admin-btn-sec-border,var(--border));
+          border-radius:var(--admin-btn-sec-radius,8px);
+          font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;"
+          onmouseover="this.style.background='var(--admin-btn-sec-hover-bg)';this.style.color='var(--admin-btn-sec-hover-color)'"
+          onmouseout="this.style.background='var(--admin-btn-sec-bg)';this.style.color='var(--admin-btn-sec-color)'">
+          <?= icon('back',14) ?> Cancel
+        </button>
+      </div>
+    </div>
+ 
+    <!-- ── ADMIN DANGER / DELETE BUTTON ───────────────────────────────── -->
+    <div class="admin-form-section">
+      <p class="admin-form-section-title">Admin Danger Button</p>
+      <p style="font-size:12px;color:var(--text3);margin-bottom:14px;line-height:1.6;">
+        Controls <code>.btn-admin-danger</code> — used for Delete, Remove actions.
+      </p>
+      <?php
+      adminCompRow('--admin-btn-danger-bg',           'Background',       'color', $current);
+      adminCompRow('--admin-btn-danger-color',         'Text Color',       'color', $current);
+      adminCompRow('--admin-btn-danger-border',        'Border Color',     'color', $current);
+      adminCompRow('--admin-btn-danger-hover-bg',      'Hover Background', 'color', $current);
+      adminCompRow('--admin-btn-danger-hover-color',   'Hover Text',       'color', $current);
+      ?>
+      <!-- Live button preview -->
+      <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;align-items:center;">
+        <button type="button" style="
+          display:inline-flex;align-items:center;gap:6px;padding:7px 14px;
+          background:var(--admin-btn-danger-bg,var(--danger-bg));
+          color:var(--admin-btn-danger-color,var(--danger));
+          border:1.5px solid var(--admin-btn-danger-border,var(--danger-bg));
+          border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;"
+          onmouseover="this.style.background='var(--admin-btn-danger-hover-bg)';this.style.color='var(--admin-btn-danger-hover-color)'"
+          onmouseout="this.style.background='var(--admin-btn-danger-bg)';this.style.color='var(--admin-btn-danger-color)'">
+          <?= icon('trash',13) ?> Delete
+        </button>
+      </div>
+    </div>
+ 
+    <!-- ── ADMIN GENERAL / TOOLBAR BUTTON ─────────────────────────────── -->
+    <div class="admin-form-section">
+      <p class="admin-form-section-title">Admin General / Toolbar Button</p>
+      <p style="font-size:12px;color:var(--text3);margin-bottom:14px;line-height:1.6;">
+        Controls <code>.admin-toolbar-btn--solid</code> — Export, Import, and other neutral toolbar actions.
+      </p>
+      <?php
+      adminCompRow('--admin-btn-general-bg',         'Background',       'color', $current);
+      adminCompRow('--admin-btn-general-color',       'Text Color',       'color', $current);
+      adminCompRow('--admin-btn-general-border',      'Border Color',     'color', $current);
+      adminCompRow('--admin-btn-general-hover-bg',    'Hover Background', 'color', $current);
+      adminCompRow('--admin-btn-general-radius',      'Border Radius',    'text',  $current, 'e.g. 8px');
+      ?>
+      <!-- Live button preview -->
+      <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;align-items:center;">
+        <button type="button" style="
+          display:inline-flex;align-items:center;gap:6px;
+          height:36px;padding:0 14px;
+          background:var(--admin-btn-general-bg,#fff);
+          color:var(--admin-btn-general-color,var(--text));
+          border:1.5px solid var(--admin-btn-general-border,var(--border));
+          border-radius:var(--admin-btn-general-radius,8px);
+          font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;box-sizing:border-box;"
+          onmouseover="this.style.background='var(--admin-btn-general-hover-bg)'"
+          onmouseout="this.style.background='var(--admin-btn-general-bg)'">
+          <?= icon('download',13) ?> Export Excel
+        </button>
+        <button type="button" style="
+          display:inline-flex;align-items:center;gap:6px;
+          height:36px;padding:0 14px;
+          background:var(--admin-btn-general-bg,#fff);
+          color:var(--admin-btn-general-color,var(--text));
+          border:1.5px solid var(--admin-btn-general-border,var(--border));
+          border-radius:var(--admin-btn-general-radius,8px);
+          font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;box-sizing:border-box;"
+          onmouseover="this.style.background='var(--admin-btn-general-hover-bg)'"
+          onmouseout="this.style.background='var(--admin-btn-general-bg)'">
+          <?= icon('upload',13) ?> Import Excel
+        </button>
+      </div>
+    </div>
+ 
+  </div><!-- /#panel-admin-components -->
   <!-- ══ TAB: Colors ════════════════════════════════════════════════════ -->
   <div class="theme-panel active" id="panel-colors">
     <?php foreach ($colorGroups as $groupName => $keys): ?>

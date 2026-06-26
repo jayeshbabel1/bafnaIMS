@@ -2,14 +2,23 @@
 function h(string $s): string { return htmlspecialchars($s, ENT_QUOTES, 'UTF-8'); }
 function titleCase(string $s): string {return mb_convert_case(mb_strtolower(trim($s)), MB_CASE_TITLE, 'UTF-8');}
 function redirect(string $url): never {
-    // If a relative path was passed and we're inside the admin panel,
-    // anchor it to /admin/ explicitly so reverse proxies, trailing
-    // slashes, or directory-style URLs (e.g. /admin/ instead of
-    // /admin/index.php) can't cause the browser to double up the path
-    // segment (e.g. /admin/admin/index.php).
-    if (!preg_match('#^(https?://|/)#i', $url) && defined('ADMIN_PANEL') && ADMIN_PANEL) {
+    // For admin panel pages: convert bare relative URLs like
+    // "index.php?page=..." to "/admin/index.php?page=..." so the
+    // browser always hits the right directory regardless of how the
+    // server is configured.
+    //
+    // Guard: only prepend if the URL is truly relative (no leading
+    // slash or scheme) AND doesn't already contain "/admin/" to
+    // prevent the double-path bug /admin/admin/index.php.
+    if (
+        defined('ADMIN_PANEL') && ADMIN_PANEL
+        && !preg_match('#^(https?://|/)#i', $url)
+    ) {
         $url = '/admin/' . $url;
     }
+    // Safety net: collapse any accidental double segment
+    $url = preg_replace('#/admin/admin/#', '/admin/', $url);
+ 
     header("Location: $url");
     exit;
 }
@@ -116,19 +125,40 @@ function getCSSVariables(bool $isAdmin = false): string {
     //    admin-* variables onto the standard variable names so that
     //    all existing CSS that uses --bg, --surface, --accent, etc.
     //    automatically picks up the admin-specific palette without
-    //    any changes to admin.css.
     if ($isAdmin) {
         $adminOverrides = [
-            '--bg'         => '--admin-bg',
-            '--surface'    => '--admin-surface',
-            '--surface2'   => '--admin-surface2',
-            '--surface3'   => '--admin-surface3',
-            '--accent'     => '--admin-accent',
-            '--accent2'    => '--admin-accent2',
-            '--accent-light' => '--admin-accent-light',
-            '--accent-mid'   => '--admin-accent-mid',
-            '--border'     => '--admin-table-border',
-            '--nav-bg'     => '--admin-sidebar-from',
+            // ── Shell / surfaces ─────────────────────────────────
+            '--bg'               => '--admin-bg',
+            '--surface'          => '--admin-surface',
+            '--surface2'         => '--admin-surface2',
+            '--surface3'         => '--admin-surface3',
+            // ── Accent ───────────────────────────────────────────
+            '--accent'           => '--admin-accent',
+            '--accent2'          => '--admin-accent2',
+            '--accent-light'     => '--admin-accent-light',
+            '--accent-mid'       => '--admin-accent-mid',
+            // ── Border ───────────────────────────────────────────
+            '--border'           => '--admin-table-border',
+            // ── Nav / sidebar ────────────────────────────────────
+            '--nav-bg'           => '--admin-sidebar-from',
+            // ── Text ─────────────────────────────────────────────
+            '--text'             => '--admin-text',
+            '--text2'            => '--admin-text2',
+            '--text3'            => '--admin-text3',
+            // ── Input (admin-input-* → generic input-* fallbacks) ─
+            '--input-bg'         => '--admin-input-bg',
+            '--input-color'      => '--admin-input-color',
+            '--input-placeholder'=> '--admin-input-placeholder',
+            '--input-border'     => '--admin-input-border',
+            '--input-focus-border' => '--admin-input-focus-border',
+            '--input-focus-shadow' => '--admin-input-focus-shadow',
+            '--input-hover-border' => '--admin-input-hover-border',
+            '--input-radius'     => '--admin-input-radius',
+            '--input-font-size'  => '--admin-input-font-size',
+            // ── Label ────────────────────────────────────────────
+            '--label-color'        => '--admin-label-color',
+            '--label-font-size'    => '--admin-label-font-size',
+            '--label-font-weight'  => '--admin-label-font-weight',
         ];
         foreach ($adminOverrides as $target => $source) {
             if (!empty($vars[$source])) {
@@ -136,8 +166,7 @@ function getCSSVariables(bool $isAdmin = false): string {
             }
         }
  
-        // Sidebar gradient — exposed as a single CSS variable for
-        // the linear-gradient() reference in admin.css
+        // Sidebar gradient
         $from = $vars['--admin-sidebar-from'] ?? '#1A4D65';
         $to   = $vars['--admin-sidebar-to']   ?? '#0D2E3D';
         $css .= "--admin-sidebar-gradient:linear-gradient(180deg,{$from},{$to});\n";

@@ -1,9 +1,22 @@
 <?php
 $pageTitle = 'Support — ' . APP_NAME;
 $showNav   = true;
+ 
+// Load company profile from settings (falls back to hardcoded defaults)
+$cpName    = getSetting('company_name',          APP_NAME);
+$cpTagline = getSetting('company_tagline',       'Premium Stone Catalog Platform');
+$cpPhone   = getSetting('company_support_phone', '9898074441');
+$cpWA      = getSetting('company_whatsapp',      '9898074441');
+$cpEmail   = getSetting('company_email',         'sales@bafnamarbles.com');
+$cpAddress = getSetting('company_address',       'Block No.40, Near Puniya Bhumi, Second VIP Road, Surat-395007, Gujarat, INDIA');
+$cpMapUrl  = getSetting('company_location_url',  'https://maps.app.goo.gl/9WiRU9Zg3Sxw8xxA9');
+ 
+// Format phone for tel: link (strip spaces, dashes, brackets)
+$phoneLink = '+91' . preg_replace('/[^0-9]/', '', $cpPhone);
+$waLink    = 'https://wa.me/91' . preg_replace('/[^0-9]/', '', $cpWA);
 ?>
 <?php include BASE_PATH . '/layouts/header.php'; ?>
-
+ 
 <div class="page-content">
   <div class="page-header">
     <div class="page-header-left">
@@ -11,9 +24,9 @@ $showNav   = true;
       <h1 class="page-title">Support</h1>
     </div>
   </div>
-
+ 
   <div style="max-width:720px;margin:0 auto;">
-
+ 
     <!-- Hero -->
     <div class="support-hero">
       <div class="support-hero-icon"><?= icon('info',26) ?></div>
@@ -22,93 +35,82 @@ $showNav   = true;
           We're here to help
         </p>
         <p style="font-size:13px;color:rgba(255,255,255,.5);margin-top:4px;">
-          Reach out through any of the channels below.
+          <?= h($cpTagline) ?>
         </p>
       </div>
     </div>
-
+ 
     <!-- Contact cards -->
     <div class="support-cards">
-      <a href="tel:9898074441" class="support-card">
+ 
+      <!-- Call -->
+      <?php if ($cpPhone): ?>
+      <a href="tel:<?= h($phoneLink) ?>" class="support-card">
         <div class="support-card-icon" style="background:var(--gray-100);color:var(--text3);">
           <?= icon('phone',22) ?>
         </div>
         <div class="support-card-body">
           <p class="support-card-label">Call Us</p>
-          <p class="support-card-value">+91 9898074441</p>
+          <p class="support-card-value">+91 <?= h($cpPhone) ?></p>
           <p class="support-card-hint">Mon – Sat, 9 AM – 6 PM</p>
         </div>
       </a>
-
-      <a href="mailto:info@bafnamarbles.com" class="support-card">
+      <?php endif; ?>
+ 
+      <!-- Email -->
+      <?php if ($cpEmail): ?>
+      <a href="mailto:<?= h($cpEmail) ?>" class="support-card">
         <div class="support-card-icon" style="background:var(--gold-light);color:var(--gold-dark);">
           <?= icon('mail',22) ?>
         </div>
         <div class="support-card-body">
           <p class="support-card-label">Email Us</p>
-          <p class="support-card-value">sales@bafnamarbles.com</p>
+          <p class="support-card-value"><?= h($cpEmail) ?></p>
           <p class="support-card-hint">Reply within 24 hours</p>
         </div>
       </a>
-
-      <a href="https://wa.me/919898074441" target="_blank" class="support-card">
+      <?php endif; ?>
+ 
+      <!-- WhatsApp -->
+      <?php if ($cpWA): ?>
+      <a href="<?= h($waLink) ?>" target="_blank" class="support-card">
         <div class="support-card-icon" style="background:#e8faf0;color:#25D366;">
           <?= icon('whatsapp',22) ?>
         </div>
         <div class="support-card-body">
           <p class="support-card-label">WhatsApp</p>
-          <p class="support-card-value">+91 9898074441</p>
+          <p class="support-card-value">+91 <?= h($cpWA) ?></p>
           <p class="support-card-hint">Quick responses</p>
         </div>
       </a>
-
+      <?php endif; ?>
+ 
+      <!-- Address -->
+      <?php if ($cpAddress): ?>
       <div class="support-card support-card--nolink">
         <div class="support-card-icon" style="background:var(--success-bg);color:var(--success);">
           <?= icon('verified',22) ?>
         </div>
         <div class="support-card-body">
           <p class="support-card-label">Visit Us</p>
-          <p class="support-card-value">Bafna Marble & Granites <br> block No.40, Near Puniya Bhumi , Second VIP Road <br>Surat-395007 , Gujarat -INDIA <br>
-          <a href="https://maps.app.goo.gl/9WiRU9Zg3Sxw8xxA9" target="_blank" class="location-pin-btn"><img src="https://maps.gstatic.com/mapfiles/api-3/images/spotlight-poi3_hdpi.png" alt="Location Pin" ><span> Google Location</span></a>
-
-<style>
-.location-pin-btn{
-    display:inline-flex;
-    align-items:center;
-    gap:10px;
-    padding:12px 18px;
-    background:#25D366;
-    color:#fff;
-    text-decoration:none;
-    border-radius:30px;
-    font-family:Arial,sans-serif;
-    font-size:15px;
-    font-weight:600;
-    transition:.3s ease;
-    box-shadow:0 4px 12px rgba(0,0,0,.15);
-   margin:20px;
-}
-
-.location-pin-btn img{
-    width:28px;
-    height:28px;
-    object-fit:contain;
-}
-
-.location-pin-btn:hover{
-    transform:translateY(-2px);
-    box-shadow:0 6px 18px rgba(0,0,0,.2);
-}
-</style>
+          <p class="support-card-value" style="white-space:pre-line;font-size:12px;font-weight:500;">
+            <?= h($cpAddress) ?>
           </p>
+          <?php if ($cpMapUrl): ?>
+          <a href="<?= h($cpMapUrl) ?>" target="_blank" class="location-pin-btn" style="margin:12px 0 0;">
+            <img src="https://maps.gstatic.com/mapfiles/api-3/images/spotlight-poi3_hdpi.png" alt="Pin" style="width:22px;height:22px;object-fit:contain;"/>
+            <span>Google Location</span>
+          </a>
+          <?php endif; ?>
         </div>
       </div>
-    </div>
-
+      <?php endif; ?>
+ 
+    </div><!-- /.support-cards -->
+ 
     <!-- FAQ -->
     <div class="support-faq">
       <p class="support-faq-title">Frequently Asked Questions</p>
-
       <?php $faqs = [
         ['How do I save a product?',        'Tap the heart icon on any product card in the catalog to add it to your Shortlist for quick access later.'],
         ['How do I contact about a product?','Use the Share button on any product page to send the details via WhatsApp or email to coordinate directly.'],
@@ -117,7 +119,6 @@ $showNav   = true;
         ['How do I reset my password?',     'On the login page, tap "Forgot password?" and follow the instructions sent to your registered email address.'],
         ['How do I update my profile?',     'Go to your Profile page — the edit form is always visible so you can update your details at any time.'],
       ]; ?>
-
       <?php foreach ($faqs as $i => $faq): ?>
       <div class="faq-item">
         <button class="faq-q" onclick="toggleFaq(<?= $i ?>)">
@@ -128,12 +129,23 @@ $showNav   = true;
       </div>
       <?php endforeach; ?>
     </div>
-
+ 
     <p style="text-align:center;font-size:12px;color:var(--text4);margin-top:28px;padding-bottom:16px;">
-      <?= APP_NAME ?> &nbsp;·&nbsp; v<?= APP_VERSION ?>
+      <?= h($cpName) ?> &nbsp;·&nbsp; v<?= APP_VERSION ?>
     </p>
-
+ 
   </div>
 </div>
-
+ 
+<style>
+.location-pin-btn {
+  display:inline-flex;align-items:center;gap:8px;
+  padding:9px 16px;background:#25D366;color:#fff;
+  text-decoration:none;border-radius:24px;
+  font-size:13px;font-weight:600;
+  transition:.2s ease;box-shadow:0 3px 10px rgba(0,0,0,.12);
+}
+.location-pin-btn:hover { opacity:.88; }
+</style>
+ 
 <?php include BASE_PATH . '/layouts/footer.php'; ?>

@@ -52,9 +52,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     requireAdmin();
 
-    if ($action === 'admin_logout') {
+   if ($action === 'admin_logout') {
         unset($_SESSION['admin_id'], $_SESSION['admin_name']);
-        redirect('index.php');
+        // Use absolute path to prevent double /admin/admin/ redirect
+        header('Location: /admin/index.php');
+        exit;
     }
 
     if ($action === 'save_colors') {
@@ -90,6 +92,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             '--admin-table-border',
             '--admin-card-bg','--admin-card-border','--admin-card-radius',
             '--admin-badge-bg','--admin-badge-color',
+            // ── Admin text ───────────────────────────────────────────
+            '--admin-text','--admin-text2','--admin-text3',
+            // ── Admin primary button ─────────────────────────────────
+            '--admin-btn-primary-bg','--admin-btn-primary-color',
+            '--admin-btn-primary-border','--admin-btn-primary-hover-bg',
+            '--admin-btn-primary-hover-color','--admin-btn-primary-radius',
+            // ── Admin secondary button ───────────────────────────────
+            '--admin-btn-sec-bg','--admin-btn-sec-color',
+            '--admin-btn-sec-border','--admin-btn-sec-hover-bg',
+            '--admin-btn-sec-hover-color','--admin-btn-sec-radius',
+            // ── Admin danger button ──────────────────────────────────
+            '--admin-btn-danger-bg','--admin-btn-danger-color',
+            '--admin-btn-danger-border','--admin-btn-danger-hover-bg',
+            '--admin-btn-danger-hover-color',
+            // ── Admin general / toolbar button ───────────────────────
+            '--admin-btn-general-bg','--admin-btn-general-color',
+            '--admin-btn-general-border','--admin-btn-general-hover-bg',
+            '--admin-btn-general-radius',
+            // ── Admin input / text field ─────────────────────────────
+            '--admin-input-bg','--admin-input-color','--admin-input-placeholder',
+            '--admin-input-border','--admin-input-focus-border',
+            '--admin-input-focus-shadow','--admin-input-hover-border',
+            '--admin-input-radius','--admin-input-font-size',
+            // ── Admin textarea ───────────────────────────────────────
+            '--admin-textarea-bg','--admin-textarea-color',
+            '--admin-textarea-border','--admin-textarea-focus-border',
+            '--admin-textarea-radius',
+            // ── Admin label ──────────────────────────────────────────
+            '--admin-label-color','--admin-label-font-size',
+            '--admin-label-font-weight','--admin-label-transform',
+            '--admin-label-letter-spacing',
         ];
         $defaults = array_unique(array_merge($defaults, $extraKeys));
         foreach ($defaults as $k) {
@@ -119,6 +152,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             flash('error', $result['error']);
         }
+        redirect('index.php?page=logo');
+    }
+  
+  
+  if ($action === 'save_company_profile') {
+        $fields = [
+            'company_name', 'company_short_name', 'company_tagline',
+            'company_address', 'company_gst', 'company_whatsapp',
+            'company_support_phone', 'company_email', 'company_location_url',
+        ];
+        foreach ($fields as $f) {
+            setSetting($f, trim($_POST[$f] ?? ''));
+        }
+        flash('toast', 'Company profile saved.');
         redirect('index.php?page=logo');
     }
     

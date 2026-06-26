@@ -573,10 +573,6 @@ textarea.input-field { resize: vertical; min-height: 90px; line-height: 1.6; }
   .catalog-filters-panel { display: block; }
   .filter-toggle-btn { display: none; }
   .product-grid { grid-template-columns: repeat(3, 1fr); gap: 18px; }
-  .detail-page { display: grid; grid-template-columns: 1fr 1fr; gap: 0; align-items: start; }
-  .detail-hero { height: calc(100vh - var(--nav-h)); position: sticky; top: var(--nav-h); aspect-ratio: unset; }
-  .detail-body { padding: 28px 32px 60px; max-height: calc(100vh - var(--nav-h)); overflow-y: auto; }
-  .detail-title { font-size: 32px; }
   .profile-page { max-width: 760px; }
   .profile-form-grid { grid-template-columns: 1fr 1fr; gap: 0 20px; }
   .auth-hero { flex: 0 0 440px; }

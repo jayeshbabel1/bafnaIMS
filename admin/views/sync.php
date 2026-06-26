@@ -70,77 +70,207 @@ $counts   = [1 => $imgCount, 2 => $msCount, 3 => $dnaCount];
 ?>
 
 <style>
+/* ── Sync card ───────────────────────────────────────────────── */
 .sync-card {
-    background:var(--surface);
-    border:1px solid var(--border);
-    border-radius:var(--card-radius);
-    padding:20px 24px;
-    margin-bottom:16px;
-    display:flex;
-    align-items:flex-start;
-    gap:18px;
-    transition:box-shadow .2s;
+    background: var(--admin-card-bg, var(--surface));
+    border: 1px solid var(--admin-card-border, var(--border));
+    border-radius: var(--admin-card-radius, var(--card-radius));
+    padding: 16px;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    transition: box-shadow .2s;
+    /* stack icon + body vertically on very small screens */
+    flex-wrap: wrap;
 }
-.sync-card.running { box-shadow:0 0 0 2px var(--accent); }
-.sync-card.done    { box-shadow:0 0 0 2px var(--success); }
-.sync-card.errored { box-shadow:0 0 0 2px var(--gold); }
+@media (min-width: 480px) {
+    .sync-card { padding: 20px 24px; gap: 18px; flex-wrap: nowrap; }
+}
+.sync-card.running { box-shadow: 0 0 0 2px var(--accent); }
+.sync-card.done    { box-shadow: 0 0 0 2px var(--success); }
+.sync-card.errored { box-shadow: 0 0 0 2px var(--gold); }
+ 
 .sync-step-icon {
-    width:48px;height:48px;border-radius:14px;
-    display:flex;align-items:center;justify-content:center;
-    flex-shrink:0;font-size:20px;
+    width: 44px; height: 44px;
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
 }
-.sync-step-body { flex:1; }
-.sync-step-title { font-size:15px;font-weight:700;color:var(--text);margin-bottom:3px; }
-.sync-step-desc  { font-size:12px;color:var(--text3);margin-bottom:4px;line-height:1.5; }
-.sync-step-format{ font-size:11px;color:var(--text3);margin-bottom:10px; }
-.sync-status-row { display:flex;align-items:center;gap:14px;flex-wrap:wrap; }
-.sync-stat { font-size:12px;font-weight:600; }
-.sync-stat span  { font-size:18px;font-weight:700;font-family:'Cormorant Garamond',serif; }
-
+.sync-step-body { flex: 1; min-width: 0; }
+.sync-step-title {
+    font-size: 14px; font-weight: 700;
+    color: var(--admin-text, var(--text));
+    margin-bottom: 3px;
+}
+@media (min-width: 480px) { .sync-step-title { font-size: 15px; } }
+ 
+.sync-step-desc {
+    font-size: 12px; color: var(--admin-text3, var(--text3));
+    margin-bottom: 4px; line-height: 1.5;
+}
+.sync-step-format {
+    font-size: 11px; color: var(--admin-text3, var(--text3));
+    margin-bottom: 10px;
+}
+.sync-status-row {
+    display: flex; align-items: center;
+    gap: 12px; flex-wrap: wrap;
+}
+.sync-stat { font-size: 12px; font-weight: 600; }
+.sync-stat span {
+    font-size: 16px; font-weight: 700;
+    font-family: 'Cormorant Garamond', serif;
+}
+@media (min-width: 480px) { .sync-stat span { font-size: 18px; } }
+ 
 /* Progress bar */
-.progress-wrap  { background:var(--border);border-radius:6px;height:8px;overflow:hidden;width:100%;margin:10px 0 6px; }
-.progress-fill  { height:100%;border-radius:6px;transition:width .4s ease;width:0%; }
-.progress-label { font-size:11px;color:var(--text3);text-align:right; }
-
+.progress-wrap {
+    background: var(--border);
+    border-radius: 6px; height: 8px;
+    overflow: hidden; width: 100%;
+    margin: 10px 0 6px;
+}
+.progress-fill {
+    height: 100%; border-radius: 6px;
+    transition: width .4s ease; width: 0%;
+}
+.progress-label {
+    font-size: 11px;
+    color: var(--admin-text3, var(--text3));
+    text-align: right;
+}
+ 
 /* Overall bar */
-.overall-wrap { background:var(--surface);border:1px solid var(--border);border-radius:var(--card-radius);padding:20px 24px;margin-bottom:24px; }
-.overall-bar  { background:var(--border);border-radius:8px;height:14px;overflow:hidden;margin:14px 0 8px; }
-.overall-fill { height:100%;border-radius:8px;background:linear-gradient(90deg,var(--accent),var(--accent-mid));transition:width .5s ease;width:0%; }
-
+.overall-wrap {
+    background: var(--admin-card-bg, var(--surface));
+    border: 1px solid var(--admin-card-border, var(--border));
+    border-radius: var(--admin-card-radius, var(--card-radius));
+    padding: 16px;
+    margin-bottom: 20px;
+}
+@media (min-width: 640px) {
+    .overall-wrap { padding: 20px 24px; }
+}
+.overall-bar {
+    background: var(--border);
+    border-radius: 8px; height: 12px;
+    overflow: hidden; margin: 12px 0 8px;
+}
+@media (min-width: 480px) { .overall-bar { height: 14px; } }
+.overall-fill {
+    height: 100%; border-radius: 8px;
+    background: linear-gradient(90deg, var(--accent), var(--accent-mid));
+    transition: width .5s ease; width: 0%;
+}
+ 
+/* Overall header row — stack on mobile */
+.overall-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+.overall-header-left { min-width: 0; }
+.overall-header-left p:first-child {
+    font-size: 16px; font-weight: 700;
+    color: var(--admin-text, var(--text));
+}
+@media (min-width: 480px) {
+    .overall-header-left p:first-child { font-size: 17px; }
+}
+.overall-header-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+ 
 /* Error log */
-.error-log  { margin-top:10px;max-height:140px;overflow-y:auto;background:var(--surface2);border-radius:8px;padding:8px 12px; }
-.error-item { font-size:11px;color:var(--text3);padding:2px 0;border-bottom:1px solid var(--border);line-height:1.4; }
-.error-item:last-child{border-bottom:none;}
-
-.badge-count { display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600; }
+.error-log {
+    margin-top: 10px;
+    max-height: 140px;
+    overflow-y: auto;
+    background: var(--surface2);
+    border-radius: 8px;
+    padding: 8px 12px;
+}
+.error-item {
+    font-size: 11px;
+    color: var(--admin-text3, var(--text3));
+    padding: 3px 0;
+    border-bottom: 1px solid var(--border);
+    line-height: 1.5;
+    word-break: break-word;
+}
+.error-item:last-child { border-bottom: none; }
+ 
+/* Badge counts */
+.badge-count {
+    display: inline-flex; align-items: center;
+    gap: 3px; padding: 3px 9px;
+    border-radius: 20px;
+    font-size: 11px; font-weight: 600;
+}
+ 
+/* Start Sync button */
+#startSyncBtn {
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+ 
+/* Done banner */
+#doneBanner {
+    background: var(--success-bg);
+    border: 1px solid var(--success);
+    border-radius: var(--admin-card-radius, var(--card-radius));
+    padding: 16px;
+    margin-top: 16px;
+    display: none;
+    align-items: flex-start;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+@media (min-width: 480px) {
+    #doneBanner { padding: 20px 24px; align-items: center; flex-wrap: nowrap; }
+}
+#doneBanner .done-icon {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    background: var(--success);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; flex-shrink: 0;
+}
 </style>
 
-<!-- ── Overall progress ───────────────────────────────────────────────────── -->
 <div class="overall-wrap" id="overallCard">
-    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
-        <div>
-            <p style="font-size:17px;font-weight:700;">Data Sync</p>
-            <p style="font-size:13px;color:var(--text3);margin-top:2px;">
+    <div class="overall-header">
+        <div class="overall-header-left">
+            <p>Data Sync</p>
+            <p style="font-size:13px;color:var(--admin-text3,var(--text3));margin-top:3px;line-height:1.5;">
                 Scans upload folders and links files to products by quarry number.
             </p>
+            <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:10px;">
+                <span class="badge-count" style="background:var(--accent-light);color:var(--accent);">
+                    <?= icon('image',12) ?> <?= $imgCount ?> photos
+                </span>
+                <span class="badge-count" style="background:var(--success-bg);color:var(--success);">
+                    <?= icon('file',12) ?> <?= $msCount ?> sheets
+                </span>
+                <span class="badge-count" style="background:var(--danger-bg);color:var(--danger);">
+                    <?= icon('pdf',12) ?> <?= $dnaCount ?> reports
+                </span>
+            </div>
         </div>
-        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-            <span class="badge-count" style="background:var(--accent-light);color:var(--accent);">
-                <?= icon('image',12) ?> <?= $imgCount ?> photos
-            </span>
-            <span class="badge-count" style="background:var(--success-bg);color:var(--success);">
-                <?= icon('file',12) ?> <?= $msCount ?> sheets
-            </span>
-            <span class="badge-count" style="background:var(--danger-bg);color:var(--danger);">
-                <?= icon('pdf',12) ?> <?= $dnaCount ?> reports
-            </span>
-            <button id="startSyncBtn" onclick="startSync()" class="btn-admin-primary" style="padding:10px 24px;">
+        <div class="overall-header-right">
+            <button id="startSyncBtn" onclick="startSync()" class="btn-admin-primary">
                 <?= icon('refresh',16) ?> Start Sync
             </button>
         </div>
     </div>
     <div class="overall-bar"><div class="overall-fill" id="overallFill"></div></div>
-    <p class="progress-label" id="overallLabel" style="font-size:12px;color:var(--text3);">Ready — click Start Sync to begin</p>
+    <p class="progress-label" id="overallLabel">Ready — click Start Sync to begin</p>
 </div>
 
 <!-- ── Step cards ─────────────────────────────────────────────────────────── -->
@@ -190,18 +320,13 @@ $counts   = [1 => $imgCount, 2 => $msCount, 3 => $dnaCount];
 </div>
 <?php endforeach; ?>
 
-<!-- ── Done banner (hidden until all steps finish) ────────────────────────── -->
-<div id="doneBanner" style="display:none;background:var(--success-bg);border:1px solid var(--success);
-     border-radius:var(--card-radius);padding:20px 24px;display:none;align-items:center;gap:14px;">
-    <div style="width:44px;height:44px;border-radius:50%;background:var(--success);
-         display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0;">
-        <?= icon('check',20) ?>
+<div id="doneBanner">
+    <div class="done-icon"><?= icon('check',20) ?></div>
+    <div style="flex:1;min-width:0;">
+        <p style="font-size:15px;font-weight:700;color:var(--success);">All steps complete!</p>
+        <p style="font-size:13px;color:var(--admin-text2,var(--text2));margin-top:3px;" id="doneSummary"></p>
     </div>
-    <div>
-        <p style="font-size:16px;font-weight:700;color:var(--success);">All steps complete!</p>
-        <p style="font-size:13px;color:var(--text2);margin-top:2px;" id="doneSummary"></p>
-    </div>
-    <a href="index.php?page=products" class="btn-admin-secondary" style="margin-left:auto;">
+    <a href="index.php?page=products" class="btn-admin-secondary" style="flex-shrink:0;">
         <?= icon('grid',14) ?> View Products
     </a>
 </div>

@@ -168,9 +168,9 @@ $totalPages = max(1, (int)ceil($total / $perPage));
           if ($sel['extra_notes'])     $wa_msg .= "Notes: " . $sel['extra_notes'] . "\n";
           $wa_url = 'https://wa.me/?text=' . rawurlencode($wa_msg);
           ?>
-          <a href="<?= h($wa_url) ?>" target="_blank" rel="noopener"
-             class="btn-admin-secondary btn-admin-sm"
-             style="display:inline-flex;align-items:center;gap:4px;color:#25D366;border-color:#25D366;white-space:nowrap;text-decoration:none;">
+           <a href="<?= h($wa_url) ?>" target="_blank" rel="noopener"
+             class="btn-admin-secondary btn-admin-sm btn-admin-labeled"
+             style="color:#25D366;border-color:#25D366;text-decoration:none;">
             <?= icon('whatsapp', 13) ?> Share
           </a>
         </td>

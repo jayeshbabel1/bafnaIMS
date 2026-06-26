@@ -189,3 +189,21 @@
 
 /* ── Navbar client link ───────────────────────────────────────────────────── */
 /* (added to existing navbar-nav) */
+
+/* ── Quantity-exceeds-available warning icon ──────────────────────────────── */
+.sel-exceed-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--gold-light, #f5edd6);
+  color: var(--gold-dark, #a0822a);
+  font-size: 11px;
+  font-weight: 800;
+  flex-shrink: 0;
+  cursor: help;
+  border: 1px solid var(--gold, #c9a84c);
+  line-height: 1;
+}

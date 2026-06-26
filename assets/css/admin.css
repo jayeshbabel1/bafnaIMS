@@ -183,6 +183,7 @@ div.dashboard-grid>.dash-card {
 .admin-table tr:hover td {
     background:var(--surface2);}
 
+
 .tbl-thumb {
     width:40px;height:40px;border-radius:8px;overflow:hidden;background:var(--surface2);flex-shrink:0;}
 
@@ -197,19 +198,40 @@ div.dashboard-grid>.dash-card {
     font-size:13px;font-weight:700;color:var(--text);margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid var(--border);}
 
 .admin-input {
-    width:100%;padding:9px 12px;background:var(--input-bg,var(--surface));border:1.5px solid var(--input-border,var(--border));border-radius:var(--input-radius,8px);font-size:var(--input-font-size,13px);color:var(--input-color,var(--text));outline:none;transition:border-color .15s,box-shadow .15s;font-family:inherit;}
+    width:100%;
+    padding:9px 12px;
+    background:var(--admin-input-bg, var(--surface));
+    border:1.5px solid var(--admin-input-border, var(--border));
+    border-radius:var(--admin-input-radius, 8px);
+    font-size:var(--admin-input-font-size, 13px);
+    color:var(--admin-input-color, var(--text));
+    outline:none;
+    transition:border-color .15s, box-shadow .15s;
+    font-family:inherit;
+}
 
 .admin-input:hover {
-    border-color:var(--input-hover-border,var(--border));}
+    border-color:var(--admin-input-hover-border, var(--stone-dark));
+}
 
 .admin-input:focus {
-    border-color:var(--input-focus-border,var(--accent));box-shadow:0 0 0 2px var(--input-focus-shadow,rgba(0,0,0,.04));}
+    border-color:var(--admin-input-focus-border, var(--accent));
+    box-shadow:0 0 0 2px var(--admin-input-focus-shadow, rgba(44,110,138,.12));
+}
 
 .admin-input::placeholder {
-    color:var(--input-placeholder,var(--text3));}
+    color:var(--admin-input-placeholder, var(--text3));
+}
 
 .admin-label {
-    display:block;font-size:var(--label-font-size,11px);font-weight:var(--label-font-weight,600);color:var(--label-color,var(--text2));margin-bottom:5px;text-transform:uppercase;letter-spacing:.4px;}
+    display:block;
+    font-size:var(--admin-label-font-size, 11px);
+    font-weight:var(--admin-label-font-weight, 700);
+    color:var(--admin-label-color, var(--text2));
+    margin-bottom:5px;
+    text-transform:var(--admin-label-transform, uppercase);
+    letter-spacing:var(--admin-label-letter-spacing, 0.4px);
+}
 
 .admin-select {
     appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238FA3B1' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;}
@@ -222,22 +244,66 @@ div.dashboard-grid>.dash-card {
 
 /* Action Buttons */
 .btn-admin-primary {
-    display:inline-flex;align-items:center;gap:6px;padding:9px 18px;background:var(--accent);color:#fff;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;transition:background .15s;border:none;}
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    padding:9px 18px;
+    background:var(--admin-btn-primary-bg, var(--accent));
+    color:var(--admin-btn-primary-color, #fff);
+    border:1.5px solid var(--admin-btn-primary-border, var(--accent));
+    border-radius:var(--admin-btn-primary-radius, 8px);
+    font-size:13px;
+    font-weight:600;
+    cursor:pointer;
+    transition:background .15s, border-color .15s, color .15s;
+}
 
 .btn-admin-primary:hover {
-    background:var(--accent2);}
+    background:var(--admin-btn-primary-hover-bg, var(--accent2));
+    border-color:var(--admin-btn-primary-hover-bg, var(--accent2));
+    color:var(--admin-btn-primary-hover-color, #fff);
+}
 
 .btn-admin-secondary {
-    display:inline-flex;align-items:center;gap:6px;padding:9px 18px;background:var(--surface);border:1.5px solid var(--border);color:var(--text);border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;transition:all .15s;}
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    padding:9px 18px;
+    background:var(--admin-btn-sec-bg, var(--surface));
+    border:1.5px solid var(--admin-btn-sec-border, var(--border));
+    color:var(--admin-btn-sec-color, var(--text));
+    border-radius:var(--admin-btn-sec-radius, 8px);
+    font-size:13px;
+    font-weight:500;
+    cursor:pointer;
+    transition:all .15s;
+}
 
 .btn-admin-secondary:hover {
-    background:var(--surface2);}
+    background:var(--admin-btn-sec-hover-bg, var(--surface2));
+    color:var(--admin-btn-sec-hover-color, var(--text));
+}
 
 .btn-admin-danger {
-    display:inline-flex;align-items:center;gap:6px;padding:7px 14px;background:var(--danger-bg);color:var(--danger);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;border:none;}
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    padding:7px 14px;
+    background:var(--admin-btn-danger-bg, var(--danger-bg));
+    color:var(--admin-btn-danger-color, var(--danger));
+    border:1.5px solid var(--admin-btn-danger-border, var(--danger-bg));
+    border-radius:8px;
+    font-size:12px;
+    font-weight:600;
+    cursor:pointer;
+    transition:all .15s;
+}
 
 .btn-admin-danger:hover {
-    background:var(--danger);color:#fff;}
+    background:var(--admin-btn-danger-hover-bg, var(--danger));
+    color:var(--admin-btn-danger-hover-color, #fff);
+    border-color:var(--admin-btn-danger-hover-bg, var(--danger));
+}
 
 .btn-admin-sm {
     padding:6px 12px;font-size:12px;border-radius:6px;}
@@ -898,7 +964,7 @@ a.btn-admin-secondary.btn-admin-sm[title]  {
     max-width:100%;}
 
 
-/* ── Users page search bar fix ──────────────────────────────── */
+/*  Users page search bar fix  */
 #userSearch  {
     
   width: 100%;
@@ -975,8 +1041,75 @@ a.btn-admin-secondary.btn-admin-sm[title]  {
 #userSearchClear:hover  {
      background: var(--border); color: var(--text); }
 
-
+/*  Admin textarea  */
+.admin-input[rows],
+textarea.admin-input {
+    background:var(--admin-textarea-bg, var(--surface));
+    color:var(--admin-textarea-color, var(--text));
+    border-color:var(--admin-textarea-border, var(--border));
+    border-radius:var(--admin-textarea-radius, 8px);
+    resize:vertical;
+    min-height:80px;
+    line-height:1.6;
+}
+textarea.admin-input:hover {
+    border-color:var(--admin-input-hover-border, var(--stone-dark));
+}
+textarea.admin-input:focus {
+    border-color:var(--admin-textarea-focus-border, var(--accent));
+    box-shadow:0 0 0 2px var(--admin-input-focus-shadow, rgba(44,110,138,.12));
+}
  
+/*  Admin general / toolbar button  */
+.admin-toolbar-btn--solid {
+    background:var(--admin-btn-general-bg, var(--surface));
+    border:1.5px solid var(--admin-btn-general-border, var(--border));
+    color:var(--admin-btn-general-color, var(--text));
+    border-radius:var(--admin-btn-general-radius, 8px);
+}
+.admin-toolbar-btn--solid:hover {
+    background:var(--admin-btn-general-hover-bg, var(--surface2));
+}
+ 
+/* Admin text colour on page titles / table cells  */
+.admin-page-title,
+.admin-table td,
+.admin-form-section-title {
+    color:var(--admin-text, var(--text));
+}
+.admin-table th,
+.admin-logo-sub,
+.admin-nav-item {
+    color:var(--admin-text3, var(--text3));
+}
+
+/* Fix: "Selections" (User Clients) and "Share" (Client Selections) buttons
+   were being squashed by the icon-only-button squish rule:
+     .btn-admin-secondary.btn-admin-sm:only-child:not(:has(span)) { width:30px; padding:0; }
+   That rule is meant for icon-only square buttons, but it also matched
+   these labeled (icon + text) buttons since SVG icons aren't <span>s.
+   Fix: give labeled buttons a dedicated class with higher specificity
+   that restores their normal box model.    */
+.btn-admin-secondary.btn-admin-sm.btn-admin-labeled,
+a.btn-admin-secondary.btn-admin-sm.btn-admin-labeled {
+  width: auto !important;
+  min-width: auto;
+  padding: 0 14px !important;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Keep the action cell from squeezing the labeled button on narrow
+   screens — table scrolls horizontally instead (overflow-x:auto already
+   set on .admin-table-wrap). */
+.admin-table td:has(.btn-admin-labeled) {
+  white-space: nowrap;
+}
 /* Responsive */
 @media (max-width: 768px)  {
     

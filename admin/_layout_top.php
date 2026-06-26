@@ -46,7 +46,7 @@ $e = getFlash('error');
 <?php if ($e): ?><div class="toast toast-error"   id="admin-toast"><?= h($e) ?></div><?php endif; ?>
 
 <header class="admin-mobile-topbar" id="adminMobileTopbar">
-
+ 
   <!-- Left: logo + brand -->
   <div class="amt-brand">
     <?php if ($_adminLogo): ?>
@@ -61,16 +61,27 @@ $e = getFlash('error');
       <p class="amt-sub">Admin Panel</p>
     </div>
   </div>
-
-  <!-- Right: hamburger -->
-  <button class="admin-hamburger-btn" id="adminHamburgerBtn"
-          aria-label="Open menu" aria-expanded="false" aria-controls="adminSidebar"
-          type="button">
-    <span class="admin-hamburger-line"></span>
-    <span class="admin-hamburger-line"></span>
-    <span class="admin-hamburger-line"></span>
-  </button>
-
+ 
+  <!-- Right: logout (always visible on mobile) + hamburger -->
+  <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+    <form method="POST" action="index.php" style="display:contents;">
+      <input type="hidden" name="action" value="admin_logout"/>
+      <button type="submit"
+              class="amt-logout-btn"
+              title="Sign Out">
+        <?= icon('logout', 16) ?>
+        <span>Logout</span>
+      </button>
+    </form>
+    <button class="admin-hamburger-btn" id="adminHamburgerBtn"
+            aria-label="Open menu" aria-expanded="false" aria-controls="adminSidebar"
+            type="button">
+      <span class="admin-hamburger-line"></span>
+      <span class="admin-hamburger-line"></span>
+      <span class="admin-hamburger-line"></span>
+    </button>
+  </div>
+ 
 </header>
 
 <!-- Overlay (mobile/tablet) -->
@@ -78,6 +89,47 @@ $e = getFlash('error');
 
 <style>
 /*  Settings submenu  */
+ .amt-logout-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: var(--danger-bg, #FFF0F0);
+  color: var(--danger, #E84040);
+  border: 1px solid var(--danger-bg, #FFF0F0);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+  transition: background .15s;
+  flex-shrink: 0;
+}
+.amt-logout-btn:hover {
+  background: var(--danger, #E84040);
+  color: #fff;
+}
+/* Hide logout label on very small screens, keep icon */
+@media (max-width: 380px) {
+  .amt-logout-btn span { display: none; }
+  .amt-logout-btn { padding: 7px 9px; }
+}
+/* Show the logout button only on mobile/tablet */
+.amt-logout-btn { display: flex; }
+@media (min-width: 1025px) {
+  .amt-logout-btn { display: none; }
+}
+ 
+/* ── Sidebar logout button emphasis ────────────────────────── */
+.admin-logout-btn {
+  color: rgba(255,255,255,0.65) !important;
+  transition: color .15s, background .15s !important;
+}
+.admin-logout-btn:hover {
+  background: rgba(232,64,64,.25) !important;
+  color: #fff !important;
+} 
 .admin-nav-group          { width:100%; }
 .admin-nav-group-header   {
   display:flex;align-items:center;gap:10px;padding:10px 12px;
@@ -203,9 +255,9 @@ $e = getFlash('error');
              class="admin-nav-subitem <?= $ap === 'colors' ? 'active' : '' ?>">
             <span class="admin-nav-subitem-dot"></span> Color Scheme
           </a>
-          <a href="index.php?page=logo"
+            <a href="index.php?page=logo"
              class="admin-nav-subitem <?= $ap === 'logo' ? 'active' : '' ?>">
-            <span class="admin-nav-subitem-dot"></span> Logo
+            <span class="admin-nav-subitem-dot"></span> Company Profile
           </a>
           <a href="index.php?page=smtp"
              class="admin-nav-subitem <?= $ap === 'smtp' ? 'active' : '' ?>">
@@ -221,7 +273,7 @@ $e = getFlash('error');
       </a>
       <form method="POST" action="index.php">
         <input type="hidden" name="action" value="admin_logout"/>
-        <button type="submit" class="admin-nav-item w-full">
+        <button type="submit" class="admin-nav-item w-full admin-logout-btn">
           <?= icon('logout', 16) ?><span>Sign Out</span>
         </button>
       </form>

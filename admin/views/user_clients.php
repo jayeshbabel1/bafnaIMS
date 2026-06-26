@@ -33,7 +33,7 @@ $totalPages = max(1, (int)ceil($total / $perPage));
   <a href="index.php?page=users" class="btn-admin-secondary btn-admin-sm"><?= icon('back', 14) ?> Back to Users</a>
   <div>
     <p style="font-size:13px;color:var(--text3);">Clients of</p>
-    <p style="font-size:16px;font-weight:700;color:var(--text);"><?= h($pageUser['name']) ?> <span style="font-size:13px;color:var(--text3);">&lt;<?= h($pageUser['email']) ?>&gt;</span></p>
+    <p style="font-size:16px;font-weight:700;color:var(--text);"><?= h($pageUser['name']) ?> <span style="font-size:13px;color:var(--text3);">&lt;<?= h($pageUser['firm']) ?>&gt;</span></p>
   </div>
   <span class="badge badge-blue" style="margin-left:auto;"><?= $total ?> client<?= $total !== 1 ? 's' : '' ?></span>
 </div>
@@ -94,7 +94,7 @@ $totalPages = max(1, (int)ceil($total / $perPage));
         <td>
           <div style="display:flex;gap:6px;">
             <a href="index.php?page=admin_selections&client_id=<?= $c['id'] ?>"
-               class="btn-admin-secondary btn-admin-sm"><?= icon('grid', 13) ?> Selections</a>
+               class="btn-admin-secondary btn-admin-sm btn-admin-labeled"><?= icon('grid', 13) ?> Selections</a>
           </div>
         </td>
       </tr>

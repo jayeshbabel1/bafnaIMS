@@ -42,11 +42,12 @@
         $slab = formatDimension($sel['sizes_l'] ?? '', $sel['sizes_h'] ?? '');
         $cut  = formatDimension($sel['cutter_size_l'] ?? '', $sel['cutter_size_h'] ?? '');
       ?>
+      <?php $exceeds = selectionExceedsAvailable($sel); ?>
       <tr>
         <!-- Thumb -->
         <td>
           <div class="sel-thumb">
-            <?php if ($sel['primary_photo'] && file_exists(PHOTOS_DIR . '/' . $sel['primary_photo'])): ?>
+            <?php if ($sel['primary_photo'] && file_exists(PHOTOS_DIR.'/'.$sel['primary_photo'])): ?>
             <img src="assets/uploads/photos/<?= h($sel['primary_photo']) ?>" alt=""/>
             <?php else: ?>
             <?= marbleSVG($pal, 44, 44, 'st' . $sel['id']) ?>
@@ -55,9 +56,14 @@
         </td>
         <!-- Product -->
         <td>
-          <a href="index.php?page=product&id=<?= $sel['product_id'] ?>" style="font-weight:600;font-size:13px;color:var(--text);">
-            <?= h($sel['product_name']) ?>
-          </a>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <a href="index.php?page=product&id=<?= $sel['product_id'] ?>" style="font-weight:600;font-size:13px;color:var(--text);">
+              <?= h($sel['product_name']) ?>
+            </a>
+            <?php if ($exceeds): ?>
+            <span class="sel-exceed-icon" title="You have selected lower quantity product than its available quantity.">!</span>
+            <?php endif; ?>
+          </div>
           <p style="font-size:11px;color:var(--text4);margin-top:2px;"><?= h($sel['quarry_number']) ?></p>
           <span class="badge badge-amber" style="font-size:9px;margin-top:3px;"><?= h($sel['category']) ?></span>
         </td>
@@ -107,19 +113,25 @@
     $slab = formatDimension($sel['sizes_l'] ?? '', $sel['sizes_h'] ?? '');
     $cut  = formatDimension($sel['cutter_size_l'] ?? '', $sel['cutter_size_h'] ?? '');
   ?>
+   <?php $exceedsM = selectionExceedsAvailable($sel); ?>
   <div class="sel-mobile-card">
     <div style="display:flex;gap:12px;align-items:flex-start;">
       <div class="sel-thumb" style="width:56px;height:56px;flex-shrink:0;">
-        <?php if ($sel['primary_photo'] && file_exists(PHOTOS_DIR . '/' . $sel['primary_photo'])): ?>
+        <?php if ($sel['primary_photo'] && file_exists(PHOTOS_DIR.'/'.$sel['primary_photo'])): ?>
         <img src="assets/uploads/photos/<?= h($sel['primary_photo']) ?>" alt=""/>
         <?php else: ?>
         <?= marbleSVG($pal, 56, 56, 'sm' . $sel['id']) ?>
         <?php endif; ?>
       </div>
       <div style="flex:1;min-width:0;">
-        <a href="index.php?page=product&id=<?= $sel['product_id'] ?>" style="font-weight:600;font-size:14px;color:var(--text);">
-          <?= h($sel['product_name']) ?>
-        </a>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <a href="index.php?page=product&id=<?= $sel['product_id'] ?>" style="font-weight:600;font-size:14px;color:var(--text);">
+            <?= h($sel['product_name']) ?>
+          </a>
+          <?php if ($exceedsM): ?>
+          <span class="sel-exceed-icon" title="You have selected lower quantity product than its available quantity.">!</span>
+          <?php endif; ?>
+        </div>
         <p style="font-size:11px;color:var(--text4);">Lot <?= h($sel['quarry_number']) ?></p>
         <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:5px;">
           <?php if ($sel['thickness']): ?>

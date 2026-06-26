@@ -193,6 +193,17 @@ function createSelection(int $clientId, int $userId, array $data): array {
     return ['success' => true, 'id' => (int)$db->lastInsertId()];
 }
 
+/**
+ * Whether a selection's required quantity exceeds the product's current
+ * available quantity. Computed on the fly (no schema change needed) so it
+ * always reflects live stock and works anywhere a selection row is rendered.
+ */
+function selectionExceedsAvailable(array $selection): bool {
+    $required  = (float)($selection['quantity_required']  ?? 0);
+    $available = (float)($selection['quantity_available'] ?? 0);
+    return $required > 0 && $required > $available;
+}
+
 function updateSelection(int $id, int $userId, array $data): array {
     $area  = trim($data['selection_area']     ?? '');
     $qty   = (float)($data['quantity_required'] ?? 0);

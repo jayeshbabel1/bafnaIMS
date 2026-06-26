@@ -150,5 +150,65 @@ return [
     '--admin-badge-bg'         => '#E84040',
     '--admin-badge-color'      => '#FFFFFF',
   
+   // ── Admin Text ────────────────────────────────────────────────
+    '--admin-text'                  => '#1A2837',
+    '--admin-text2'                 => '#4A6070',
+    '--admin-text3'                 => '#8FA3B1',
+
+    // ── Admin Primary Button ──────────────────────────────────────
+    '--admin-btn-primary-bg'        => '#2C6E8A',
+    '--admin-btn-primary-color'     => '#FFFFFF',
+    '--admin-btn-primary-border'    => '#2C6E8A',
+    '--admin-btn-primary-hover-bg'  => '#1A4D65',
+    '--admin-btn-primary-hover-color' => '#FFFFFF',
+    '--admin-btn-primary-radius'    => '8px',
+
+    // ── Admin Secondary Button ────────────────────────────────────
+    '--admin-btn-sec-bg'            => '#FFFFFF',
+    '--admin-btn-sec-color'         => '#1A2837',
+    '--admin-btn-sec-border'        => '#DDE4EB',
+    '--admin-btn-sec-hover-bg'      => '#EEF2F7',
+    '--admin-btn-sec-hover-color'   => '#1A2837',
+    '--admin-btn-sec-radius'        => '8px',
+
+    // ── Admin Danger Button ───────────────────────────────────────
+    '--admin-btn-danger-bg'         => '#FFF0F0',
+    '--admin-btn-danger-color'      => '#E84040',
+    '--admin-btn-danger-border'     => '#FECACA',
+    '--admin-btn-danger-hover-bg'   => '#E84040',
+    '--admin-btn-danger-hover-color'=> '#FFFFFF',
+
+    // ── Admin General / Toolbar Button ───────────────────────────
+    '--admin-btn-general-bg'        => '#FFFFFF',
+    '--admin-btn-general-color'     => '#1A2837',
+    '--admin-btn-general-border'    => '#DDE4EB',
+    '--admin-btn-general-hover-bg'  => '#EEF2F7',
+    '--admin-btn-general-radius'    => '8px',
+
+    // ── Admin Input / Text field ──────────────────────────────────
+    '--admin-input-bg'              => '#FFFFFF',
+    '--admin-input-color'           => '#1A2837',
+    '--admin-input-placeholder'     => '#8FA3B1',
+    '--admin-input-border'          => '#DDE4EB',
+    '--admin-input-focus-border'    => '#2C6E8A',
+    '--admin-input-focus-shadow'    => 'rgba(44,110,138,0.12)',
+    '--admin-input-hover-border'    => '#4DA8C9',
+    '--admin-input-radius'          => '8px',
+    '--admin-input-font-size'       => '13px',
+
+    // ── Admin Textarea ────────────────────────────────────────────
+    '--admin-textarea-bg'           => '#FFFFFF',
+    '--admin-textarea-color'        => '#1A2837',
+    '--admin-textarea-border'       => '#DDE4EB',
+    '--admin-textarea-focus-border' => '#2C6E8A',
+    '--admin-textarea-radius'       => '8px',
+
+    // ── Admin Label ───────────────────────────────────────────────
+    '--admin-label-color'           => '#4A6070',
+    '--admin-label-font-size'       => '11px',
+    '--admin-label-font-weight'     => '700',
+    '--admin-label-transform'       => 'uppercase',
+    '--admin-label-letter-spacing'  => '0.4px',
+  
   
 ];
