@@ -10,6 +10,7 @@
 <link rel="stylesheet" href="../assets/css/style.css"/>
 <link rel="stylesheet" href="../assets/css/admin.css"/>
 <link rel="stylesheet" href="../assets/css/watermark.css"/>
+  <link rel="stylesheet" href="../assets/css/clients.css"/>
 </head>
 <body class="admin-body">
 
@@ -216,15 +217,19 @@ $e = getFlash('error');
     <nav class="admin-nav">
       <?php
       $navItems = [
-        ['page'=>'dashboard',     'icon'=>'home',    'label'=>'Dashboard'],
-        ['page'=>'products',      'icon'=>'grid',    'label'=>'Products'],
-        ['page'=>'sync',          'icon'=>'refresh', 'label'=>'Sync Product Data'],
-        ['page'=>'users',         'icon'=>'users',   'label'=>'Users'],
-        ['page'=>'notifications', 'icon'=>'bell',    'label'=>'Notifications', 'badge'=>$_notifCount],
-      ];
-      foreach ($navItems as $n): ?>
-      <a href="index.php?page=<?= $n['page'] ?>"
-         class="admin-nav-item <?= $ap === $n['page'] ? 'active' : '' ?>">
+    ['page'=>'dashboard',         'icon'=>'home',    'label'=>'Dashboard'],
+    ['page'=>'products',          'icon'=>'grid',    'label'=>'Products'],
+    ['page'=>'sync',              'icon'=>'refresh', 'label'=>'Sync Product Data'],
+    ['page'=>'users',             'icon'=>'users',   'label'=>'Users'],
+    ['page'=>'admin_clients',     'icon'=>'verified','label'=>'Client Selections'],
+    ['page'=>'notifications',     'icon'=>'bell',    'label'=>'Notifications', 'badge'=>$_notifCount],
+];
+      foreach ($navItems as $n):
+  $isClientsGroup = $n['page'] === 'admin_clients'
+      && in_array($ap, ['admin_clients','admin_client_form','admin_client_selections']);
+?>
+   <a href="index.php?page=<?= $n['page'] ?>"
+   class="admin-nav-item <?= ($ap === $n['page'] || $isClientsGroup) ? 'active' : '' ?>">
         <?= icon($n['icon'], 18) ?>
         <span><?= $n['label'] ?></span>
         <?php if (!empty($n['badge']) && $n['badge'] > 0): ?>

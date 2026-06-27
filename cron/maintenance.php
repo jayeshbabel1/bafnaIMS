@@ -12,15 +12,15 @@
  *
  *
  * Tasks:
- *  1. Auto-archive inquiries older than 25 days (status → 'closed')
- *  2. Delete notifications older than 20 days
+ * 
+ *  1. Delete notifications older than 20 days
  * ─────────────────────────────────────────────────────────────────────────
  */
 
 // Allow CLI + web-cron call; block direct browser access in production
 if (PHP_SAPI !== 'cli' && !defined('ALLOW_CRON_WEB')) {
     // Uncomment the next line in production:
-    // exit('Forbidden');
+    exit('Forbidden');
 }
 
 define('CRON_RUN', true);
@@ -32,19 +32,7 @@ $db  = getDB();
 $now = time();
 $log = [];
 
-// ── 1. Archive stale inquiries ───────────────────────────────────────────────
-$cutoff25 = $now - (25 * 86400); // 25 days ago
-$stmt = $db->prepare("
-    UPDATE inquiries
-    SET    status = 'closed'
-    WHERE  status IN ('pending','replied')
-      AND  created_at < ?
-");
-$stmt->execute([$cutoff25]);
-$archived = $stmt->rowCount();
-$log[] = "[".date('Y-m-d H:i:s')."] Archived $archived inquiries older than 25 days.";
-
-// ── 2. Delete old notifications ──────────────────────────────────────────────
+// ── 1. Delete old notifications ──────────────────────────────────────────────
 $cutoff20 = $now - (20 * 86400); // 20 days ago
 $stmt2 = $db->prepare("DELETE FROM notifications WHERE created_at < ?");
 $stmt2->execute([$cutoff20]);

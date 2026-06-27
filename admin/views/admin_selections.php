@@ -144,7 +144,9 @@ $totalPages = max(1, (int)ceil($total / $perPage));
           $slab_wa = formatDimension($sel['sizes_l'] ?? '', $sel['sizes_h'] ?? '');
           $cut_wa  = formatDimension($sel['cutter_size_l'] ?? '', $sel['cutter_size_h'] ?? '');
           $wa_msg  = "*Product Selection — " . APP_NAME . "*\n\n";
+          $wa_msg .= "*Client Belongs To :* " . h($owner['name']) . "\n";
           $wa_msg .= "*Client:* " . $client['client_name'] . "\n";
+
           $wa_msg .= "*Mobile:* " . $client['client_mobile'] . "\n";
           if ($client['mansoner_name']) {
               $wa_msg .= "*Mason:* " . $client['mansoner_name'] . "\n";

@@ -58,6 +58,76 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Location: /admin/index.php');
         exit;
     }
+  
+  // ─── ADMIN: CREATE CLIENT ───────────────────────────────────────────────────
+if ($action === 'admin_create_client') {
+    requireAdmin();
+    $userId = (int)($_POST['user_id'] ?? 0);
+    $result = adminCreateClient($userId, $_POST);
+    if ($result['success']) {
+        flash('toast', 'Client created successfully.');
+        redirect('index.php?page=admin_client_selections&client_id=' . $result['id']);
+    }
+    $inlineError = $result['error'];
+    include __DIR__ . '/views/admin_client_form.php';
+    exit;
+}
+ 
+// ─── ADMIN: UPDATE CLIENT ───────────────────────────────────────────────────
+if ($action === 'admin_update_client') {
+    requireAdmin();
+    $clientId = (int)($_POST['client_id'] ?? 0);
+    $userId   = (int)($_POST['user_id']   ?? 0);
+    $result   = adminUpdateClient($clientId, $userId, $_POST);
+    if ($result['success']) {
+        flash('toast', 'Client updated successfully.');
+        redirect('index.php?page=admin_client_form&id=' . $clientId);
+    }
+    $inlineError = $result['error'];
+    $_GET['id'] = $clientId; // ensure the form re-displays existing data
+    include __DIR__ . '/views/admin_client_form.php';
+    exit;
+}
+ 
+// ─── ADMIN: DELETE CLIENT ───────────────────────────────────────────────────
+if ($action === 'admin_delete_client') {
+    requireAdmin();
+    $clientId = (int)($_POST['client_id'] ?? 0);
+    adminDeleteClient($clientId);
+    flash('toast', 'Client and all related selections deleted.');
+    redirect('index.php?page=admin_clients');
+}
+ 
+// ─── ADMIN: ADD PRODUCT SELECTION (AJAX — returns JSON) ────────────────────
+if ($action === 'admin_add_selection') {
+    requireAdmin();
+    $clientId  = (int)($_POST['client_id']  ?? 0);
+    $productId = (int)($_POST['product_id'] ?? 0);
+    $result    = adminCreateSelectionForClient($clientId, $productId, $_POST);
+    header('Content-Type: application/json');
+    echo json_encode($result);
+    exit;
+}
+ 
+// ─── ADMIN: UPDATE PRODUCT SELECTION (AJAX) ─────────────────────────────────
+if ($action === 'admin_update_selection') {
+    requireAdmin();
+    $selectionId = (int)($_POST['selection_id'] ?? 0);
+    $result = adminUpdateSelection($selectionId, $_POST);
+    header('Content-Type: application/json');
+    echo json_encode($result);
+    exit;
+}
+ 
+// ─── ADMIN: DELETE PRODUCT SELECTION ────────────────────────────────────────
+if ($action === 'admin_delete_selection') {
+    requireAdmin();
+    $selectionId = (int)($_POST['selection_id'] ?? 0);
+    $clientId    = (int)($_POST['client_id']    ?? 0);
+    adminDeleteSelection($selectionId);
+    flash('toast', 'Product removed from selection.');
+    redirect('index.php?page=admin_client_selections&client_id=' . $clientId);
+}
 
     if ($action === 'save_colors') {
         $defaults = array_keys(require __DIR__ . '/../config/colors.php');
@@ -1028,137 +1098,6 @@ function syncDNAReportsfromdirectory(): void
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// exportCSV() — replace existing function
-// ════════════════════════════════════════════════════════════════════════════
-function exportCSV(): void {
-    $db = getDB();
-    $products = $db->query("SELECT * FROM products ORDER BY id ASC")->fetchAll();
-
-    header('Content-Type: text/csv; charset=UTF-8');
-    header('Content-Disposition: attachment; filename="bafna_products_'.date('Ymd').'.csv"');
-    $out = fopen('php://output', 'w');
-    fprintf($out, chr(0xEF).chr(0xBB).chr(0xBF)); // UTF-8 BOM
-
-    $headers = ['name','category','subcategory','color_subcategory','quarry_number',
-                'total_quantity','quantity_available','quantity_on_hold','pieces',
-                'thickness','sizes_l','sizes_h','cutter_size_l','cutter_size_h',
-                'origin','finish','description',
-                'in_stock','featured','measurement_sheet','dna_report'];
-    fputcsv($out, $headers);
-
-    foreach ($products as $p) {
-        $row = array_map(fn($k) => $p[$k] ?? '', $headers);
-        fputcsv($out, $row);
-    }
-    fclose($out);
-}
-
-// ════════════════════════════════════════════════════════════════════════════
-// importCSV() — replace existing function
-// ════════════════════════════════════════════════════════════════════════════
-function importCSV(?array $file): void {
-    if (!$file || $file['error']) { flash('error','File upload failed.'); return; }
-    $fn  = $file['name'];
-    $ext = strtolower(pathinfo($fn, PATHINFO_EXTENSION));
-    if ($ext !== 'csv') { flash('error','Only CSV files are supported.'); return; }
-
-    $dest = EXCEL_DIR.'/'.time().'_'.$fn;
-    if (!move_uploaded_file($file['tmp_name'], $dest)) { flash('error','Could not save file.'); return; }
-
-    $handle = fopen($dest, 'r');
-    if (!$handle) { flash('error','Could not read file.'); return; }
-
-    $headers = array_map('trim', fgetcsv($handle) ?: []);
-    $db      = getDB();
-    $count   = 0;
-
-    while (($row = fgetcsv($handle)) !== false) {
-        if (count($row) < 2) continue;
-        $data = array_combine(array_slice($headers, 0, count($row)), $row) ?: [];
-        $g    = fn($k) => trim($data[$k] ?? '');
-        $gf   = fn($k) => (float)trim($data[$k] ?? 0);
-        $gi   = fn($k) => (int)trim($data[$k] ?? 0);
-
-        $quarry = $g('quarry_number') ?: $g('Quarry Number') ?: $g('quarry');
-        $name   = $g('name') ?: $g('Name') ?: $g('Product Name');
-        if (!$name) continue;
-
-        $measurement = $g('measurement_sheet') ?: $g('Measurement Sheet');
-        $dna         = $g('dna_report')        ?: $g('DNA Report');
-
-        // Support both old single-column and new split columns in CSV
-        // Old: cutter_size = "104x34" → auto-split; new: cutter_size_l + cutter_size_h
-        $csL = $g('cutter_size_l');
-        $csH = $g('cutter_size_h');
-        if ($csL === '' && $csH === '') {
-            // Try legacy column
-            $old = $g('cutter_size') ?: $g('Cutter Size');
-            if ($old !== '') {
-                $parts = preg_split('/[x×]/i', $old);
-                $csL   = trim($parts[0] ?? '');
-                $csH   = trim($parts[1] ?? '');
-            }
-        }
-
-        $szL = $g('sizes_l');
-        $szH = $g('sizes_h');
-        if ($szL === '' && $szH === '') {
-            $old = $g('sizes') ?: $g('Sizes');
-            if ($old !== '') {
-                $parts = preg_split('/[x×]/i', $old);
-                $szL   = trim($parts[0] ?? '');
-                $szH   = trim($parts[1] ?? '');
-            }
-        }
-
-        $fields = [
-            'name'               => $name,
-            'category'           => $g('category')          ?: $g('Category'),
-            'subcategory'        => $g('subcategory')        ?: $g('Sub Category'),
-            'color_subcategory'  => $g('color_subcategory')  ?: $g('Color'),
-            'quarry_number'      => $quarry,
-            'total_quantity'     => $gf('total_quantity')    ?: $gf('Total Quantity'),
-            'quantity_available' => $gf('quantity_available') ?: $gf('Quantity Available'),
-            'quantity_on_hold'   => $gf('quantity_on_hold')   ?: $gf('Quantity On Hold'),
-            'pieces'             => $gi('pieces')            ?: $gi('Pieces'),
-            'thickness'          => $g('thickness')          ?: $g('Thickness'),
-            'sizes_l'            => $szL,
-            'sizes_h'            => $szH,
-            'cutter_size_l'      => $csL,
-            'cutter_size_h'      => $csH,
-            'origin'             => $g('origin')             ?: $g('Origin'),
-            'finish'             => $g('finish')             ?: $g('Finish'),
-            'description'        => $g('description')        ?: $g('Description'),
-            'in_stock'           => $gi('in_stock')          ?: $gi('In Stock')    ?: 1,
-            'featured'           => $gi('featured')          ?: $gi('Featured'),
-            'measurement_sheet'  => $measurement,
-            'dna_report'         => $dna,
-        ];
-
-        $existing = null;
-        if ($quarry) {
-            $st = $db->prepare("SELECT id FROM products WHERE quarry_number=?");
-            $st->execute([$quarry]);
-            $existing = $st->fetch();
-        }
-
-        if ($existing) {
-            $set  = implode(',', array_map(fn($k) => "$k=?", array_keys($fields)));
-            $vals = array_values($fields);
-            $vals[] = $existing['id'];
-            $db->prepare("UPDATE products SET $set WHERE id=?")->execute($vals);
-        } else {
-            $cols = implode(',', array_keys($fields));
-            $phs  = implode(',', array_fill(0, count($fields), '?'));
-            $db->prepare("INSERT INTO products ($cols) VALUES ($phs)")->execute(array_values($fields));
-        }
-        $count++;
-    }
-    fclose($handle);
-    flash('toast', "Import complete. $count products processed.");
-}
-
-// ════════════════════════════════════════════════════════════════════════════
 // exportExcel() — replace existing function
 // ════════════════════════════════════════════════════════════════════════════
 function exportExcel(): void {
@@ -1212,24 +1151,13 @@ function exportExcel(): void {
         die('<pre>Excel Export Error:'."\n\n".$e->getMessage()."\n\nFile: ".$e->getFile()."\nLine: ".$e->getLine().'</pre>');
     }
 }
-/**
- * PATCH — admin/index.php
- *
- * Replace the existing importExcel() function (the one that starts with
- *   "function importExcel(?array $file): void {"
- * and ends with its closing "}" ) with the function below.
- *
- * No other file needs to change.
- * The flash() call at the bottom of the POST handler that calls importExcel()
- * is now handled inside the function itself, so the redirect still works fine.
- */
 
 // ════════════════════════════════════════════════════════════════════════════
 // importExcel() — full sync: insert new, update existing, delete orphans
 // ════════════════════════════════════════════════════════════════════════════
 function importExcel(?array $file): void {
 
-    // ── 1. Basic file validation ──────────────────────────────────────────
+    //  1. Basic file validation 
     if (!$file || $file['error'] !== UPLOAD_ERR_OK) {
         flash('error', 'File upload failed.');
         return;
@@ -1247,7 +1175,7 @@ function importExcel(?array $file): void {
         return;
     }
 
-    // ── 2. Load spreadsheet ───────────────────────────────────────────────
+    //  2. Load spreadsheet 
     try {
         $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($dest);
         $rows        = $spreadsheet->getActiveSheet()->toArray();
@@ -1261,7 +1189,7 @@ function importExcel(?array $file): void {
         return;
     }
 
-    // ── 3. Parse headers ──────────────────────────────────────────────────
+    //  3. Parse headers 
     $excelHeaders = array_map(fn($h) => trim((string)$h), array_shift($rows));
 
     $headerMap = [
@@ -1293,7 +1221,7 @@ foreach ($excelHeaders as $h) {
     $headers[] = $headerMapCI[$lookupKey] ?? strtolower(str_replace(' ', '_', $clean));
 }
 
-    // ── 4. Collect & validate rows ────────────────────────────────────────
+    //  4. Collect & validate rows 
     $importedQuarries = [];   // quarry_number => field array
     $errors           = [];
 
@@ -1376,7 +1304,7 @@ foreach ($excelHeaders as $h) {
         return;
     }
 
-    // ── 5. Load existing products from DB ─────────────────────────────────
+    //  5. Load existing products from DB 
     $db = getDB();
 
     $existing = $db
@@ -1389,7 +1317,7 @@ foreach ($excelHeaders as $h) {
         $dbQuarryMap[strtoupper($row['quarry_number'])] = (int)$row['id'];
     }
 
-    // ── 6. Determine add / update / delete sets ───────────────────────────
+    //  6. Determine add / update / delete sets 
     $importedSet = array_keys($importedQuarries);          // quarries in file
     $dbSet       = array_keys($dbQuarryMap);               // quarries in DB
 
@@ -1401,18 +1329,18 @@ foreach ($excelHeaders as $h) {
     $countUpdated = 0;
     $countDeleted = 0;
 
-    // ── 7. Run everything inside a transaction ────────────────────────────
+    //  7. Run everything inside a transaction 
     try {
         $db->beginTransaction();
 
-        // ── 7a. DELETE orphaned products ──────────────────────────────────
+        //  7a. DELETE orphaned products 
         foreach ($toDelete as $quarry) {
             $pid = $dbQuarryMap[$quarry];
             _deleteProductWithDependencies($db, $pid);
             $countDeleted++;
         }
 
-        // ── 7b. UPDATE existing products ──────────────────────────────────
+        //  7b. UPDATE existing products 
         foreach ($toUpdate as $quarry) {
             $pid    = $dbQuarryMap[$quarry];
             $fields = $importedQuarries[$quarry];
@@ -1424,7 +1352,7 @@ foreach ($excelHeaders as $h) {
             $countUpdated++;
         }
 
-        // ── 7c. INSERT new products ───────────────────────────────────────
+        //  7c. INSERT new products 
         foreach ($toInsert as $quarry) {
             $fields = $importedQuarries[$quarry];
             $cols   = implode(', ', array_keys($fields));
@@ -1445,7 +1373,7 @@ foreach ($excelHeaders as $h) {
         unlink($dest);}
     }
 
-    // ── 8. Notification & summary flash ──────────────────────────────────
+    //  8. Notification & summary flash 
     createNotification(
         'Inventory Synced',
         "Import complete — {$countAdded} added, {$countUpdated} updated, {$countDeleted} deleted.",
@@ -1469,12 +1397,11 @@ foreach ($excelHeaders as $h) {
   
 }
 
-// ════════════════════════════════════════════════════════════════════════════
 // _deleteProductWithDependencies()
 // Removes a product and ALL dependent data/files. Used by importExcel().
 // Also add this as a standalone helper so delete_product POST action can
 // call it too (optional — it replaces the inline delete logic there).
-// ════════════════════════════════════════════════════════════════════════════
+
 function _deleteProductWithDependencies(\PDO $db, int $pid): void {
 
     // 1. Collect photo filenames and delete files from disk
@@ -1511,7 +1438,7 @@ function _deleteProductWithDependencies(\PDO $db, int $pid): void {
     $db->prepare("DELETE FROM products WHERE id = ?")->execute([$pid]);
 }
 
-// ── Step 1: Sync Photos from /assets/uploads/photos/ ─────────────────────────
+// ── Step 1: Sync Photos from /assets/uploads/photos/ 
 function syncImages(): array {
 
     $db = getDB();
@@ -1899,7 +1826,8 @@ function syncDnaReports(): array {
 
 
 $pages = ['dashboard','products','product_edit','colors','users','inquiries','sync',
-          'notifications','logo','user_clients','admin_selections','smtp'];
+          'notifications','logo','user_clients','admin_selections','smtp',
+          'admin_clients','admin_client_form','admin_client_selections'];
 $file  = in_array($page, $pages)
        ? __DIR__ . '/views/' . $page . '.php'
        : __DIR__ . '/views/dashboard.php';
