@@ -46,20 +46,23 @@
   <td style="font-size:11px;color:var(--admin-text3,var(--text3));white-space:nowrap;"><?= date('d M Y', $c['created_at']) ?></td>
   <td>
     <div style="display:flex;gap:5px;">
-      <a href="index.php?page=admin_client_selections&client_id=<?= $c['id'] ?>"
-         class="btn-admin-secondary btn-admin-sm btn-admin-labeled" title="Manage Selections">
-        <?= icon('grid', 13) ?> Selections
-      </a>
-      <a href="index.php?page=admin_client_form&id=<?= $c['id'] ?>"
-         class="btn-admin-secondary btn-admin-sm" title="Edit">
-        <?= icon('edit', 13) ?>
-      </a>
-      <button type="button" class="btn-admin-danger btn-admin-sm ac-delete-btn"
-              data-id="<?= $c['id'] ?>" data-name="<?= h(addslashes($c['client_name'])) ?>"
-              title="Delete">
-        <?= icon('trash', 13) ?>
-      </button>
-    </div>
+    <a href="index.php?page=admin_client_selections&client_id=<?= $c['id'] ?>"
+       class="btn-admin-secondary btn-admin-sm btn-admin-labeled">
+      <?= icon('grid', 13) ?> Selections
+    </a>
+    <?php if (adminCan('clients.edit')): ?>
+    <a href="index.php?page=admin_client_form&id=<?= $c['id'] ?>"
+       class="btn-admin-secondary btn-admin-sm">
+      <?= icon('edit', 13) ?>
+    </a>
+    <?php endif; ?>
+    <?php if (adminCan('clients.delete')): ?>
+    <button type="button" class="btn-admin-danger btn-admin-sm ac-delete-btn"
+            data-id="<?= $c['id'] ?>" data-name="<?= h(addslashes($c['client_name'])) ?>">
+      <?= icon('trash', 13) ?>
+    </button>
+    <?php endif; ?>
+  </div>
   </td>
 </tr>
 <?php endforeach; endif; ?>

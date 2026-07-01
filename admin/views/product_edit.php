@@ -12,6 +12,7 @@ if ($pid) {
 }
  
 $adminTitle = $p ? 'Edit: ' . $p['name'] : 'Add Product';
+requireAdminPermission('products.view');
 include __DIR__ . '/../_layout_top.php';
  
 $pal = $p ? (json_decode($p['palette']??'[]',true) ?: ['F2F0EC','D8CFC4','BFB0A0']) : ['F2F0EC','D8CFC4','BFB0A0'];
@@ -161,28 +162,32 @@ $g   = fn($k) => h($p[$k] ?? '');
         }
     }
     ?>
+  <?php if (adminCan('products.whatsapp')): ?>
     <button type="button"
             onclick="openWaShare(<?= $pid ?>, <?= h(json_encode($p['name'])) ?>, <?= h(json_encode($p['quarry_number'])) ?>, <?= h(json_encode($waThumb)) ?>)"
             class="btn-admin-secondary btn-admin-sm"
             style="color:#25D366;border-color:#25D366;">
         <?= icon('whatsapp',14) ?> Share
     </button>
+  <?php endif; ?>
+   <?php if (adminCan('products.pdf')): ?>
     <button type="button" id="pdfDownloadBtn"
             onclick="downloadProductPdf(<?= $pid ?>, <?= h(json_encode($p['name'])) ?>)"
             class="btn-admin-secondary btn-admin-sm"
             style="color:var(--danger);border-color:var(--danger);">
         <?= icon('pdf',14) ?> PDF
     </button>
+  <?php endif; ?>
     <?php endif; ?>
 </div>
  
 <form method="POST" action="index.php" enctype="multipart/form-data" id="productForm">
     <input type="hidden" name="action"     value="save_product"/>
     <input type="hidden" name="product_id" value="<?= $pid ?>"/>
- 
+    <?= csrfField() ?>
     <div class="pe-layout">
  
-        <!-- ── LEFT / MAIN COLUMN ─────────────────────────────── -->
+        <!--  LEFT / MAIN COLUMN  -->
         <div class="pe-main">
  
             <!-- Basic Info -->
@@ -359,7 +364,7 @@ $g   = fn($k) => h($p[$k] ?? '');
  
         </div><!-- /.pe-main -->
  
-        <!-- ── RIGHT / SIDE COLUMN ────────────────────────────── -->
+        <!--  RIGHT / SIDE COLUMN  -->
         <div class="pe-side">
  
             <!-- Photos -->
@@ -379,6 +384,7 @@ $g   = fn($k) => h($p[$k] ?? '');
                         <?php endif; ?>
                         <form method="POST" action="index.php" style="display:contents;">
                             <input type="hidden" name="photo_id" value="<?= $ph['id'] ?>"/>
+                          <?= csrfField() ?>
                             <button type="submit" name="action" value="delete_photo"
                                     formaction="index.php"
                                     class="photo-grid-del"

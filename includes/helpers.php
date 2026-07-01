@@ -1,22 +1,31 @@
 <?php
+//  CSRF protection 
+function csrfToken(): string {
+    if (empty($_SESSION['csrf_token'])) {
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+    }
+    return $_SESSION['csrf_token'];
+}
+function csrfField(): string {
+    return '<input type="hidden" name="csrf_token" value="' . h(csrfToken()) . '">';
+}
+function csrfVerify(): void {
+    $token = $_POST['csrf_token'] ?? '';
+    if (!hash_equals($_SESSION['csrf_token'] ?? '', (string)$token)) {
+        http_response_code(403);
+        die('Security check failed. Please refresh the page and try again.');
+    }
+}
+
 function h(string $s): string { return htmlspecialchars($s, ENT_QUOTES, 'UTF-8'); }
 function titleCase(string $s): string {return mb_convert_case(mb_strtolower(trim($s)), MB_CASE_TITLE, 'UTF-8');}
 function redirect(string $url): never {
-    // For admin panel pages: convert bare relative URLs like
-    // "index.php?page=..." to "/admin/index.php?page=..." so the
-    // browser always hits the right directory regardless of how the
-    // server is configured.
-    //
-    // Guard: only prepend if the URL is truly relative (no leading
-    // slash or scheme) AND doesn't already contain "/admin/" to
-    // prevent the double-path bug /admin/admin/index.php.
-    if (
+        if (
         defined('ADMIN_PANEL') && ADMIN_PANEL
         && !preg_match('#^(https?://|/)#i', $url)
     ) {
         $url = '/admin/' . $url;
     }
-    // Safety net: collapse any accidental double segment
     $url = preg_replace('#/admin/admin/#', '/admin/', $url);
  
     header("Location: $url");
@@ -29,11 +38,7 @@ function getFlash(string $key): ?string {
     return $m;
 }
 
-// ── Dimension helpers ──────────────────────────────────────────────────────────
-/**
- * Format two dimension parts as "L x H".
- * Returns empty string if both parts are empty.
- */
+//  Dimension helpers 
 function formatDimension(string $l, string $h, string $sep = ' x '): string {
     $l = trim($l);
     $h = trim($h);
@@ -63,7 +68,7 @@ function formatSizes(array $product): string {
     );
 }
 
-// ── Settings ───────────────────────────────────────────────────────────────────
+//  Settings 
 function getSetting(string $key, string $default = ''): string {
     static $cache = null;
     if ($cache === null) {
@@ -75,14 +80,6 @@ function getSetting(string $key, string $default = ''): string {
 function setSetting(string $key, string $value): void {
     getDB()->prepare("INSERT INTO settings (`key`,`value`) VALUES (?,?) ON DUPLICATE KEY UPDATE `value`=VALUES(`value`)")->execute([$key, $value]);
 }
-
-/**
- * PATCH 02 — includes/helpers.php
- *
- * FIND the existing getCSSVariables() function and REPLACE it with the
- * version below. Also ADD the new getFontEmbedUrl() function immediately
- * after getCSSVariables().
- */
 
 function getCSSVariables(bool $isAdmin = false): string {
 
@@ -121,31 +118,28 @@ function getCSSVariables(bool $isAdmin = false): string {
         $css .= "{$k}:{$v};\n";
     }
  
-    // ── When rendering for the admin panel, overlay the dedicated
-    //    admin-* variables onto the standard variable names so that
-    //    all existing CSS that uses --bg, --surface, --accent, etc.
-    //    automatically picks up the admin-specific palette without
+    
     if ($isAdmin) {
         $adminOverrides = [
-            // ── Shell / surfaces ─────────────────────────────────
+            //  Shell / surfaces 
             '--bg'               => '--admin-bg',
             '--surface'          => '--admin-surface',
             '--surface2'         => '--admin-surface2',
             '--surface3'         => '--admin-surface3',
-            // ── Accent ───────────────────────────────────────────
+            //  Accent 
             '--accent'           => '--admin-accent',
             '--accent2'          => '--admin-accent2',
             '--accent-light'     => '--admin-accent-light',
             '--accent-mid'       => '--admin-accent-mid',
-            // ── Border ───────────────────────────────────────────
+            //  Border 
             '--border'           => '--admin-table-border',
-            // ── Nav / sidebar ────────────────────────────────────
+            //  Nav / sidebar 
             '--nav-bg'           => '--admin-sidebar-from',
-            // ── Text ─────────────────────────────────────────────
+            //  Text 
             '--text'             => '--admin-text',
             '--text2'            => '--admin-text2',
             '--text3'            => '--admin-text3',
-            // ── Input (admin-input-* → generic input-* fallbacks) ─
+            //  Input (admin-input-* → generic input-* fallbacks) ─
             '--input-bg'         => '--admin-input-bg',
             '--input-color'      => '--admin-input-color',
             '--input-placeholder'=> '--admin-input-placeholder',
@@ -155,7 +149,7 @@ function getCSSVariables(bool $isAdmin = false): string {
             '--input-hover-border' => '--admin-input-hover-border',
             '--input-radius'     => '--admin-input-radius',
             '--input-font-size'  => '--admin-input-font-size',
-            // ── Label ────────────────────────────────────────────
+            //  Label 
             '--label-color'        => '--admin-label-color',
             '--label-font-size'    => '--admin-label-font-size',
             '--label-font-weight'  => '--admin-label-font-weight',
@@ -180,18 +174,6 @@ function getCSSVariables(bool $isAdmin = false): string {
     return $css;
 }
 
-
-// ─────────────────────────────────────────────────────────────────────────
-// ADD this NEW function immediately after getCSSVariables():
-// ─────────────────────────────────────────────────────────────────────────
-
-/**
- * Returns a Google Fonts embed URL for the fonts currently selected in
- * admin and user panel settings.  Pass $isAdmin to get the right family.
- *
- * Usage in layouts:
- *   <link rel="stylesheet" href="<?= getFontEmbedUrl(false) ?>"/>
- */
 function getFontEmbedUrl(bool $isAdmin = false): string {
     static $cache = [];
     $cacheKey = $isAdmin ? 'admin' : 'user';
@@ -223,7 +205,7 @@ function getFontEmbedUrl(bool $isAdmin = false): string {
     return $url;
 }
 
-// ── SVG Marble pattern ─────────────────────────────────────────────────────────
+//  SVG Marble pattern 
 function marbleSVG(array $palette, int $w = 200, int $h_val = 200, string $uid = ''): string {
     [$c1, $c2, $c3] = array_pad($palette, 3, 'CCCCCC');
     if (!$uid) $uid = 'mb' . substr(md5(implode($palette)), 0, 8);
@@ -247,7 +229,7 @@ function marbleSVG(array $palette, int $w = 200, int $h_val = 200, string $uid =
 SVG;
 }
 
-// ── SVG Icons ──────────────────────────────────────────────────────────────────
+// SVG Icons 
 function icon(string $name, int $size = 20, string $class = ''): string {
     static $paths = [
         'home'      => '<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>',
@@ -294,7 +276,7 @@ function icon(string $name, int $size = 20, string $class = ''): string {
     return "<svg{$cls} width=\"{$size}\" height=\"{$size}\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\">{$body}</svg>";
 }
 
-// ── Product helpers ────────────────────────────────────────────────────────────
+//  Product helpers 
 function getProducts(array $filters = []): array {
     $db   = getDB();
     $sql  = "SELECT p.*, (SELECT filename FROM product_photos WHERE product_id=p.id ORDER BY sort_order LIMIT 1) AS primary_photo FROM products p WHERE 1=1";
@@ -374,16 +356,6 @@ function timeAgo(int $timestamp): string {
     return date('d M Y', $timestamp);
 }
 
-/**
- * Case-insensitive file lookup.
- * Tries the exact path first (fast path). If it doesn't exist, scans the
- * parent directory for a case-insensitive match and returns the real path
- * (relative to PHOTOS_DIR or whatever base dir was passed), or null if
- * truly not found anywhere.
- *
- * Handles folder-casing drift between DB (e.g. "White/file.jpg") and the
- * actual filesystem (e.g. "white/file.jpg") on case-sensitive servers.
- */
 function resolvePhotoPath(string $baseDir, string $relativePath): ?string {
     $fullPath = $baseDir . '/' . $relativePath;
 
@@ -399,8 +371,7 @@ function resolvePhotoPath(string $baseDir, string $relativePath): ?string {
 
     $searchDir = $subDir !== '' ? $baseDir . '/' . $subDir : $baseDir;
 
-    // If even the subfolder path (with correct case) doesn't exist,
-    // try to find a case-insensitively matching folder under baseDir
+  
     if ($subDir !== '' && !is_dir($searchDir)) {
         $found = false;
         foreach (scandir($baseDir) ?: [] as $entry) {

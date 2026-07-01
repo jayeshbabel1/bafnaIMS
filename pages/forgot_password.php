@@ -49,6 +49,7 @@
 
       <form method="POST" action="index.php?page=forgot_password">
         <input type="hidden" name="action" value="forgot_password"/>
+         <?= csrfField() ?>
         <div class="input-group">
           <label class="input-label">Email Address</label>
           <input type="email" name="email" class="input-field"

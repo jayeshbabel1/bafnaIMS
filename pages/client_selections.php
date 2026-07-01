@@ -125,6 +125,7 @@ if ($isAjax) {
         <input type="hidden" name="action"       value="update_selection"/>
         <input type="hidden" name="selection_id" id="editSelId"/>
         <input type="hidden" name="client_id"    value="<?= $clientId ?>"/>
+        <?= csrfField() ?>
         <div class="input-group">
           <label class="input-label">Selection Area / Room</label>
           <input type="text" name="selection_area" id="editSelArea" class="input-field" placeholder="e.g. Master Bedroom"/>
@@ -201,6 +202,7 @@ if ($isAjax) {
         form.innerHTML = '<input type="hidden" name="action" value="delete_selection"/>' +
           '<input type="hidden" name="selection_id" value="' + btn.dataset.id + '"/>' +
           '<input type="hidden" name="client_id" value="' + clientId + '"/>';
+          '<input type="hidden" name="csrf_token" value="<?=h(csrfToken()) ?>"/>';
         document.body.appendChild(form); form.submit();
       });
     });

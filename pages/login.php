@@ -38,6 +38,7 @@
 
       <form method="POST" action="index.php?page=login" novalidate>
         <input type="hidden" name="action" value="login"/>
+         <?= csrfField() ?>
         <div class="input-group">
           <label class="input-label">Email Address</label>
           <input type="email" name="email" class="input-field"

@@ -1,24 +1,33 @@
 <?php
+$_envFile = dirname(__DIR__) . '/.env';
+if (file_exists($_envFile)) {
+    foreach (file($_envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $_line) {
+        if (str_starts_with(trim($_line), '#')) continue;
+        [$k, $v] = array_pad(explode('=', $_line, 2), 2, '');
+        if ($k !== '') putenv(trim($k) . '=' . trim($v));
+    }
+}
+
 define('APP_NAME',    'Bafna Marble');
-define('APP_VERSION', '2.0.0');
+define('APP_VERSION', '3.0.0');
 define('BASE_PATH',   dirname(__DIR__));
 define('BASE_URL',    (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS']==='on' ? 'https' : 'http').'://'.($_SERVER['HTTP_HOST'] ?? 'localhost'));
 
-// ── MySQL Database ─────────────────────────────────────────────────────────
-define('DB_HOST',     'localhost');
-define('DB_PORT',     '3306');
-define('DB_NAME',     'bmarble_ims');
-define('DB_USER',     'bmarble_imsu');
-define('DB_PASS',     'ydfLSUJIy84F');
-define('DB_CHARSET',  'utf8mb4');
+// MySQL Database 
+define('DB_HOST',     getenv('DB_HOST')    ?: 'localhost');
+define('DB_PORT',     getenv('DB_PORT')    ?: '3306');
+define('DB_NAME',     getenv('DB_NAME')    ?: 'bmarble_ims');
+define('DB_USER',     getenv('DB_USER')    ?: '');
+define('DB_PASS',     getenv('DB_PASS')    ?: '');
+define('DB_CHARSET',  getenv('DB_CHARSET') ?: 'utf8mb4');
 
-// ── Upload Directories ─────────────────────────────────────────────────────
+//  Upload Directories
 define('PHOTOS_DIR',      BASE_PATH . '/assets/uploads/photos');
 define('MEASUREMENT_DIR', BASE_PATH . '/assets/uploads/measurement_sheets');
 define('DNA_DIR',         BASE_PATH . '/assets/uploads/dna_reports');
 define('EXCEL_DIR',       BASE_PATH . '/assets/uploads/excel');
 
-define('SESSION_TTL',  86400 * 2); // 7 days
+define('SESSION_TTL',  86400 * 2); // 2 days
 // SMTP SETTINGS
 
 define('MAIL_FROM',      'noreply@bafnamarbles.com');
@@ -37,7 +46,23 @@ define('ROLES', [
 ]);
 define('EXPERIENCE_OPTIONS', ['0–2 years','3–5 years','6–10 years','10+ years']);
 
-// ── Ensure upload directories exist ───────────────────────────────────────
+//  Ensure upload directories exist 
 foreach ([PHOTOS_DIR, MEASUREMENT_DIR, DNA_DIR, EXCEL_DIR] as $_dir) {
     if (!is_dir($_dir)) @mkdir($_dir, 0755, true);
 }
+
+
+ // Security headers (applied to every request) 
+ if (!headers_sent()) {
+     header('X-Content-Type-Options: nosniff');
+    header('X-Frame-Options: SAMEORIGIN');
+     header('Referrer-Policy: strict-origin-when-cross-origin');
+     header('Permissions-Policy: geolocation=(), microphone=(), camera=()');
+     header(
+         "Content-Security-Policy: default-src 'self'; " .
+         "img-src 'self' data: https:; " .
+         "script-src 'self' 'unsafe-inline'; " .
+         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " .
+         "font-src 'self' https://fonts.gstatic.com;"
+     );
+ }

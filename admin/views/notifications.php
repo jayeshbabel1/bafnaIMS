@@ -1,30 +1,30 @@
 <?php
 /**
- * admin/views/notifications.php — Task 3: Admin Notification Panel
+ * admin/views/notifications.php — with RBAC guards
  */
+requireAdminPermission('notifications.view');
+
 $adminTitle = 'Notifications';
 include __DIR__ . '/../_layout_top.php';
 
 $db = getDB();
 
-// Mark all as read when viewing the page
 $db->exec("UPDATE notifications SET is_read = 1");
 
-// Fetch last 20 days
 $cutoff = time() - (20 * 86400);
 $st = $db->prepare("SELECT * FROM notifications WHERE created_at >= ? ORDER BY created_at DESC");
 $st->execute([$cutoff]);
 $notifications = $st->fetchAll();
 
-// Also purge older ones silently
 $db->prepare("DELETE FROM notifications WHERE created_at < ?")->execute([$cutoff]);
 ?>
 
 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
   <p style="font-size:13px;color:var(--text3);"><?= count($notifications) ?> notification<?= count($notifications) !== 1 ? 's' : '' ?> in the last 20 days</p>
-  <?php if (!empty($notifications)): ?>
+   <?php if (!empty($notifications) && adminCan('notifications.clear')): ?>
   <form method="POST" action="index.php">
     <input type="hidden" name="action" value="clear_notifications"/>
+    <?= csrfField() ?>
     <button type="submit" class="btn-admin-secondary btn-admin-sm"
             data-confirm="Clear all notifications?"><?= icon('trash', 13) ?> Clear All</button>
   </form>

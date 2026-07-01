@@ -3,6 +3,7 @@
  * admin/views/smtp.php — SMTP Settings
  */
 $adminTitle = 'SMTP Settings';
+requireAdminPermission('settings.smtp');
 include __DIR__ . '/../_layout_top.php';
 
 $db = getDB();
@@ -38,6 +39,7 @@ input[type="checkbox"].toggle:checked::after { left: 23px; }
 
 <form method="POST" action="index.php" id="smtpForm">
   <input type="hidden" name="action" value="save_smtp"/>
+  <?= csrfField() ?>
 
   <!-- Enable toggle -->
   <div class="admin-form-section" style="margin-bottom:20px;">
@@ -68,7 +70,8 @@ input[type="checkbox"].toggle:checked::after { left: 23px; }
         <label class="admin-label">SMTP Password</label>
         <div style="position:relative;">
           <input type="password" name="smtp_password" id="smtpPass" class="admin-input" placeholder="••••••••"
-                 value="<?= sg($s,'smtp_password') ?>" autocomplete="new-password"
+                  value="" autocomplete="new-password"
+                <?= $s['smtp_password'] !== '' ? 'data-has-saved-password="1"' : '' ?>
                  style="padding-right:42px;"/>
           <button type="button" onclick="toggleSmtpPass()"
                   style="position:absolute;right:10px;top:50%;transform:translateY(-50%);color:var(--text3);cursor:pointer;">

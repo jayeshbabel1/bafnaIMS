@@ -1,19 +1,6 @@
 <?php
-/**
- * admin/views/users.php
- * PATCH: Adds "Create User" button + modal.
- * All existing AJAX pagination, edit, delete functionality is unchanged.
- * ─────────────────────────────────────────────────────────────────────────
- * WHAT CHANGED vs original:
- *  1. Toolbar: "+ Add User" button added next to the search bar.
- *  2. New #createUserModal at end of file (before _layout_bottom).
- *  3. JS: openCreateUser() / closeCreateUser() helpers + Enter-key submit.
- *  4. Password strength meter reuses existing .pwd-strength / app.js logic.
- *  5. Nothing else is touched — AJAX load(), bindPag(), edit/delete modals
- *     are byte-for-byte identical to the original.
- */
 
-// ── AJAX handler — runs before layout ────────────────────────────────────────
+//  AJAX handler — runs before layout 
 if (!empty($_GET['ajax_users'])) {
     $db      = getDB();
     $search  = trim($_GET['q']   ?? '');
@@ -72,6 +59,7 @@ if (!empty($_GET['ajax_users'])) {
           <input type="hidden" name="action"   value="update_user_status"/>
           <input type="hidden" name="user_id"  value="<?= $u['id'] ?>"/>
           <input type="hidden" name="verified" id="vval<?= $u['id'] ?>" value="<?= $isVerified ? 0 : 1 ?>"/>
+          <?= csrfField() ?>
           <div class="usr-toggle">
             <input type="checkbox"
                    <?= $isVerified ? 'checked' : '' ?>
@@ -84,29 +72,36 @@ if (!empty($_GET['ajax_users'])) {
       <td style="color:var(--text3);font-size:11px;"><?= date('d M Y', $u['created_at']) ?></td>
       <td>
         <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;">
-          <button type="button"
+    <?php if (adminCan('users.edit')): ?>
+    <button type="button"
                   onclick="openEditUser(<?= $u['id'] ?>,<?= h(json_encode($u['name'])) ?>,<?= h(json_encode($u['email'])) ?>,<?= h(json_encode($u['phone']??'')) ?>,<?= h(json_encode($u['firm']??'')) ?>,<?= h(json_encode($u['city']??'')) ?>,<?= h(json_encode($u['role']??'')) ?>)"
                   class="btn-admin-secondary btn-admin-sm" title="Edit user">
             <?= icon('edit',13) ?>
           </button>
-          <form method="POST" action="index.php" style="display:inline;">
-            <input type="hidden" name="action"  value="send_password_reset"/>
-            <input type="hidden" name="user_id" value="<?= $u['id'] ?>"/>
-            <button type="submit" class="btn-admin-secondary btn-admin-sm" title="Send password reset">
-              <?= icon('mail',13) ?>
-            </button>
-          </form>
-          <a href="index.php?page=user_clients&user_id=<?= $u['id'] ?>"
-             class="btn-admin-secondary btn-admin-sm" title="View clients"
-             style="display:inline-flex;align-items:center;gap:4px;text-decoration:none;">
-            <?= icon('users',13) ?>
-          </a>
-          <button type="button" class="btn-admin-danger btn-admin-sm"
-                  onclick="openDeleteModal(<?= $u['id'] ?>, '<?= h(addslashes($u['name'])) ?>')"
-                  title="Delete user">
-            <?= icon('trash',13) ?>
-          </button>
-        </div>
+    <?php endif; ?>
+    <?php if (adminCan('users.reset_password')): ?>
+    <form method="POST" action="index.php" style="display:inline;">
+      <input type="hidden" name="action"  value="send_password_reset"/>
+      <input type="hidden" name="user_id" value="<?= $u['id'] ?>"/>
+      <?= csrfField() ?>
+      <button type="submit" class="btn-admin-secondary btn-admin-sm" title="Send password reset">
+        <?= icon('mail',13) ?>
+      </button>
+    </form>
+    <?php endif; ?>
+    <a href="index.php?page=user_clients&user_id=<?= $u['id'] ?>"
+       class="btn-admin-secondary btn-admin-sm" title="View clients"
+       style="display:inline-flex;align-items:center;gap:4px;text-decoration:none;">
+      <?= icon('users',13) ?>
+    </a>
+    <?php if (adminCan('users.delete')): ?>
+    <button type="button" class="btn-admin-danger btn-admin-sm"
+            onclick="openDeleteModal(<?= $u['id'] ?>, '<?= h(addslashes($u['name'])) ?>')"
+            title="Delete user">
+      <?= icon('trash',13) ?>
+    </button>
+    <?php endif; ?>
+  </div>
       </td>
     </tr>
     <?php endforeach; endif;
@@ -140,6 +135,7 @@ if (!empty($_GET['ajax_users'])) {
 }
 
 $adminTitle = 'Users';
+requireAdminPermission('users.view');
 include __DIR__ . '/../_layout_top.php';
 $db = getDB();
 ?>
@@ -172,14 +168,15 @@ $db = getDB();
 .auto-pwd-row input[type=checkbox]{width:15px;height:15px;accent-color:var(--accent);cursor:pointer;}
 </style>
 
-<!-- ── Toolbar ───────────────────────────────────────────────────────────── -->
+<!--  Toolbar  -->
 <div class="users-toolbar">
  
   <!-- Add User -->
-  <button type="button" onclick="openCreateUser()"
-          class="admin-toolbar-btn admin-toolbar-btn--primary">
+  <?php if (adminCan('users.create')): ?>
+  <button type="button" onclick="openCreateUser()" class="admin-toolbar-btn admin-toolbar-btn--primary">
     <?= icon('plus',14) ?> Add User
   </button>
+  <?php endif; ?>
  
   <!-- Search -->
   <div class="users-search-wrap" id="userSearchWrap">
@@ -262,7 +259,7 @@ $db = getDB();
 
     <form method="POST" action="index.php" id="createUserForm">
       <input type="hidden" name="action" value="create_user"/>
-
+      <?= csrfField() ?>
       <!-- Name + Email -->
       <div class="admin-form-grid" style="margin-bottom:0;">
         <div style="margin-bottom:14px;">
@@ -364,6 +361,7 @@ $db = getDB();
     <form method="POST" action="index.php" id="editUserForm">
       <input type="hidden" name="action"  value="save_user_edit"/>
       <input type="hidden" name="user_id" id="editUserId"/>
+      <?= csrfField() ?>
       <div class="admin-form-grid" style="margin-bottom:0;">
         <div>
           <label class="admin-label">Full Name *</label>
@@ -428,6 +426,7 @@ $db = getDB();
         <input type="hidden" name="action"       value="delete_user"/>
         <input type="hidden" name="user_id"      id="delUserId" value=""/>
         <input type="hidden" name="confirm_text" id="delConfirmHidden" value=""/>
+        <?= csrfField() ?>
         <button type="submit" id="delConfirmBtn" class="btn-admin-danger" style="width:100%;justify-content:center;" disabled
                 onclick="document.getElementById('delConfirmHidden').value=document.getElementById('delConfirmInput').value;">
           <?= icon('trash',14) ?> Delete Permanently

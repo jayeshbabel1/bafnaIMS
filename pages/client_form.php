@@ -40,6 +40,7 @@ $g = fn($k) => h($c[$k] ?? '');
     <form method="POST" action="index.php" id="clientForm" novalidate>
       <input type="hidden" name="action"    value="<?= $id ? 'update_client' : 'create_client' ?>"/>
       <input type="hidden" name="client_id" value="<?= $id ?>"/>
+      <?= csrfField() ?>
 
       <!-- Client section -->
       <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text4);margin-bottom:14px;">Client Details</p>

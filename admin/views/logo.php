@@ -3,6 +3,7 @@
  * admin/views/logo.php — Company Profile (logo + business details)
  */
 $adminTitle = 'Company Profile';
+requireAdminPermission('settings.logo');
 include __DIR__ . '/../_layout_top.php';
 require_once BASE_PATH . '/includes/logo.php';
 $currentLogo = getLogo(true);
@@ -62,7 +63,7 @@ $cp = [
   <!-- ══ SECTION 1: Company Profile ══════════════════════════════════════ -->
   <form method="POST" action="index.php" id="companyProfileForm">
     <input type="hidden" name="action" value="save_company_profile"/>
-
+<?= csrfField() ?>
     <div class="admin-form-section">
       <p class="admin-form-section-title">Company Information</p>
       <p style="font-size:12px;color:var(--text3);margin-bottom:16px;line-height:1.6;">
@@ -224,7 +225,7 @@ $cp = [
 
     <form method="POST" action="index.php" enctype="multipart/form-data" id="logoUploadForm">
       <input type="hidden" name="action" value="upload_logo"/>
-
+      <?= csrfField() ?>
       <div class="logo-upload-zone" id="logoDropZone">
         <input type="file" name="logo_file" id="logoFileInput" accept=".png,.jpg,.jpeg,.webp" class="logo-file-input"/>
         <div class="logo-upload-inner" id="logoUploadInner">
@@ -244,6 +245,7 @@ $cp = [
         <?php if ($currentLogo): ?>
         <form method="POST" action="index.php" style="display:inline;" id="logoRemoveForm">
           <input type="hidden" name="action" value="remove_logo"/>
+          <?= csrfField() ?>
           <button type="submit" class="btn-admin-danger btn-admin-sm"
                   data-confirm="Remove logo and use default?"><?= icon('trash', 13) ?> Remove Logo</button>
         </form>

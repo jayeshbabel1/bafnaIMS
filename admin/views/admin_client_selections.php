@@ -46,6 +46,7 @@ if (!empty($_GET['ajax_product_search'])) {
 }
 
 $adminTitle = 'Selections — ' . $client['client_name'];
+requireAdminPermission('clients.view');
 include __DIR__ . '/../_layout_top.php';
 
 $perPage     = 10;
@@ -179,6 +180,7 @@ $totalPages = max(1, (int)ceil($total / $perPage));
           <input type="hidden" name="action"    value="admin_add_selection"/>
           <input type="hidden" name="client_id" value="<?= $clientId ?>"/>
           <input type="hidden" name="product_id" id="acsPickedProductId"/>
+          <?= csrfField() ?>
           <div class="acf-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
             <div>
               <label class="admin-label">Area / Room</label>
@@ -218,6 +220,7 @@ $totalPages = max(1, (int)ceil($total / $perPage));
         <input type="hidden" name="action"       value="admin_update_selection"/>
         <input type="hidden" name="selection_id" id="acsEditSelId"/>
         <input type="hidden" name="client_id"    value="<?= $clientId ?>"/>
+        <?= csrfField() ?>
         <div style="margin-bottom:14px;">
           <label class="admin-label">Selection Area / Room</label>
           <input type="text" name="selection_area" id="acsEditSelArea" class="admin-input" placeholder="e.g. Master Bedroom"/>
@@ -253,6 +256,7 @@ $totalPages = max(1, (int)ceil($total / $perPage));
         <input type="hidden" name="action"       value="admin_delete_selection"/>
         <input type="hidden" name="selection_id" id="acsDeleteSelId" value=""/>
         <input type="hidden" name="client_id"    value="<?= $clientId ?>"/>
+        <?= csrfField() ?>
         <button type="submit" class="btn-admin-danger" style="width:100%;justify-content:center;"><?= icon('trash', 14) ?> Remove</button>
       </form>
     </div>

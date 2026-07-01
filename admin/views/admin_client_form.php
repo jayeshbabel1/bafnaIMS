@@ -14,6 +14,7 @@ if ($id) {
 }
 
 $adminTitle = $id ? 'Edit Client' : 'Add Client';
+requireAdminPermission('clients.view');
 include __DIR__ . '/../_layout_top.php';
 
 $users = getAllUsersForDropdown();
@@ -41,7 +42,7 @@ $selectedUserId = (int)($c['user_id'] ?? 0);
   <form method="POST" action="index.php" id="adminClientForm" novalidate>
     <input type="hidden" name="action"    value="<?= $id ? 'admin_update_client' : 'admin_create_client' ?>"/>
     <input type="hidden" name="client_id" value="<?= $id ?>"/>
-
+    <?= csrfField() ?>
     <!-- User selection -->
     <div class="admin-form-section">
       <p class="acf-section-label">Belongs To</p>

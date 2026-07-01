@@ -62,6 +62,7 @@ $slC = $slSt->fetch()['c'];
       <div class="profile-section-body">
         <form method="POST" action="index.php?page=profile">
           <input type="hidden" name="action" value="update_profile"/>
+          <?= csrfField() ?>
           <div class="profile-form-grid">
             <div class="input-group">
               <label class="input-label">Full Name</label>
@@ -94,6 +95,7 @@ $slC = $slSt->fetch()['c'];
       <div class="profile-section-body">
         <form method="POST" action="index.php?page=profile">
           <input type="hidden" name="action" value="change_password"/>
+          <?= csrfField() ?>
           <div class="profile-form-grid">
             <div class="input-group">
               <label class="input-label">Current Password</label>
@@ -142,6 +144,7 @@ $slC = $slSt->fetch()['c'];
     <div style="margin-bottom:32px;">
       <form method="POST" action="index.php">
         <input type="hidden" name="action" value="logout"/>
+        <?= csrfField() ?>
         <button type="submit" class="btn btn-danger btn-block" style="border-radius:var(--radius-lg);">
           <?= icon('logout',16) ?>&nbsp; Sign Out
         </button>

@@ -65,6 +65,7 @@ if ($token) {
       <form method="POST" action="index.php?page=reset_password">
         <input type="hidden" name="action" value="reset_password"/>
         <input type="hidden" name="token"  value="<?= h($token) ?>"/>
+         <?= csrfField() ?>
         <div class="input-group">
           <label class="input-label">New Password</label>
           <div class="password-wrap">

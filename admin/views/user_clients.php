@@ -3,6 +3,7 @@
  * admin/views/user_clients.php — Admin: view clients of a specific user
  */
 $adminTitle = 'User Clients';
+requireAdminPermission('users.view');
 include __DIR__ . '/../_layout_top.php';
 require_once BASE_PATH . '/includes/clients.php';
 

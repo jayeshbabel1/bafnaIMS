@@ -1,8 +1,4 @@
 <?php
-ini_set('display_errors', '1');
-ini_set('display_startup_errors', '1');
-error_reporting(E_ALL);
-
 session_start();
 $autoload = __DIR__ . '/../vendor/autoload.php';
 
@@ -23,22 +19,17 @@ require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/helpers.php';
 require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/rbac.php';
 require_once __DIR__ . '/../includes/notifications.php';
 require_once __DIR__ . '/../includes/logo.php';
 require_once __DIR__ . '/../includes/clients.php';
 require_once __DIR__ . '/../includes/mailer.php';
 require_once __DIR__ . '/../includes/wa_share.php';
 require_once __DIR__ . '/../includes/product_pdf.php';
+require_once __DIR__ . '/views/_permission_guards.php';
 
 
-
-// ── CSV Export (before any output) ───────────────────────────────────────────
-//if (isset($_GET['action']) && $_GET['action'] === 'export_csv' && isAdmin()) {
- //   exportCSV();
- //   exit;
-//}
-
-// ── Handle POST ───────────────────────────────────────────────────────────────
+// Handle POST 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
 
@@ -54,12 +45,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
    if ($action === 'admin_logout') {
         unset($_SESSION['admin_id'], $_SESSION['admin_name']);
-        // Use absolute path to prevent double /admin/admin/ redirect
-        header('Location: /admin/index.php');
+        $adminBase = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
+        header('Location: ' . $adminBase . '/index.php');
         exit;
     }
   
-  // ─── ADMIN: CREATE CLIENT ───────────────────────────────────────────────────
+  //  ADMIN: CREATE CLIENT 
 if ($action === 'admin_create_client') {
     requireAdmin();
     $userId = (int)($_POST['user_id'] ?? 0);
@@ -73,7 +64,7 @@ if ($action === 'admin_create_client') {
     exit;
 }
  
-// ─── ADMIN: UPDATE CLIENT ───────────────────────────────────────────────────
+//  ADMIN: UPDATE CLIENT 
 if ($action === 'admin_update_client') {
     requireAdmin();
     $clientId = (int)($_POST['client_id'] ?? 0);
@@ -84,12 +75,12 @@ if ($action === 'admin_update_client') {
         redirect('index.php?page=admin_client_form&id=' . $clientId);
     }
     $inlineError = $result['error'];
-    $_GET['id'] = $clientId; // ensure the form re-displays existing data
+    $_GET['id'] = $clientId; 
     include __DIR__ . '/views/admin_client_form.php';
     exit;
 }
  
-// ─── ADMIN: DELETE CLIENT ───────────────────────────────────────────────────
+//  ADMIN: DELETE CLIENT 
 if ($action === 'admin_delete_client') {
     requireAdmin();
     $clientId = (int)($_POST['client_id'] ?? 0);
@@ -98,7 +89,7 @@ if ($action === 'admin_delete_client') {
     redirect('index.php?page=admin_clients');
 }
  
-// ─── ADMIN: ADD PRODUCT SELECTION (AJAX — returns JSON) ────────────────────
+//  ADMIN: ADD PRODUCT SELECTION (AJAX — returns JSON)
 if ($action === 'admin_add_selection') {
     requireAdmin();
     $clientId  = (int)($_POST['client_id']  ?? 0);
@@ -109,7 +100,7 @@ if ($action === 'admin_add_selection') {
     exit;
 }
  
-// ─── ADMIN: UPDATE PRODUCT SELECTION (AJAX) ─────────────────────────────────
+//  ADMIN: UPDATE PRODUCT SELECTION (AJAX) 
 if ($action === 'admin_update_selection') {
     requireAdmin();
     $selectionId = (int)($_POST['selection_id'] ?? 0);
@@ -119,7 +110,7 @@ if ($action === 'admin_update_selection') {
     exit;
 }
  
-// ─── ADMIN: DELETE PRODUCT SELECTION ────────────────────────────────────────
+//  ADMIN: DELETE PRODUCT SELECTION 
 if ($action === 'admin_delete_selection') {
     requireAdmin();
     $selectionId = (int)($_POST['selection_id'] ?? 0);
@@ -131,7 +122,6 @@ if ($action === 'admin_delete_selection') {
 
     if ($action === 'save_colors') {
         $defaults = array_keys(require __DIR__ . '/../config/colors.php');
-        // Extend with all theme variable keys (buttons, inputs, labels, navbar, fonts, radius)
         $extraKeys = [
             '--btn-radius','--card-radius',
             // Buttons
@@ -150,7 +140,7 @@ if ($action === 'admin_delete_selection') {
             '--navbar-hover-color','--navbar-active-color','--navbar-border',
             // Fonts
             '--admin-font','--user-font',
-            // ── Admin-panel-specific colors ─────────────────────────
+            //  Admin-panel-specific colors 
             '--admin-bg','--admin-surface','--admin-surface2','--admin-surface3',
             '--admin-sidebar-from','--admin-sidebar-to',
             '--admin-sidebar-text','--admin-sidebar-active',
@@ -162,34 +152,34 @@ if ($action === 'admin_delete_selection') {
             '--admin-table-border',
             '--admin-card-bg','--admin-card-border','--admin-card-radius',
             '--admin-badge-bg','--admin-badge-color',
-            // ── Admin text ───────────────────────────────────────────
+            //  Admin text 
             '--admin-text','--admin-text2','--admin-text3',
-            // ── Admin primary button ─────────────────────────────────
+            //  Admin primary button 
             '--admin-btn-primary-bg','--admin-btn-primary-color',
             '--admin-btn-primary-border','--admin-btn-primary-hover-bg',
             '--admin-btn-primary-hover-color','--admin-btn-primary-radius',
-            // ── Admin secondary button ───────────────────────────────
+            //  Admin secondary button
             '--admin-btn-sec-bg','--admin-btn-sec-color',
             '--admin-btn-sec-border','--admin-btn-sec-hover-bg',
             '--admin-btn-sec-hover-color','--admin-btn-sec-radius',
-            // ── Admin danger button ──────────────────────────────────
+            //  Admin danger button 
             '--admin-btn-danger-bg','--admin-btn-danger-color',
             '--admin-btn-danger-border','--admin-btn-danger-hover-bg',
             '--admin-btn-danger-hover-color',
-            // ── Admin general / toolbar button ───────────────────────
+            //  Admin general / toolbar button 
             '--admin-btn-general-bg','--admin-btn-general-color',
             '--admin-btn-general-border','--admin-btn-general-hover-bg',
             '--admin-btn-general-radius',
-            // ── Admin input / text field ─────────────────────────────
+            //  Admin input / text field 
             '--admin-input-bg','--admin-input-color','--admin-input-placeholder',
             '--admin-input-border','--admin-input-focus-border',
             '--admin-input-focus-shadow','--admin-input-hover-border',
             '--admin-input-radius','--admin-input-font-size',
-            // ── Admin textarea ───────────────────────────────────────
+            //  Admin textarea 
             '--admin-textarea-bg','--admin-textarea-color',
             '--admin-textarea-border','--admin-textarea-focus-border',
             '--admin-textarea-radius',
-            // ── Admin label ──────────────────────────────────────────
+            //  Admin label 
             '--admin-label-color','--admin-label-font-size',
             '--admin-label-font-weight','--admin-label-transform',
             '--admin-label-letter-spacing',
@@ -197,13 +187,11 @@ if ($action === 'admin_delete_selection') {
         $defaults = array_unique(array_merge($defaults, $extraKeys));
         foreach ($defaults as $k) {
             if (isset($_POST[$k])) {
-                // Allow font-family values (contain spaces + quotes) — only strip dangerous chars
                 $val = strip_tags($_POST[$k]);
                 $val = preg_replace('/[<>]/', '', $val);
                 setSetting($k, trim($val));
             }
         }
-        // Clear getCSSVariables static cache in helpers
         flash('toast', 'Theme settings saved.');
         redirect('index.php?page=colors');
     }
@@ -240,7 +228,6 @@ if ($action === 'admin_delete_selection') {
     }
     
     if ($action === 'remove_logo') {
-        // Delete file
         $st = getDB()->prepare("SELECT `value` FROM settings WHERE `key` = ?");
         $st->execute([LOGO_SETTING_KEY]);
         $old = (string)($st->fetchColumn() ?: '');
@@ -295,19 +282,18 @@ if ($action === 'admin_delete_selection') {
         redirect('index.php?page=users');
         exit;
     }
-    // reuse your existing function
     requestPasswordReset($user['email']);
     flash('toast', 'Password reset email sent');
     redirect('index.php?page=users');
     exit;
 }
   
-  // ─── CREATE USER (Admin Panel) ───────────────────────────────────────────── */
+  //  CREATE USER (Admin Panel)  */
 if ($action === 'create_user') {
     $result = createUserByAdmin([
         'name'       => $_POST['name']       ?? '',
         'email'      => $_POST['email']      ?? '',
-        'password'   => $_POST['password']   ?? '', // optional — auto-generated if blank
+        'password'   => $_POST['password']   ?? '',
         'phone'      => $_POST['phone']      ?? '',
         'firm'       => $_POST['firm']       ?? '',
         'city'       => $_POST['city']       ?? '',
@@ -321,8 +307,6 @@ if ($action === 'create_user') {
         exit;
     }
  
-    // User row is already committed at this point — email sending must
-    // never roll back or block the user-creation success response.
     $emailSent = false;
     try {
         $mailResult = sendNewUserEmail(
@@ -345,13 +329,13 @@ if ($action === 'create_user') {
     exit;
 }
   
-  // ─── SMTP SAVE ──────────────────────────────────────────────────────────── */
+  // SMTP SAVE  
 if ($action === 'save_smtp') {
     $smtpKeys = ['smtp_host','smtp_port','smtp_username','smtp_from_email','smtp_from_name','smtp_encryption'];
     foreach ($smtpKeys as $k) {
         if (isset($_POST[$k])) setSetting($k, trim($_POST[$k]));
     }
-    // Password: only update if non-empty
+   
     if (!empty($_POST['smtp_password'])) {
         setSetting('smtp_password', $_POST['smtp_password']);
     }
@@ -360,12 +344,11 @@ if ($action === 'save_smtp') {
     redirect('index.php?page=smtp');
 }
 
-//─── SMTP TEST (AJAX) ───────────────────────────────────────────────────── */
+//  SMTP TEST (AJAX) 
 if ($action === 'test_smtp') {
     header('Content-Type: application/json');
     requireAdmin();
     require_once BASE_PATH . '/includes/mailer.php';
-    // Temporarily override settings with POSTed values
     $to = trim($_POST['test_email'] ?? '');
     if (!filter_var($to, FILTER_VALIDATE_EMAIL)) {
         echo json_encode(['success' => false, 'error' => 'Invalid email address.']);
@@ -381,7 +364,7 @@ if ($action === 'test_smtp') {
     exit;
 }
 
-// ─── USER VERIFICATION TOGGLE ──────────────────────────────────────────── */
+//  USER VERIFICATION TOGGLE 
 if ($action === 'update_user_status') {
     requireAdmin();
     $uid      = (int)($_POST['user_id']  ?? 0);
@@ -444,7 +427,7 @@ if ($action === 'update_user_status') {
     redirect('index.php?page=users');
 }
 
-// ─── DELETE USER ─────────────────────────────────────────────────────── */
+//  DELETE USER 
 if ($action === 'delete_user') {
     requireAdmin();
     $uid     = (int)($_POST['user_id']    ?? 0);
@@ -461,7 +444,6 @@ if ($action === 'delete_user') {
             ? array_column($db->prepare("SELECT id FROM clients WHERE user_id=?")->execute([$uid]) ? (function() use ($db,$uid) {
                 $s=$db->prepare("SELECT id FROM clients WHERE user_id=?");$s->execute([$uid]);return $s->fetchAll();})() : [], 'id')
             : [];
-        // Simpler: use subquery deletes
         $db->prepare("DELETE cs FROM client_selections cs
                       JOIN clients c ON cs.client_id=c.id WHERE c.user_id=?")->execute([$uid]);
         $db->prepare("DELETE FROM clients WHERE user_id=?")->execute([$uid]);
@@ -476,12 +458,6 @@ if ($action === 'delete_user') {
     redirect('index.php?page=users');
 }
 
-  
- //  import csv file product 
-  //  if ($action === 'import_excel') {
-    //    importCSV($_FILES['excel_file'] ?? null);
-   //     redirect('index.php?page=products');
- //   }
   	if ($_POST['action'] === 'sync_photos') {
     syncPhotosFromDirectory();
       redirect('index.php?page=products');
@@ -510,9 +486,117 @@ if ($action === 'delete_user') {
         importPhotos($_FILES['photo_zip'] ?? null);
         redirect('index.php?page=products');
     }
+   //  ROLE: CREATE 
+    if ($action === 'create_role') {
+        requireAdmin();
+        requireAdminPermission('roles.manage');
+        $result = createRole($_POST);
+        if ($result['success']) {
+            flash('toast', 'Role created successfully.');
+        } else {
+            flash('error', $result['error']);
+        }
+        redirect('index.php?page=roles');
+    }
+ 
+    //  ROLE: UPDATE 
+    if ($action === 'update_role') {
+        requireAdmin();
+        requireAdminPermission('roles.manage');
+        $roleId = (int)($_POST['role_id'] ?? 0);
+        $result = updateRole($roleId, $_POST);
+        if ($result['success']) {
+            flash('toast', 'Role updated.');
+            flushAdminPermissionCache();
+        } else {
+            flash('error', $result['error']);
+        }
+        redirect('index.php?page=roles');
+    }
+ 
+    //  ROLE: DELETE 
+    if ($action === 'delete_role') {
+        requireAdmin();
+        requireAdminPermission('roles.manage');
+        $roleId = (int)($_POST['role_id'] ?? 0);
+        $result = deleteRole($roleId);
+        if ($result['success']) {
+            flash('toast', 'Role deleted.');
+            flushAdminPermissionCache();
+        } else {
+            flash('error', $result['error']);
+        }
+        redirect('index.php?page=roles');
+    }
+ 
+    //  ROLE: SAVE PERMISSIONS 
+    if ($action === 'save_role_permissions') {
+        requireAdmin();
+        requireAdminPermission('roles.assign');
+        $roleId  = (int)($_POST['role_id'] ?? 0);
+        $permIds = array_map('intval', (array)($_POST['permissions'] ?? []));
+        // Guard: cannot modify super_admin permissions
+        $st = getDB()->prepare("SELECT is_system FROM admin_roles WHERE id=?");
+        $st->execute([$roleId]);
+        $r = $st->fetch();
+        if ($r && $r['is_system']) {
+            flash('error', 'Super Admin permissions cannot be changed.');
+            redirect('index.php?page=roles');
+        }
+        try {
+            saveRolePermissions($roleId, $permIds);
+            flushAdminPermissionCache();
+            flash('toast', 'Permissions saved successfully.');
+        } catch (Throwable $e) {
+            flash('error', 'Failed to save permissions: ' . $e->getMessage());
+        }
+        redirect('index.php?page=roles');
+    }
+ 
+    //  ADMIN ACCOUNT: CREATE 
+    if ($action === 'create_admin_account') {
+        requireAdmin();
+        requireAdminPermission('admins.manage');
+        $result = createAdminAccount($_POST);
+        if ($result['success']) {
+            flash('toast', 'Admin account created.');
+        } else {
+            flash('error', $result['error']);
+        }
+        redirect('index.php?page=admin_accounts');
+    }
+ 
+    // ADMIN ACCOUNT: UPDATE 
+    if ($action === 'update_admin_account') {
+        requireAdmin();
+        requireAdminPermission('admins.manage');
+        $adminId = (int)($_POST['admin_id'] ?? 0);
+        $result  = updateAdminAccount($adminId, $_POST);
+        if ($result['success']) {
+            flash('toast', 'Admin account updated.');
+            flushAdminPermissionCache();
+        } else {
+            flash('error', $result['error']);
+        }
+        redirect('index.php?page=admin_accounts');
+    }
+ 
+    // ADMIN ACCOUNT: DELETE 
+    if ($action === 'delete_admin_account') {
+        requireAdmin();
+        requireAdminPermission('admins.manage');
+        $adminId = (int)($_POST['admin_id'] ?? 0);
+        $result  = deleteAdminAccount($adminId);
+        if ($result['success']) {
+            flash('toast', 'Admin account deleted.');
+        } else {
+            flash('error', $result['error']);
+        }
+        redirect('index.php?page=admin_accounts');
+    }
 }
   
-// ── AJAX Sync endpoint ─────────────────────────────────────────────────────
+//  AJAX Sync endpoint 
 if (isset($_GET["ajax_sync"]) && isAdmin()) {
     header("Content-Type: application/json");
     $step = (int)($_GET["ajax_sync"]);
@@ -520,12 +604,29 @@ if (isset($_GET["ajax_sync"]) && isAdmin()) {
     exit;
 }
 
+if (isset($_GET['ajax_role_perms']) && isAdmin()) {
+    $roleId = (int)($_GET['role_id'] ?? 0);
+    $role   = getRoleWithPermissions($roleId);
+    header('Content-Type: application/json');
+    if (!$role) {
+        echo json_encode(['error' => 'Role not found']);
+    } else {
+        echo json_encode([
+            'role_id'        => $role['id'],
+            'role_name'      => $role['name'],
+            'is_system'      => (bool)$role['is_system'],
+            'permission_ids' => array_map('intval', $role['permission_ids']),
+        ]);
+    }
+    exit;
+}
 
-// ── AJAX WhatsApp PDF generation endpoint ───────────────────────────────────
+
+//  AJAX WhatsApp PDF generation endpoint 
 if (isset($_GET['wa_pdf']) && isAdmin()) {
     handleWaPdfAjax(); // outputs JSON + exits
 }
-// ── Direct PDF download endpoint ────────────────────────────────────────────
+//  Direct PDF download endpoint 
 if (isset($_GET['pdf_download']) && isAdmin()) {
     $pid = (int)($_GET['product_id'] ?? 0);
     if (!$pid) { http_response_code(400); echo 'Missing product_id'; exit; }
@@ -562,7 +663,7 @@ if (isset($_GET['pdf_download']) && isAdmin()) {
     @unlink($result['path']);
     exit;
 }
-// ── Routing ───────────────────────────────────────────────────────────────────
+//  Routing 
 $page = preg_replace('/[^a-z_]/', '', $_GET['page'] ?? 'dashboard');
 
 if (!isAdmin()) {
@@ -572,10 +673,8 @@ if (!isAdmin()) {
     exit;
 }
 
-
-
 // ════════════════════════════════════════════════════════════════════════════
-// ── Functions
+// Functions
 // ════════════════════════════════════════════════════════════════════════════
 
 function saveProduct(array $data, array $files): void {
@@ -671,7 +770,7 @@ function saveProduct(array $data, array $files): void {
 }
 
 
-// ── Photo Import (multi-file by quarry prefix) ────────────────────────────────
+//  Photo Import (multi-file by quarry prefix) 
 function importPhotos(?array $files): void
 {
     if (!$files || empty($files['name'])) {
@@ -804,7 +903,7 @@ function parseQuarryFromFilename(string $stem): string {
     // Pattern 3: no suffix at all — use the whole stem as quarry number
     return trim($stem);
 }
-// ── Sync Step Runner ──────────────────────────────────────────────────────────
+//  Sync Step Runner 
 // Called via AJAX: ?ajax_sync=1|2|3
 // Returns JSON: { step, label, found, synced, skipped, errors[], done }
 function runSyncStep(int $step): array {
@@ -1392,19 +1491,15 @@ foreach ($excelHeaders as $h) {
             . implode("\n", $errors) . "\n\n";
         file_put_contents($logFile, $logLines, FILE_APPEND | LOCK_EX);
     }
-
-    flash('toast', $summary);
+    
+       flash('toast', $summary);
   
 }
 
 // _deleteProductWithDependencies()
-// Removes a product and ALL dependent data/files. Used by importExcel().
-// Also add this as a standalone helper so delete_product POST action can
-// call it too (optional — it replaces the inline delete logic there).
 
 function _deleteProductWithDependencies(\PDO $db, int $pid): void {
 
-    // 1. Collect photo filenames and delete files from disk
     $photos = $db->prepare("SELECT filename FROM product_photos WHERE product_id = ?");
     $photos->execute([$pid]);
     foreach ($photos->fetchAll(\PDO::FETCH_COLUMN) as $filename) {
@@ -1429,12 +1524,11 @@ function _deleteProductWithDependencies(\PDO $db, int $pid): void {
         }
     }
 
-    // 3. Delete dependent DB rows (explicit — avoids relying on FK CASCADE
-    //    being configured correctly on all hosts)
+   
     $db->prepare("DELETE FROM product_photos    WHERE product_id = ?")->execute([$pid]);
     $db->prepare("DELETE FROM shortlist         WHERE product_id = ?")->execute([$pid]);
     $db->prepare("DELETE FROM client_selections WHERE product_id = ?")->execute([$pid]);
-    // 4. Delete the product itself
+    
     $db->prepare("DELETE FROM products WHERE id = ?")->execute([$pid]);
 }
 
@@ -1699,7 +1793,7 @@ function syncMeasurementSheets(): array {
 
     return $result;
 }
-// ── Step 3: Sync DNA Reports from /assets/uploads/dna_reports/ ───────────────
+//  Step 3: Sync DNA Reports from /assets/uploads/dna_reports/ 
 // File naming: Q23048-DNA.pdf  or  Q23048-DNA-1.pdf
 function syncDnaReports(): array {
 
@@ -1826,9 +1920,33 @@ function syncDnaReports(): array {
 
 
 $pages = ['dashboard','products','product_edit','colors','users','inquiries','sync',
-          'notifications','logo','user_clients','admin_selections','smtp',
-          'admin_clients','admin_client_form','admin_client_selections'];
+              'notifications','logo','user_clients','admin_selections','smtp',
+              'admin_clients','admin_client_form','admin_client_selections',
+              'roles','admin_accounts'];
 $file  = in_array($page, $pages)
        ? __DIR__ . '/views/' . $page . '.php'
        : __DIR__ . '/views/dashboard.php';
+
+//  Route-level permission gates 
+    $routePermissions = [
+        'products'               => 'products.view',
+        'product_edit'           => 'products.view',
+        'users'                  => 'users.view',
+        'user_clients'           => 'users.view',
+        'admin_clients'          => 'clients.view',
+        'admin_client_form'      => 'clients.view',
+        'admin_client_selections'=> 'clients.view',
+        'admin_selections'       => 'clients.view',
+        'notifications'          => 'notifications.view',
+        'sync'                   => 'sync.run',
+        'logo'                   => 'settings.logo',
+        'colors'                 => 'settings.colors',
+        'smtp'                   => 'settings.smtp',
+        'roles'                  => 'roles.view',
+        'admin_accounts'         => 'admins.view',
+        'inquiries'              => 'users.view',
+    ];
+    if (isset($routePermissions[$page])) {
+        requireAdminPermission($routePermissions[$page]);
+    }
 include $file;

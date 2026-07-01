@@ -1,35 +1,29 @@
 <?php
 $adminTitle = 'Dashboard';
+requireAdminPermission('dashboard.view');
 include __DIR__ . '/../_layout_top.php';
 $db = getDB();
 
-// Core counts
 $pCount  = (int)$db->query("SELECT COUNT(*) FROM products")->fetchColumn();
 $uCount  = (int)$db->query("SELECT COUNT(*) FROM users")->fetchColumn();
 $inStock = (int)$db->query("SELECT COUNT(*) FROM products WHERE in_stock=1")->fetchColumn();
 
-// Product health counts
 $noImage = (int)$db->query("
     SELECT COUNT(*) FROM products p
-    WHERE NOT EXISTS (
-        SELECT 1 FROM product_photos pp WHERE pp.product_id = p.id
-    )
+    WHERE NOT EXISTS (SELECT 1 FROM product_photos pp WHERE pp.product_id = p.id)
 ")->fetchColumn();
 
 $noMeasurement = (int)$db->query("
-    SELECT COUNT(*) FROM products
-    WHERE (measurement_sheet IS NULL OR measurement_sheet = '')
+    SELECT COUNT(*) FROM products WHERE (measurement_sheet IS NULL OR measurement_sheet = '')
 ")->fetchColumn();
 
 $noDNA = (int)$db->query("
-    SELECT COUNT(*) FROM products
-    WHERE (dna_report IS NULL OR dna_report = '')
+    SELECT COUNT(*) FROM products WHERE (dna_report IS NULL OR dna_report = '')
 ")->fetchColumn();
 
 $recProd = $db->query("SELECT * FROM products ORDER BY created_at DESC LIMIT 5")->fetchAll();
 ?>
 
-<!-- Main stats -->
 <div class="dashboard-grid">
   <div class="dash-card">
     <div class="dash-left">
@@ -40,7 +34,6 @@ $recProd = $db->query("SELECT * FROM products ORDER BY created_at DESC LIMIT 5")
       </div>
     </div>
   </div>
-
   <div class="dash-card">
     <div class="dash-left">
       <div class="dash-icon success"><?= icon('verified',22) ?></div>
@@ -50,7 +43,7 @@ $recProd = $db->query("SELECT * FROM products ORDER BY created_at DESC LIMIT 5")
       </div>
     </div>
   </div>
-
+  <?php if (adminCan('users.view')): ?>
   <div class="dash-card">
     <div class="dash-left">
       <div class="dash-icon accent"><?= icon('users',22) ?></div>
@@ -60,8 +53,10 @@ $recProd = $db->query("SELECT * FROM products ORDER BY created_at DESC LIMIT 5")
       </div>
     </div>
   </div>
+  <?php endif; ?>
 </div>
 
+<?php if (adminCan('products.view')): ?>
 <!-- Product Health -->
 <div style="margin-bottom:20px;">
   <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);margin-bottom:12px;">Product Health</p>
@@ -144,7 +139,13 @@ $recProd = $db->query("SELECT * FROM products ORDER BY created_at DESC LIMIT 5")
         <tr><td colspan="3" style="text-align:center;color:var(--text3);padding:20px;">No products</td></tr>
         <?php else: foreach ($recProd as $p): ?>
         <tr>
-          <td><a href="index.php?page=product_edit&id=<?= $p['id'] ?>" style="color:var(--accent);font-weight:500;"><?= h($p['name']) ?></a></td>
+          <td>
+            <?php if (adminCan('products.edit')): ?>
+            <a href="index.php?page=product_edit&id=<?= $p['id'] ?>" style="color:var(--accent);font-weight:500;"><?= h($p['name']) ?></a>
+            <?php else: ?>
+            <span style="font-weight:500;"><?= h($p['name']) ?></span>
+            <?php endif; ?>
+          </td>
           <td style="color:var(--text3);font-size:12px;"><?= h($p['quarry_number']) ?></td>
           <td>
             <?php if (!$p['in_stock'] || (float)$p['quantity_available'] <= 0): ?>
@@ -159,5 +160,6 @@ $recProd = $db->query("SELECT * FROM products ORDER BY created_at DESC LIMIT 5")
     </table>
   </div>
 </div>
+<?php endif; ?>
 
 <?php include __DIR__ . '/../_layout_bottom.php'; ?>

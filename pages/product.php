@@ -34,7 +34,7 @@ $specs = [
 
 <div class="detail-page">
 
-  <!-- ── HERO ────────────────────────────────────────────────────────────── -->
+  <!--  HERO  -->
   <div class="detail-hero" id="heroWrap">
     <?php if ($photos && file_exists(PHOTOS_DIR.'/'.$photos[0]['filename'])): ?>
     <div class="zoom-container" id="heroZoomContainer">
@@ -66,6 +66,7 @@ $specs = [
           <input type="hidden" name="action"     value="toggle_shortlist"/>
           <input type="hidden" name="product_id" value="<?= $id ?>"/>
           <input type="hidden" name="return_url" value="index.php?page=product&id=<?= $id ?>"/>
+          <?= csrfField() ?>
           <button type="submit" class="hero-icon-btn" style="<?= $saved?'color:#e11d48':'' ?>">
             <?= $saved ? icon('heart_fill',16) : icon('heart',16) ?>
           </button>
@@ -107,7 +108,7 @@ $specs = [
     <?php endif; ?>
   </div><!-- .detail-hero -->
 
-  <!-- ── BODY ─────────────────────────────────────────────────────────────── -->
+  <!--  BODY  -->
   <div class="detail-body">
 
     <!-- Tags -->
@@ -222,6 +223,7 @@ $specs = [
         <input type="hidden" name="action"     value="toggle_shortlist"/>
         <input type="hidden" name="product_id" value="<?= $id ?>"/>
         <input type="hidden" name="return_url" value="index.php?page=product&id=<?= $id ?>"/>
+        <?= csrfField() ?>
         <button type="submit" class="btn btn-secondary btn-block">
           <?= $saved ? icon('heart_fill',16).'&nbsp;Saved' : icon('heart',16).'&nbsp;Save' ?>
         </button>
@@ -338,7 +340,7 @@ $specs = [
       <form method="POST" action="index.php" id="addToSelForm">
         <input type="hidden" name="action"     value="add_to_selection"/>
         <input type="hidden" name="product_id" value="<?= $id ?>"/>
-
+        <?= csrfField() ?>
         <!-- Client search -->
         <div class="input-group">
           <label class="input-label">Client <span style="color:var(--danger);">*</span></label>

@@ -67,6 +67,7 @@ $e = getFlash('error');
   <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
     <form method="POST" action="index.php" style="display:contents;">
       <input type="hidden" name="action" value="admin_logout"/>
+      <?= csrfField() ?>
       <button type="submit"
               class="amt-logout-btn"
               title="Sign Out">
@@ -216,14 +217,35 @@ $e = getFlash('error');
 
     <nav class="admin-nav">
       <?php
-      $navItems = [
-    ['page'=>'dashboard',         'icon'=>'home',    'label'=>'Dashboard'],
-    ['page'=>'products',          'icon'=>'grid',    'label'=>'Products'],
-    ['page'=>'sync',              'icon'=>'refresh', 'label'=>'Sync Product Data'],
-    ['page'=>'users',             'icon'=>'users',   'label'=>'Users'],
-    ['page'=>'admin_clients',     'icon'=>'verified','label'=>'Client Selections'],
-    ['page'=>'notifications',     'icon'=>'bell',    'label'=>'Notifications', 'badge'=>$_notifCount],
-];
+      $navItems = [];
+ 
+// Dashboard — always visible (every role can see something)
+$navItems[] = ['page'=>'dashboard', 'icon'=>'home', 'label'=>'Dashboard'];
+ 
+// Products
+if (adminCan('products.view')) {
+    $navItems[] = ['page'=>'products', 'icon'=>'grid', 'label'=>'Products'];
+}
+ 
+// Sync
+if (adminCan('sync.run')) {
+    $navItems[] = ['page'=>'sync', 'icon'=>'refresh', 'label'=>'Sync Product Data'];
+}
+ 
+// Users
+if (adminCan('users.view')) {
+    $navItems[] = ['page'=>'users', 'icon'=>'users', 'label'=>'Users'];
+}
+ 
+// Client Selections
+if (adminCan('clients.view')) {
+    $navItems[] = ['page'=>'admin_clients', 'icon'=>'verified', 'label'=>'Client Selections'];
+}
+ 
+// Notifications
+if (adminCan('notifications.view')) {
+    $navItems[] = ['page'=>'notifications', 'icon'=>'bell', 'label'=>'Notifications', 'badge'=>$_notifCount];
+}
       foreach ($navItems as $n):
   $isClientsGroup = $n['page'] === 'admin_clients'
       && in_array($ap, ['admin_clients','admin_client_form','admin_client_selections']);
@@ -242,34 +264,81 @@ $e = getFlash('error');
       </a>
       <?php endforeach; ?>
 
-      <!-- Settings group -->
-      <div class="admin-nav-group">
-        <button class="admin-nav-group-header <?= $isSettingsActive ? 'active' : '' ?>"
-                onclick="toggleSettingsMenu()" id="settingsMenuBtn" type="button">
-          <?= icon('settings', 18) ?>
-          <span>Settings</span>
-          <svg class="admin-nav-group-chevron <?= $isSettingsActive ? 'open' : '' ?>"
-               id="settingsChevron" width="14" height="14" viewBox="0 0 24 24"
-               fill="none" stroke="currentColor" stroke-width="2"
-               stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="9 18 15 12 9 6"/>
-          </svg>
-        </button>
-        <div class="admin-nav-submenu <?= $isSettingsActive ? 'open' : '' ?>" id="settingsSubmenu">
-          <a href="index.php?page=colors"
-             class="admin-nav-subitem <?= $ap === 'colors' ? 'active' : '' ?>">
-            <span class="admin-nav-subitem-dot"></span> Color Scheme
-          </a>
-            <a href="index.php?page=logo"
-             class="admin-nav-subitem <?= $ap === 'logo' ? 'active' : '' ?>">
-            <span class="admin-nav-subitem-dot"></span> Company Profile
-          </a>
-          <a href="index.php?page=smtp"
-             class="admin-nav-subitem <?= $ap === 'smtp' ? 'active' : '' ?>">
-            <span class="admin-nav-subitem-dot"></span> Mail Settings
-          </a>
-        </div>
-      </div>
+      <?php
+// Build list of visible settings sub-items
+$settingsSubItems = [];
+if (adminCan('settings.colors')) {
+    $settingsSubItems[] = ['page'=>'colors',         'label'=>'Color Scheme'];
+}
+if (adminCan('settings.logo')) {
+    $settingsSubItems[] = ['page'=>'logo',           'label'=>'Company Profile'];
+}
+if (adminCan('settings.smtp')) {
+    $settingsSubItems[] = ['page'=>'smtp',           'label'=>'Mail Settings'];
+}
+ 
+// Roles & Permissions sub-items
+$rolesSubItems = [];
+if (adminCan('roles.view')) {
+    $rolesSubItems[] = ['page'=>'roles',             'label'=>'Roles & Permissions'];
+}
+if (adminCan('admins.view')) {
+    $rolesSubItems[] = ['page'=>'admin_accounts',    'label'=>'Admin Accounts'];
+}
+?>
+ 
+<?php if (!empty($settingsSubItems)): ?>
+<!-- Settings group -->
+<div class="admin-nav-group">
+  <button class="admin-nav-group-header <?= $isSettingsActive ? 'active' : '' ?>"
+          onclick="toggleSettingsMenu()" id="settingsMenuBtn" type="button">
+    <?= icon('settings', 18) ?>
+    <span>Settings</span>
+    <svg class="admin-nav-group-chevron <?= $isSettingsActive ? 'open' : '' ?>"
+         id="settingsChevron" width="14" height="14" viewBox="0 0 24 24"
+         fill="none" stroke="currentColor" stroke-width="2"
+         stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="9 18 15 12 9 6"/>
+    </svg>
+  </button>
+  <div class="admin-nav-submenu <?= $isSettingsActive ? 'open' : '' ?>" id="settingsSubmenu">
+    <?php foreach ($settingsSubItems as $si): ?>
+    <a href="index.php?page=<?= $si['page'] ?>"
+       class="admin-nav-subitem <?= $ap === $si['page'] ? 'active' : '' ?>">
+      <span class="admin-nav-subitem-dot"></span> <?= h($si['label']) ?>
+    </a>
+    <?php endforeach; ?>
+  </div>
+</div>
+<?php endif; ?>
+ 
+<?php if (!empty($rolesSubItems)): ?>
+<!-- Roles & Permissions group -->
+<?php
+$isRolesActive = in_array($ap, ['roles','admin_accounts']);
+?>
+<div class="admin-nav-group">
+  <button class="admin-nav-group-header <?= $isRolesActive ? 'active' : '' ?>"
+          onclick="toggleRolesMenu()" id="rolesMenuBtn" type="button">
+    <?= icon('lock', 18) ?>
+    <span>Access Control</span>
+    <svg class="admin-nav-group-chevron <?= $isRolesActive ? 'open' : '' ?>"
+         id="rolesChevron" width="14" height="14" viewBox="0 0 24 24"
+         fill="none" stroke="currentColor" stroke-width="2"
+         stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="9 18 15 12 9 6"/>
+    </svg>
+  </button>
+  <div class="admin-nav-submenu <?= $isRolesActive ? 'open' : '' ?>" id="rolesSubmenu">
+    <?php foreach ($rolesSubItems as $si): ?>
+    <a href="index.php?page=<?= $si['page'] ?>"
+       class="admin-nav-subitem <?= $ap === $si['page'] ? 'active' : '' ?>">
+      <span class="admin-nav-subitem-dot"></span> <?= h($si['label']) ?>
+    </a>
+    <?php endforeach; ?>
+  </div>
+</div>
+<?php endif; ?>
     </nav>
 
     <div class="admin-sidebar-footer">
@@ -278,6 +347,7 @@ $e = getFlash('error');
       </a>
       <form method="POST" action="index.php">
         <input type="hidden" name="action" value="admin_logout"/>
+        <?= csrfField() ?>
         <button type="submit" class="admin-nav-item w-full admin-logout-btn">
           <?= icon('logout', 16) ?><span>Sign Out</span>
         </button>
@@ -373,6 +443,16 @@ function toggleSettingsMenu() {
   menu.classList.toggle('open', !isOpen);
   chev.classList.toggle('open', !isOpen);
   btn.classList.toggle('active', !isOpen || <?= json_encode($isSettingsActive) ?>);
+}
+function toggleRolesMenu() {
+  var menu = document.getElementById('rolesSubmenu');
+  var chev = document.getElementById('rolesChevron');
+  var btn  = document.getElementById('rolesMenuBtn');
+  if (!menu) return;
+  var isOpen = menu.classList.contains('open');
+  menu.classList.toggle('open', !isOpen);
+  chev && chev.classList.toggle('open', !isOpen);
+  btn  && btn.classList.toggle('active', !isOpen);
 }
 
 /*  Notification dropdown  */

@@ -6,6 +6,7 @@
  * Extended Color Scheme + Theme Settings page.
  */
 $adminTitle = 'Color Scheme & Theme';
+requireAdminPermission('settings.colors');
 include __DIR__ . '/../_layout_top.php';
 $defaults = require __DIR__ . '/../../config/colors.php';
 $db = getDB();
@@ -113,6 +114,7 @@ function fontLabel(string $val, array $map): string {
   </button>
   <form method="POST" action="index.php" style="display:inline;">
     <input type="hidden" name="action" value="reset_colors"/>
+    <?= csrfField() ?>
     <button type="submit" class="btn-admin-secondary"
             data-confirm="Reset ALL theme settings to defaults?">
       <?= icon('refresh',14) ?> Reset to Defaults
@@ -148,9 +150,9 @@ function fontLabel(string $val, array $map): string {
 
 <form method="POST" action="index.php" id="colorForm">
   <input type="hidden" name="action" value="save_colors"/>
-   
+   <?= csrfField() ?>
   <!-- ══ TAB: Admin Colors ═════════════════════════════════════════════ -->
-  <div class="theme-panel" id="panel-admin-colors">
+  <div class="theme-panel active" id="panel-admin-colors">
  
     <div style="background:var(--accent-light);border:1px solid var(--border);
                 border-radius:10px;padding:12px 16px;margin-bottom:20px;
@@ -551,7 +553,7 @@ function fontLabel(string $val, array $map): string {
  
   </div><!-- /#panel-admin-components -->
   <!-- ══ TAB: Colors ════════════════════════════════════════════════════ -->
-  <div class="theme-panel active" id="panel-colors">
+  <div class="theme-panel " id="panel-colors">
     <?php foreach ($colorGroups as $groupName => $keys): ?>
     <div class="admin-form-section">
       <p class="admin-form-section-title"><?= h($groupName) ?></p>

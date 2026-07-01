@@ -3,6 +3,7 @@
  * admin/views/admin_selections.php — Admin: view all product selections for a client
  */
 $adminTitle = 'Client Selections';
+requireAdminPermission('clients.view');
 include __DIR__ . '/../_layout_top.php';
 require_once BASE_PATH . '/includes/clients.php';
 

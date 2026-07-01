@@ -45,6 +45,7 @@ $old  = $_SESSION['reg_data'] ?? [];
 
       <form method="POST" action="index.php?page=register&step=1" novalidate>
         <input type="hidden" name="action" value="register_step1"/>
+         <?= csrfField() ?>
         <div class="input-group">
           <label class="input-label">Full Name *</label>
           <input type="text" name="name" class="input-field" placeholder="Rahul Sharma"
@@ -86,6 +87,7 @@ $old  = $_SESSION['reg_data'] ?? [];
 
       <form method="POST" action="index.php?page=register&step=2" novalidate>
         <input type="hidden" name="action" value="register_step2"/>
+         <?= csrfField() ?>
         <div class="input-group">
           <label class="input-label">Firm / Studio Name *</label>
           <input type="text" name="firm" class="input-field" placeholder="RS Architecture Studio"

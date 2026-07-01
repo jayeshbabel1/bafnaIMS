@@ -124,6 +124,7 @@ $range = 2; $s = max(1, $currentPage - $range); $e = min($totalPages, $currentPa
       <form method="POST" action="index.php" style="flex:1">
         <input type="hidden" name="action"    value="delete_client"/>
         <input type="hidden" name="client_id" id="deleteClientId" value=""/>
+        <?= csrfField() ?>
         <button type="submit" class="btn btn-danger btn-block">Delete</button>
       </form>
     </div>

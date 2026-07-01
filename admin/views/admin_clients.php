@@ -29,6 +29,7 @@ if (!empty($_GET['ajax_clients'])) {
 }
 
 $adminTitle = 'Client Selections';
+requireAdminPermission('clients.view');
 include __DIR__ . '/../_layout_top.php';
 require_once BASE_PATH . '/includes/clients.php';
 
@@ -63,9 +64,11 @@ $totalPages = max(1, (int)ceil($total / $perPage));
 </style>
 
 <div class="admin-clients-toolbar">
+  <?php if (adminCan('clients.create')): ?>
   <a href="index.php?page=admin_client_form" class="admin-toolbar-btn admin-toolbar-btn--primary">
     <?= icon('plus', 14) ?> Add Client
   </a>
+  <?php endif; ?>
   <div class="admin-clients-search-wrap" id="acSearchWrap">
     <?= icon('search', 14) ?>
     <input type="text" id="acSearch" class="admin-input" placeholder="Search client, mason, or user…" autocomplete="off"/>
@@ -113,6 +116,7 @@ $totalPages = max(1, (int)ceil($total / $perPage));
       <form method="POST" action="index.php" style="flex:1;">
         <input type="hidden" name="action"    value="admin_delete_client"/>
         <input type="hidden" name="client_id" id="acDeleteId" value=""/>
+        <?= csrfField() ?>
         <button type="submit" class="btn-admin-danger" style="width:100%;justify-content:center;">
           <?= icon('trash', 14) ?> Delete
         </button>

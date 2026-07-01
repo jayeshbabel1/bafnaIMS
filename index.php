@@ -1,4 +1,5 @@
 <?php
+
 require_once __DIR__ . '/config/config.php';
 require_once __DIR__ . '/includes/db.php';
 require_once __DIR__ . '/includes/helpers.php';
@@ -7,8 +8,9 @@ require_once __DIR__ . '/includes/notifications.php';
 require_once __DIR__ . '/includes/clients.php';
 
 startSecureSession();
-
-
+ // Verify CSRF token on every state-changing POST (public auth forms excluded
+ // only where there is no session yet to bind the token to)
+ 
 $page = preg_replace('/[^a-z_]/', '', $_GET['page'] ?? 'catalog');
 // Client AJAX search
 if (!empty($_GET['ajax_search']) && ($_GET['page'] ?? '') === 'clients' && isLoggedIn()) {
@@ -28,11 +30,11 @@ if (!empty($_GET['ajax_search']) && ($_GET['page'] ?? '') === 'clients' && isLog
     echo json_encode(['clients' => $st->fetchAll(PDO::FETCH_ASSOC)]);
     exit;
 }
-// ── Handle POST actions ──────────────────────────────────────────────────
+//  Handle POST actions 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
 
-    // ── Public auth actions ──────────────────────────────────────────────
+    //  Public auth actions 
     if ($action === 'login') {
         $result = loginUser($_POST['email'] ?? '', $_POST['password'] ?? '');
         if ($result['success']) {
@@ -120,7 +122,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $inlineError = $result['error'];
         include BASE_PATH . '/pages/reset_password.php'; exit;
     }
-  // ── Create client
+  
+  
+   //  Authenticated actions 
+    requireLogin();
+  //  Create client
 if ($action === 'create_client') {
     $result = createClient($_SESSION['user_id'], $_POST);
     if ($result['success']) {
@@ -143,7 +149,7 @@ if ($action === 'update_client') {
     include BASE_PATH . '/pages/client_form.php'; exit;
 }
 
-// ── Delete client
+//  Delete client
 if ($action === 'delete_client') {
     $id = (int)($_POST['client_id'] ?? 0);
     deleteClient($id, $_SESSION['user_id']);
@@ -151,7 +157,7 @@ if ($action === 'delete_client') {
     redirect('index.php?page=clients');
 }
 
-// ── Add to selection
+//  Add to selection
 if ($action === 'add_to_selection') {
     $clientId = (int)($_POST['client_id'] ?? 0);
     $result   = createSelection($clientId, $_SESSION['user_id'], $_POST);
@@ -177,7 +183,7 @@ if ($action === 'update_selection') {
     redirect('index.php?page=client_selections&client_id=' . $clientId);
 }
 
-// ── Delete selection
+//  Delete selection
 if ($action === 'delete_selection') {
     $id       = (int)($_POST['selection_id'] ?? 0);
     $clientId = (int)($_POST['client_id']    ?? 0);
@@ -186,8 +192,6 @@ if ($action === 'delete_selection') {
     redirect('index.php?page=client_selections&client_id=' . $clientId);
 }
 
-    // ── Authenticated actions ────────────────────────────────────────────
-    requireLogin();
 
     if ($action === 'logout') {
         logoutUser();
@@ -241,7 +245,7 @@ if ($action === 'delete_selection') {
     }
 }
 
-// ── Page routing ─────────────────────────────────────────────────────────
+//  Page routing 
 $publicPages    = ['login','register','forgot_password','reset_password','waiting_approval'];
 $protectedPages = ['catalog','product','shortlist','profile','support','notifications',
                    'clients','client_form','client_selections'];

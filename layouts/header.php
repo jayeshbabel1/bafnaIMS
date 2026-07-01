@@ -10,7 +10,7 @@
 <link href="<?= getFontEmbedUrl(false) ?>" rel="stylesheet"/>
 <style><?= getCSSVariables() ?></style>
 <link rel="stylesheet" href="assets/css/style.css"/>
-<link rel="stylesheet" href="assets/css/watermark.css"/>
+<!-- <link rel="stylesheet" href="assets/css/watermark.css"/> -->
 <link rel="stylesheet" href="assets/css/clients.css"/>
 <?php if (!empty($extraCSS)) foreach ($extraCSS as $f): ?>
 <link rel="stylesheet" href="assets/css/<?= h($f) ?>"/>
@@ -105,6 +105,7 @@ $_authLogo = getLogo(false);
     </a>
     <form method="POST" action="index.php" class="navbar-signout-form" style="display:contents;">
       <input type="hidden" name="action" value="logout"/>
+      <?= csrfField() ?>
       <button type="submit" class="navbar-signout">
         <?= icon('logout',14) ?> Sign Out
       </button>
@@ -148,6 +149,7 @@ $_authLogo = getLogo(false);
   <div class="mobile-menu-footer">
     <form method="POST" action="index.php">
       <input type="hidden" name="action" value="logout"/>
+      <?= csrfField() ?>
       <button type="submit" class="btn btn-danger btn-block" style="border-radius:12px;">
         <?= icon('logout',16) ?> Sign Out
       </button>

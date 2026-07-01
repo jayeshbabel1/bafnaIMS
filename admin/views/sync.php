@@ -1,5 +1,6 @@
 <?php
 $adminTitle = 'Sync Product Data';
+requireAdminPermission('sync.run');
 include __DIR__ . '/../_layout_top.php';
 
 // Describe what each directory holds

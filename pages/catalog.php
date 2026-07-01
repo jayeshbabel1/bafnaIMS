@@ -154,6 +154,7 @@ function renderProductGrid(array $products, string $view = 'grid'): string {
             $h .= '<input type="hidden" name="action" value="toggle_shortlist"/>';
             $h .= '<input type="hidden" name="product_id" value="'.$p['id'].'"/>';
             $h .= '<input type="hidden" name="return_url" value="index.php?page=catalog"/>';
+          $h .= '<input type="hidden" name="csrf_token" value="'.h(csrfToken()).'"/>';
             $h .= '<button type="submit" class="shortlist-btn-list '.($saved?'saved':'').'">';
             $h .= $saved ? icon('heart_fill',16) : icon('heart',16);
             $h .= '</button></form></div></div>';
@@ -187,6 +188,7 @@ function renderProductGrid(array $products, string $view = 'grid'): string {
         $h .= '<input type="hidden" name="action" value="toggle_shortlist"/>';
         $h .= '<input type="hidden" name="product_id" value="'.$p['id'].'"/>';
         $h .= '<input type="hidden" name="return_url" value="index.php?page=catalog"/>';
+      $h .= '<input type="hidden" name="csrf_token" value="'.h(csrfToken()).'"/>';
         $h .= '<button type="submit" class="shortlist-btn '.($saved?'saved':'').'">';
         $h .= $saved ? icon('heart_fill',14) : icon('heart',14);
         $h .= '</button></form></div>';
@@ -518,31 +520,7 @@ function fv($v): string { return $v !== null ? h((string)$v) : ''; }
   </div>
 </div>
 
-<?php
-/**
- * PATCH C — pages/catalog.php  (the inline <script> block at the bottom)
- *
- * FIND the entire existing inline <script> block that starts with:
- *   <script>
- *   // ── Filter drawer open/close ──
- *   function openFilterDrawer() { ...
- *
- * REPLACE the ENTIRE script block with the one below.
- *
- * Key changes vs original:
- *  - Sidebar chips call sidebarPendingChip() instead of navigating
- *  - Sidebar range inputs do NOT call catalogUpdateRange on change
- *  - #sidebarApplyBtn click collects ALL pending state and fires one load
- *  - Mobile drawer Apply button uses same path (catalogSetAllRanges)
- *  - Clear all links work as normal navigation (reload to clean state)
- *  - Pending dot shown on Apply button whenever state differs from applied
- */
-?>
-
 <script>
-// ══════════════════════════════════════════════════════════════════════════════
-// SIDEBAR — pending state (not applied until Apply clicked)
-// ══════════════════════════════════════════════════════════════════════════════
 
 // Mirrors the currently *applied* catalog state from data attributes
 var _applied = {

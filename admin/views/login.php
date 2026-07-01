@@ -61,6 +61,7 @@ $_authLogo = getLogo(true); // admin is one directory below root, ../uploads/log
 
       <form method="POST" action="index.php" novalidate>
         <input type="hidden" name="action" value="admin_login"/>
+        <?= csrfField() ?>
         <div class="input-group">
           <label class="input-label">Username</label>
           <input type="text" name="username" class="input-field"

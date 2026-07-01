@@ -60,6 +60,7 @@ $items = $st->fetchAll();
           <input type="hidden" name="action"     value="toggle_shortlist"/>
           <input type="hidden" name="product_id" value="<?= $p['id'] ?>"/>
           <input type="hidden" name="return_url" value="index.php?page=shortlist"/>
+          <?= csrfField() ?>
           <button type="submit" class="btn btn-danger btn-sm btn-block">
             <?= icon('trash',13) ?>&nbsp; Remove
           </button>
