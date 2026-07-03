@@ -12,6 +12,16 @@ function csrfField(): string {
 function csrfVerify(): void {
     $token = $_POST['csrf_token'] ?? '';
     if (!hash_equals($_SESSION['csrf_token'] ?? '', (string)$token)) {
+        $wantsJson = !empty($_SERVER['HTTP_X_REQUESTED_WITH'])
+            || stripos($_SERVER['HTTP_ACCEPT'] ?? '', 'application/json') !== false
+            || stripos($_SERVER['CONTENT_TYPE'] ?? '', 'json') !== false;
+
+        if ($wantsJson) {
+            http_response_code(403);
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'error' => 'Security check failed. Please refresh and try again.']);
+            exit;
+        }
         http_response_code(403);
         die('Security check failed. Please refresh the page and try again.');
     }

@@ -40,47 +40,66 @@ if ($shMin   !== null) $filters['sh_min']             = $shMin;
 if ($shMax   !== null) $filters['sh_max']             = $shMax;
 
 // Query Builder 
-function getSortedProducts(array $filters, string $sort): array {
-    $db  = getDB();
-    $sql = "SELECT p.*,
-              (SELECT filename FROM product_photos WHERE product_id=p.id ORDER BY sort_order LIMIT 1) AS primary_photo
-            FROM products p WHERE 1=1";
+// Query Builder — shared WHERE clause builder so count + rows never drift apart
+function buildProductFilterSQL(array $filters): array {
+    $where  = " WHERE 1=1";
     $params = [];
 
-    if (!empty($filters['category']))          { $sql .= " AND p.category=?";            $params[] = $filters['category']; }
-    if (!empty($filters['subcategory']))       { $sql .= " AND p.subcategory=?";          $params[] = $filters['subcategory']; }
-    if (!empty($filters['color_subcategory'])) { $sql .= " AND p.color_subcategory=?";    $params[] = $filters['color_subcategory']; }
-    if (!empty($filters['search']))            { $sql .= " AND (p.name LIKE ? OR p.quarry_number LIKE ?)"; $params[] = '%'.$filters['search'].'%'; $params[] = '%'.$filters['search'].'%'; }
+    if (!empty($filters['category']))          { $where .= " AND p.category=?";            $params[] = $filters['category']; }
+    if (!empty($filters['subcategory']))       { $where .= " AND p.subcategory=?";          $params[] = $filters['subcategory']; }
+    if (!empty($filters['color_subcategory'])) { $where .= " AND p.color_subcategory=?";    $params[] = $filters['color_subcategory']; }
+    if (!empty($filters['search']))            { $where .= " AND (p.name LIKE ? OR p.quarry_number LIKE ?)"; $params[] = '%'.$filters['search'].'%'; $params[] = '%'.$filters['search'].'%'; }
 
-   // Available sqft — BETWEEN / >= / <=
+    // Available sqft — BETWEEN / >= / <=
     if (isset($filters['sqft_min']) && isset($filters['sqft_max'])) {
-        $sql .= " AND p.quantity_available BETWEEN ? AND ?";
+        $where .= " AND p.quantity_available BETWEEN ? AND ?";
         $params[] = $filters['sqft_min']; $params[] = $filters['sqft_max'];
     } elseif (isset($filters['sqft_min'])) {
-        $sql .= " AND p.quantity_available >= ?"; $params[] = $filters['sqft_min'];
+        $where .= " AND p.quantity_available >= ?"; $params[] = $filters['sqft_min'];
     } elseif (isset($filters['sqft_max'])) {
-        $sql .= " AND p.quantity_available <= ?"; $params[] = $filters['sqft_max'];
+        $where .= " AND p.quantity_available <= ?"; $params[] = $filters['sqft_max'];
     }
 
-   // Slab Length (sizes_l) — BETWEEN / >= / <=
+    // Slab Length (sizes_l) — BETWEEN / >= / <=
     if (isset($filters['sl_min']) && isset($filters['sl_max'])) {
-        $sql .= " AND CAST(p.sizes_l AS DECIMAL(10,2)) BETWEEN ? AND ?";
+        $where .= " AND CAST(p.sizes_l AS DECIMAL(10,2)) BETWEEN ? AND ?";
         $params[] = $filters['sl_min']; $params[] = $filters['sl_max'];
     } elseif (isset($filters['sl_min'])) {
-        $sql .= " AND CAST(p.sizes_l AS DECIMAL(10,2)) >= ?"; $params[] = $filters['sl_min'];
+        $where .= " AND CAST(p.sizes_l AS DECIMAL(10,2)) >= ?"; $params[] = $filters['sl_min'];
     } elseif (isset($filters['sl_max'])) {
-        $sql .= " AND CAST(p.sizes_l AS DECIMAL(10,2)) <= ?"; $params[] = $filters['sl_max'];
+        $where .= " AND CAST(p.sizes_l AS DECIMAL(10,2)) <= ?"; $params[] = $filters['sl_max'];
     }
 
     // Slab Height (sizes_h) — BETWEEN / >= / <=
     if (isset($filters['sh_min']) && isset($filters['sh_max'])) {
-        $sql .= " AND CAST(p.sizes_h AS DECIMAL(10,2)) BETWEEN ? AND ?";
+        $where .= " AND CAST(p.sizes_h AS DECIMAL(10,2)) BETWEEN ? AND ?";
         $params[] = $filters['sh_min']; $params[] = $filters['sh_max'];
     } elseif (isset($filters['sh_min'])) {
-        $sql .= " AND CAST(p.sizes_h AS DECIMAL(10,2)) >= ?"; $params[] = $filters['sh_min'];
+        $where .= " AND CAST(p.sizes_h AS DECIMAL(10,2)) >= ?"; $params[] = $filters['sh_min'];
     } elseif (isset($filters['sh_max'])) {
-        $sql .= " AND CAST(p.sizes_h AS DECIMAL(10,2)) <= ?"; $params[] = $filters['sh_max'];
+        $where .= " AND CAST(p.sizes_h AS DECIMAL(10,2)) <= ?"; $params[] = $filters['sh_max'];
     }
+
+    return [$where, $params];
+}
+
+// Count only — cheap, no row fetch, used for pagination math
+function countFilteredProducts(array $filters): int {
+    $db = getDB();
+    [$where, $params] = buildProductFilterSQL($filters);
+    $st = $db->prepare("SELECT COUNT(*) FROM products p" . $where);
+    $st->execute($params);
+    return (int)$st->fetchColumn();
+}
+
+// Row fetch — SQL does LIMIT/OFFSET now, no more full-table slurp into PHP
+function getSortedProducts(array $filters, string $sort, int $limit = 0, int $offset = 0): array {
+    $db = getDB();
+    [$where, $params] = buildProductFilterSQL($filters);
+
+    $sql = "SELECT p.*,
+              (SELECT filename FROM product_photos WHERE product_id=p.id ORDER BY sort_order LIMIT 1) AS primary_photo
+            FROM products p" . $where;
 
     switch ($sort) {
         case 'name_az':  $sql .= " ORDER BY p.name ASC"; break;
@@ -88,17 +107,34 @@ function getSortedProducts(array $filters, string $sort): array {
         case 'qty_desc': $sql .= " ORDER BY p.quantity_available DESC"; break;
         default:         $sql .= " ORDER BY p.featured DESC, p.sort_order ASC, p.id DESC"; break;
     }
+
+    if ($limit > 0) {
+        $sql .= " LIMIT ? OFFSET ?";
+        $params[] = $limit;
+        $params[] = $offset;
+    }
+
     $st = $db->prepare($sql);
     $st->execute($params);
     return $st->fetchAll();
 }
 
-$allProducts = getSortedProducts($filters, $sort);
-$totalCount  = count($allProducts);
+// Featured strip — separate cheap query, small LIMIT, not part of main slurp
+function getFeaturedProducts(int $limit = 8): array {
+    $db = getDB();
+    $st = $db->prepare("SELECT p.*,
+              (SELECT filename FROM product_photos WHERE product_id=p.id ORDER BY sort_order LIMIT 1) AS primary_photo
+            FROM products p WHERE p.featured=1 ORDER BY p.sort_order ASC, p.id DESC LIMIT ?");
+    $st->bindValue(1, $limit, PDO::PARAM_INT);
+    $st->execute();
+    return $st->fetchAll();
+}
+
+$totalCount  = countFilteredProducts($filters);
 $totalPages  = max(1, (int)ceil($totalCount / $perPage));
-$currentPage     = min($currentPage, $totalPages);
-$products    = array_slice($allProducts, ($currentPage - 1) * $perPage, $perPage);
-$featured    = array_filter($allProducts, fn($p) => $p['featured']);
+$currentPage = min($currentPage, $totalPages);
+$products    = getSortedProducts($filters, $sort, $perPage, ($currentPage - 1) * $perPage);
+$featured    = getFeaturedProducts(8);
 $categories  = CATEGORIES;
 $colorSubs   = COLOR_SUBCATEGORIES;
 $hasFilter   = $cat || $color || $search

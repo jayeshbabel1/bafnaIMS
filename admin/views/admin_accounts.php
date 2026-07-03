@@ -172,7 +172,7 @@ $allRoles = getAllRoles();
       <form method="POST" action="index.php" id="aaForm">
         <input type="hidden" name="action"   id="aaFormAction" value="create_admin_account"/>
         <input type="hidden" name="admin_id" id="aaFormId"     value=""/>
-
+<?= csrfField() ?>
         <div class="aa-form-grid">
           <div>
             <label class="admin-label">Full Name <span style="color:var(--danger);">*</span></label>
@@ -260,6 +260,7 @@ $allRoles = getAllRoles();
         <form method="POST" action="index.php" style="flex:1;">
           <input type="hidden" name="action"   value="delete_admin_account"/>
           <input type="hidden" name="admin_id" id="aaDeleteId" value=""/>
+          <?= csrfField() ?>
           <button type="submit" class="btn-admin-danger" style="width:100%;justify-content:center;">
             <?= icon('trash', 14) ?> Delete
           </button>

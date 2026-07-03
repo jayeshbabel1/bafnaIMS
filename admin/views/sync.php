@@ -335,7 +335,8 @@ $counts   = [1 => $imgCount, 2 => $msCount, 3 => $dnaCount];
 <script>
 const TOTAL_STEPS = 3;
 let totals = { synced: 0, skipped: 0, found: 0 };
-
+let animTokens = {};
+  
 function startSync() {
     // Reset state
     totals = { synced: 0, skipped: 0, found: 0 };
@@ -460,10 +461,12 @@ function setBar(step, pct) {
 
 function animateBar(step, target, duration) {
     const bar = document.getElementById('stepBar'+step);
+    const token = (animTokens[step] = (animTokens[step] || 0) + 1);
     const start = parseFloat(bar.style.width) || 0;
     const diff = target - start;
     const startTime = performance.now();
     function tick(now) {
+      if (animTokens[step] !== token) return;
         const elapsed = now - startTime;
         const progress = Math.min(elapsed / duration, 1);
         bar.style.width = (start + diff * progress) + '%';

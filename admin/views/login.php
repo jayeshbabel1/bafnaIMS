@@ -2,7 +2,8 @@
 if (!function_exists('getLogo')) {
     require_once BASE_PATH . '/includes/logo.php';
 }
-$_authLogo = getLogo(true); // admin is one directory below root, ../uploads/logo/...
+$_authLogo = getLogo(true); 
+$tagline   = getSetting('company_tagline', 'Premium Stone Catalog Platform');
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -34,7 +35,7 @@ $_authLogo = getLogo(true); // admin is one directory below root, ../uploads/log
     <?php else: ?>
       <img src="https://i0.wp.com/www.bafnamarble.com/wp-content/uploads/2023/11/cropped-logo-01.png?fit=317%2C250&ssl=1" alt="<?= h(APP_NAME) ?>"/>
     <?php endif; ?>
-    <p class="auth-left-panel-title">Admin<br>Control Panel</p>
+   <p class="auth-left-panel-title"><?= h($tagline) ?></p>
     <div class="auth-left-panel-accent"></div>
   </div>
 

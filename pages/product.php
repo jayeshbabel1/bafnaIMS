@@ -239,7 +239,11 @@ $specs = [
         <?= icon('plus',16) ?>&nbsp; Add to Client Selection
       </button>
     </div>
-
+    <div style="margin-top:10px;">
+  <a href="index.php?page=room_visualizer&product_id=<?= $id ?>" class="btn btn-secondary btn-block btn-lg" style="text-decoration:none;">
+    <?= icon('image',16) ?>&nbsp; Visualize in a Room
+  </a>
+</div>
     <?php if (!$hasClients): ?>
     <p style="text-align:center;font-size:12px;color:var(--text4);margin-top:8px;">
       No clients yet — <a href="index.php?page=client_form" style="color:var(--black);font-weight:600;">add a client</a> to use selections.

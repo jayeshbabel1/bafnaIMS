@@ -276,6 +276,8 @@ if (adminCan('settings.logo')) {
 if (adminCan('settings.smtp')) {
     $settingsSubItems[] = ['page'=>'smtp',           'label'=>'Mail Settings'];
 }
+    $settingsSubItems[] = ['page'=>'room_templates',           'label'=>'Room Templates'];
+
  
 // Roles & Permissions sub-items
 $rolesSubItems = [];

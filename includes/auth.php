@@ -174,32 +174,31 @@ function clearLoginFailures(string $ident): void {
     getDB()->prepare("DELETE FROM login_attempts WHERE ident=?")->execute([loginThrottleKey($ident)]);
 }
 
-// ── PATCHED loginAdmin — checks is_active + flushes RBAC cache 
 function loginAdmin(string $username, string $password): bool {
-  if (isLoginLocked($username)) {
-         return false;
-     }
+    if (isLoginLocked($username)) {
+        return false;
+    }
     $db = getDB();
     $st = $db->prepare("SELECT * FROM admins WHERE username = ?");
     $st->execute([strtolower(trim($username))]);
     $admin = $st->fetch();
- 
+
     if (!$admin || !password_verify($password, $admin['password'])) {
+        registerLoginFailure($username); 
         return false;
     }
- 
-    // Block inactive accounts (column added by migration_rbac.sql)
+
     if (array_key_exists('is_active', $admin) && !(int)$admin['is_active']) {
         return false;
     }
-  clearLoginFailures($username);
+
+    clearLoginFailures($username);
     session_regenerate_id(true);
     $_SESSION['admin_id']   = $admin['id'];
     $_SESSION['admin_name'] = $admin['name'];
-   registerLoginFailure($username);
-    // Flush any stale RBAC permission cache
+    
     unset($_SESSION['admin_permissions'], $_SESSION['admin_role_slug']);
- 
+
     return true;
 }
  

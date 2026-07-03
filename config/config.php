@@ -27,6 +27,26 @@ define('MEASUREMENT_DIR', BASE_PATH . '/assets/uploads/measurement_sheets');
 define('DNA_DIR',         BASE_PATH . '/assets/uploads/dna_reports');
 define('EXCEL_DIR',       BASE_PATH . '/assets/uploads/excel');
 
+// ── Room Visualizer settings ─────────────────────────────────────
+define('ROOM_TEMPLATES_DIR', BASE_PATH . '/assets/uploads/room_templates');
+define('ROOM_PREVIEWS_DIR',  BASE_PATH . '/storage/room_previews');
+define('ROOM_TEMPLATES_URL', BASE_URL . '/assets/uploads/room_templates');
+define('ROOM_PREVIEWS_URL',  'storage/room_previews');
+
+define('ROOM_TYPES', [
+    'floor'    => 'Floor',
+    'wall'     => 'Wall',
+    'kitchen'  => 'Kitchen Countertop',
+    'bathroom' => 'Bathroom',
+    'living_room' => 'Living Room',
+    'Bedroom' => 'Bedroom',
+]);
+
+foreach ([ROOM_TEMPLATES_DIR, ROOM_PREVIEWS_DIR] as $_rvDir) {
+    if (!is_dir($_rvDir)) @mkdir($_rvDir, 0755, true);
+}
+
+
 define('SESSION_TTL',  86400 * 2); // 2 days
 // SMTP SETTINGS
 
@@ -52,17 +72,19 @@ foreach ([PHOTOS_DIR, MEASUREMENT_DIR, DNA_DIR, EXCEL_DIR] as $_dir) {
 }
 
 
- // Security headers (applied to every request) 
  if (!headers_sent()) {
-     header('X-Content-Type-Options: nosniff');
+    header('X-Content-Type-Options: nosniff');
     header('X-Frame-Options: SAMEORIGIN');
-     header('Referrer-Policy: strict-origin-when-cross-origin');
-     header('Permissions-Policy: geolocation=(), microphone=(), camera=()');
-     header(
-         "Content-Security-Policy: default-src 'self'; " .
-         "img-src 'self' data: https:; " .
-         "script-src 'self' 'unsafe-inline'; " .
-         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " .
-         "font-src 'self' https://fonts.gstatic.com;"
-     );
- }
+    header('Referrer-Policy: strict-origin-when-cross-origin');
+    header('Permissions-Policy: geolocation=(), microphone=(), camera=()');
+    if (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') {
+        header('Strict-Transport-Security: max-age=31536000; includeSubDomains'); // ★ FIX #13
+    }
+    header(
+        "Content-Security-Policy: default-src 'self'; " .
+        "img-src 'self' data: https:; " .
+        "script-src 'self' 'unsafe-inline'; " .
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " .
+        "font-src 'self' https://fonts.gstatic.com;"
+    );
+}

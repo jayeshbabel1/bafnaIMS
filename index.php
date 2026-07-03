@@ -6,8 +6,10 @@ require_once __DIR__ . '/includes/helpers.php';
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/notifications.php';
 require_once __DIR__ . '/includes/clients.php';
+require_once __DIR__ . '/includes/room_visualizer.php';
 
 startSecureSession();
+ 
  // Verify CSRF token on every state-changing POST (public auth forms excluded
  // only where there is no session yet to bind the token to)
  
@@ -33,7 +35,7 @@ if (!empty($_GET['ajax_search']) && ($_GET['page'] ?? '') === 'clients' && isLog
 //  Handle POST actions 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
-
+    csrfVerify();
     //  Public auth actions 
     if ($action === 'login') {
         $result = loginUser($_POST['email'] ?? '', $_POST['password'] ?? '');
@@ -126,6 +128,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   
    //  Authenticated actions 
     requireLogin();
+  // ── Room Visualizer: generate preview ────────────────────────────────────
+if ($action === 'generate_room_preview') {
+    header('Content-Type: application/json');
+    $productId  = (int)($_POST['product_id']  ?? 0);
+    $templateId = (int)($_POST['template_id'] ?? 0);
+    if (!$productId || !$templateId) {
+        echo json_encode(['success' => false, 'error' => 'Missing product or template.']);
+        exit;
+    }
+    $result = generateRoomVisualization($_SESSION['user_id'], $productId, $templateId);
+    echo json_encode($result);
+    exit;
+}
+
+// ── Room Visualizer: delete a saved render ───────────────────────────────
+if ($action === 'delete_room_visualization') {
+    header('Content-Type: application/json');
+    $id = (int)($_POST['id'] ?? 0);
+    $ok = deleteRoomVisualization($id, $_SESSION['user_id']);
+    echo json_encode(['success' => $ok]);
+    exit;
+}
+  
   //  Create client
 if ($action === 'create_client') {
     $result = createClient($_SESSION['user_id'], $_POST);
@@ -136,6 +161,8 @@ if ($action === 'create_client') {
     $inlineError = $result['error'];
     include BASE_PATH . '/pages/client_form.php'; exit;
 }
+  
+  
 
 // ── Update client
 if ($action === 'update_client') {
@@ -248,7 +275,7 @@ if ($action === 'delete_selection') {
 //  Page routing 
 $publicPages    = ['login','register','forgot_password','reset_password','waiting_approval'];
 $protectedPages = ['catalog','product','shortlist','profile','support','notifications',
-                   'clients','client_form','client_selections'];
+                   'clients','client_form','client_selections','room_visualizer'];
 if (in_array($page ?? '', $protectedPages) && isLoggedIn()) {
     $db = getDB();
     $st = $db->prepare("SELECT is_verified FROM users WHERE id=?");

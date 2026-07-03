@@ -1,5 +1,9 @@
 <?php
-session_start();
+require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../includes/db.php';
+require_once __DIR__ . '/../includes/helpers.php';
+require_once __DIR__ . '/../includes/auth.php';
+startSecureSession(); 
 $autoload = __DIR__ . '/../vendor/autoload.php';
 
 if (!file_exists($autoload)) {
@@ -15,10 +19,7 @@ use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 
 define('ADMIN_PANEL', true);
 
-require_once __DIR__ . '/../config/config.php';
-require_once __DIR__ . '/../includes/db.php';
-require_once __DIR__ . '/../includes/helpers.php';
-require_once __DIR__ . '/../includes/auth.php';
+
 require_once __DIR__ . '/../includes/rbac.php';
 require_once __DIR__ . '/../includes/notifications.php';
 require_once __DIR__ . '/../includes/logo.php';
@@ -27,6 +28,7 @@ require_once __DIR__ . '/../includes/mailer.php';
 require_once __DIR__ . '/../includes/wa_share.php';
 require_once __DIR__ . '/../includes/product_pdf.php';
 require_once __DIR__ . '/views/_permission_guards.php';
+require_once __DIR__ . '/../includes/room_visualizer.php';
 
 
 // Handle POST 
@@ -42,7 +44,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     requireAdmin();
-
+    csrfVerify();  
+  
    if ($action === 'admin_logout') {
         unset($_SESSION['admin_id'], $_SESSION['admin_name']);
         $adminBase = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
@@ -50,9 +53,79 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
   
+  // ── ROOM TEMPLATE: SAVE ──────────────────────────────────────────────────
+if ($action === 'save_room_template') {
+    requireAdmin();
+    $roomType = $_POST['room_type'] ?? 'floor';
+    $label    = trim($_POST['label'] ?? '');
+    $maskJson = $_POST['mask_points'] ?? '[]';
+    $points   = json_decode($maskJson, true);
+
+    if (!$label || !is_array($points) || count($points) !== 4) {
+        flash('error', 'Please provide a label and click all 4 corner points.');
+        redirect('index.php?page=room_templates');
+    }
+
+    $baseFile = '';
+    if (!empty($_FILES['base_image']['name'])) {
+        $ext = strtolower(pathinfo($_FILES['base_image']['name'], PATHINFO_EXTENSION));
+        $baseFile = 'room_' . uniqid() . '.' . $ext;
+        move_uploaded_file($_FILES['base_image']['tmp_name'], ROOM_TEMPLATES_DIR . '/' . $baseFile);
+    }
+
+    $shadowFile = null;
+    if (!empty($_FILES['shadow_layer']['name'])) {
+        $ext = strtolower(pathinfo($_FILES['shadow_layer']['name'], PATHINFO_EXTENSION));
+        $shadowFile = 'shadow_' . uniqid() . '.' . $ext;
+        move_uploaded_file($_FILES['shadow_layer']['tmp_name'], ROOM_TEMPLATES_DIR . '/' . $shadowFile);
+    }
+
+    [$w, $h] = @getimagesize(ROOM_TEMPLATES_DIR . '/' . $baseFile) ?: [1200, 800];
+
+   $clipJson = $_POST['clip_points'] ?? '';
+    $clipPoints = json_decode($clipJson, true);
+    $clipToStore = (is_array($clipPoints) && count($clipPoints) >= 3)
+        ? json_encode($clipPoints)
+        : null; // null = fallback to the 4-point quad at render time
+
+    getDB()->prepare("
+        INSERT INTO room_templates (room_type, label, base_image, shadow_layer, mask_points, clip_points, canvas_w, canvas_h, is_active, sort_order, created_at)
+        VALUES (?,?,?,?,?,?,?,?,1,0,?)
+    ")->execute([$roomType, $label, $baseFile, $shadowFile, json_encode($points), $clipToStore, $w, $h, time()]);
+
+    flash('toast', 'Room template saved.');
+    redirect('index.php?page=room_templates');
+}
+
+// ── ROOM TEMPLATE: TOGGLE ────────────────────────────────────────────────
+if ($action === 'toggle_room_template') {
+    requireAdmin();
+    getDB()->prepare("UPDATE room_templates SET is_active=? WHERE id=?")
+        ->execute([(int)$_POST['is_active'], (int)$_POST['template_id']]);
+    flash('toast', 'Template updated.');
+    redirect('index.php?page=room_templates');
+}
+
+// ── ROOM TEMPLATE: DELETE ────────────────────────────────────────────────
+if ($action === 'delete_room_template') {
+    requireAdmin();
+    $tid = (int)($_POST['template_id'] ?? 0);
+    $st  = getDB()->prepare("SELECT * FROM room_templates WHERE id=?");
+    $st->execute([$tid]);
+    if ($row = $st->fetch()) {
+        if ($row['base_image'])   @unlink(ROOM_TEMPLATES_DIR . '/' . $row['base_image']);
+        if ($row['shadow_layer']) @unlink(ROOM_TEMPLATES_DIR . '/' . $row['shadow_layer']);
+    }
+    getDB()->prepare("DELETE FROM room_templates WHERE id=?")->execute([$tid]);
+    flash('toast', 'Template deleted.');
+    redirect('index.php?page=room_templates');
+}
+  
+  
   //  ADMIN: CREATE CLIENT 
 if ($action === 'admin_create_client') {
     requireAdmin();
+    requireAdminPermission('clients.create');
     $userId = (int)($_POST['user_id'] ?? 0);
     $result = adminCreateClient($userId, $_POST);
     if ($result['success']) {
@@ -67,6 +140,7 @@ if ($action === 'admin_create_client') {
 //  ADMIN: UPDATE CLIENT 
 if ($action === 'admin_update_client') {
     requireAdmin();
+    requireAdminPermission('clients.edit');
     $clientId = (int)($_POST['client_id'] ?? 0);
     $userId   = (int)($_POST['user_id']   ?? 0);
     $result   = adminUpdateClient($clientId, $userId, $_POST);
@@ -83,6 +157,7 @@ if ($action === 'admin_update_client') {
 //  ADMIN: DELETE CLIENT 
 if ($action === 'admin_delete_client') {
     requireAdmin();
+    requireAdminPermission('clients.delete');
     $clientId = (int)($_POST['client_id'] ?? 0);
     adminDeleteClient($clientId);
     flash('toast', 'Client and all related selections deleted.');
@@ -92,6 +167,7 @@ if ($action === 'admin_delete_client') {
 //  ADMIN: ADD PRODUCT SELECTION (AJAX — returns JSON)
 if ($action === 'admin_add_selection') {
     requireAdmin();
+    requireAdminPermission('clients.edit');
     $clientId  = (int)($_POST['client_id']  ?? 0);
     $productId = (int)($_POST['product_id'] ?? 0);
     $result    = adminCreateSelectionForClient($clientId, $productId, $_POST);
@@ -103,6 +179,7 @@ if ($action === 'admin_add_selection') {
 //  ADMIN: UPDATE PRODUCT SELECTION (AJAX) 
 if ($action === 'admin_update_selection') {
     requireAdmin();
+  requireAdminPermission('clients.edit');
     $selectionId = (int)($_POST['selection_id'] ?? 0);
     $result = adminUpdateSelection($selectionId, $_POST);
     header('Content-Type: application/json');
@@ -113,6 +190,7 @@ if ($action === 'admin_update_selection') {
 //  ADMIN: DELETE PRODUCT SELECTION 
 if ($action === 'admin_delete_selection') {
     requireAdmin();
+  requireAdminPermission('clients.delete');
     $selectionId = (int)($_POST['selection_id'] ?? 0);
     $clientId    = (int)($_POST['client_id']    ?? 0);
     adminDeleteSelection($selectionId);
@@ -121,6 +199,7 @@ if ($action === 'admin_delete_selection') {
 }
 
     if ($action === 'save_colors') {
+      requireAdminPermission('settings.colors');
         $defaults = array_keys(require __DIR__ . '/../config/colors.php');
         $extraKeys = [
             '--btn-radius','--card-radius',
@@ -197,6 +276,7 @@ if ($action === 'admin_delete_selection') {
     }
   
     if ($action === 'reset_colors') {
+      requireAdminPermission('settings.colors');
         $defaults = require __DIR__ . '/../config/colors.php';
         foreach ($defaults as $k => $v) setSetting($k, $v);
         flash('toast', 'All theme settings reset to defaults.');
@@ -204,6 +284,7 @@ if ($action === 'admin_delete_selection') {
     }
   
     if ($action === 'upload_logo') {
+      requireAdminPermission('settings.logo');
         $result = uploadLogo($_FILES['logo_file'] ?? []);
         if ($result['success']) {
             flash('toast', 'Logo updated successfully.');
@@ -215,6 +296,7 @@ if ($action === 'admin_delete_selection') {
   
   
   if ($action === 'save_company_profile') {
+    requireAdminPermission('settings.logo');
         $fields = [
             'company_name', 'company_short_name', 'company_tagline',
             'company_address', 'company_gst', 'company_whatsapp',
@@ -228,6 +310,7 @@ if ($action === 'admin_delete_selection') {
     }
     
     if ($action === 'remove_logo') {
+      requireAdminPermission('settings.logo');
         $st = getDB()->prepare("SELECT `value` FROM settings WHERE `key` = ?");
         $st->execute([LOGO_SETTING_KEY]);
         $old = (string)($st->fetchColumn() ?: '');
@@ -241,19 +324,22 @@ if ($action === 'admin_delete_selection') {
     }
 
     if ($action === 'save_product') {
+        requireAdminPermission((int)($_POST['product_id'] ?? 0) ? 'products.edit' : 'products.create'); 
         saveProduct($_POST, $_FILES);
         redirect('index.php?page=products');
     }
 
     if ($action === 'delete_product') {
-    $pid = (int)($_POST['product_id'] ?? 0);
-       $db = getDB();
-    _deleteProductWithDependencies($db, $pid);
-    flash('toast', 'Product deleted.');
-    redirect('index.php?page=products');
-}
+        requireAdminPermission('products.delete'); 
+        $pid = (int)($_POST['product_id'] ?? 0);
+        $db = getDB();
+        _deleteProductWithDependencies($db, $pid);
+        flash('toast', 'Product deleted.');
+        redirect('index.php?page=products');
+    }
 
     if ($action === 'delete_photo') {
+      requireAdminPermission('products.edit');
         $fid = (int)($_POST['photo_id'] ?? 0);
         $st  = getDB()->prepare("SELECT filename,product_id FROM product_photos WHERE id=?");
         $st->execute([$fid]);
@@ -267,12 +353,14 @@ if ($action === 'admin_delete_selection') {
     }
   
     if ($action === 'clear_notifications') {
+       requireAdminPermission('notifications.clear');
             getDB()->exec("DELETE FROM notifications");
             flash('toast', 'All notifications cleared.');
            redirect('index.php?page=notifications');
         }
   
   if ($_POST['action'] == 'send_password_reset') {
+    requireAdminPermission('users.reset_password');
     $userId = (int)($_POST['user_id'] ?? 0);
     $st = getDB()->prepare("SELECT email FROM users WHERE id=?");
     $st->execute([$userId]);
@@ -290,6 +378,7 @@ if ($action === 'admin_delete_selection') {
   
   //  CREATE USER (Admin Panel)  */
 if ($action === 'create_user') {
+  requireAdminPermission('users.create');
     $result = createUserByAdmin([
         'name'       => $_POST['name']       ?? '',
         'email'      => $_POST['email']      ?? '',
@@ -331,6 +420,7 @@ if ($action === 'create_user') {
   
   // SMTP SAVE  
 if ($action === 'save_smtp') {
+  requireAdminPermission('settings.smtp');
     $smtpKeys = ['smtp_host','smtp_port','smtp_username','smtp_from_email','smtp_from_name','smtp_encryption'];
     foreach ($smtpKeys as $k) {
         if (isset($_POST[$k])) setSetting($k, trim($_POST[$k]));
@@ -367,6 +457,7 @@ if ($action === 'test_smtp') {
 //  USER VERIFICATION TOGGLE 
 if ($action === 'update_user_status') {
     requireAdmin();
+  requireAdminPermission('users.edit');
     $uid      = (int)($_POST['user_id']  ?? 0);
     $verified = (int)($_POST['verified'] ?? 0);
     $db = getDB();
@@ -388,6 +479,7 @@ if ($action === 'update_user_status') {
   
   if ($action === 'save_user_edit') {
     requireAdmin();
+    requireAdminPermission('users.edit');
     $uid = (int)($_POST['user_id'] ?? 0);
     if (!$uid) {
         flash('error', 'Invalid user.');
@@ -430,6 +522,7 @@ if ($action === 'update_user_status') {
 //  DELETE USER 
 if ($action === 'delete_user') {
     requireAdmin();
+    requireAdminPermission('users.delete');
     $uid     = (int)($_POST['user_id']    ?? 0);
     $confirm = trim($_POST['confirm_text'] ?? '');
     if ($confirm !== 'DELETE') {
@@ -459,30 +552,36 @@ if ($action === 'delete_user') {
 }
 
   	if ($_POST['action'] === 'sync_photos') {
+      requireAdminPermission('sync.run');
     syncPhotosFromDirectory();
       redirect('index.php?page=products');
     }
  	 if ($_POST['action']=='sync_measurements'){
+       requireAdminPermission('sync.run');
     syncMeasurementSheetsfromdirectory();
      redirect('index.php?page=products');
      }
 
 		if ($_POST['action']=='sync_dna'){
+          requireAdminPermission('sync.run');
     syncDNAReportsfromdirectory();
           redirect('index.php?page=products');
         }
   
  	 if($_POST['action']=='export'){
+       requireAdminPermission('products.export');
     exportExcel();
     redirect('index.php?page=products');
 	}
 
 		if($_POST['action']=='import'){
+          requireAdminPermission('products.import');
  	   importExcel($_FILES['xls_file'] ?? null);
  	  redirect('index.php?page=products');
 		}
    
      if ($action === 'import_photos') {
+       requireAdminPermission('products.upload_photos'); 
         importPhotos($_FILES['photo_zip'] ?? null);
         redirect('index.php?page=products');
     }
@@ -1922,7 +2021,7 @@ function syncDnaReports(): array {
 $pages = ['dashboard','products','product_edit','colors','users','inquiries','sync',
               'notifications','logo','user_clients','admin_selections','smtp',
               'admin_clients','admin_client_form','admin_client_selections',
-              'roles','admin_accounts'];
+              'roles','admin_accounts','room_templates'];
 $file  = in_array($page, $pages)
        ? __DIR__ . '/views/' . $page . '.php'
        : __DIR__ . '/views/dashboard.php';

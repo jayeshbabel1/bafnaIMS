@@ -1,6 +1,8 @@
 <?php $pageTitle = 'Sign In — ' . APP_NAME; ?>
 <?php include BASE_PATH . '/layouts/auth_layout.php'; ?>
-<?php $err = $inlineError ?? null; ?>
+<?php $err = $inlineError ?? null; 
+$tagline = getSetting('company_tagline', 'Premium Stone Catalog Platform');
+?>
 
 <div class="auth-page">
 
@@ -11,7 +13,7 @@
     <?php else: ?>
       <img src="https://i0.wp.com/www.bafnamarble.com/wp-content/uploads/2023/11/cropped-logo-01.png?fit=317%2C250&ssl=1" alt="<?= h(APP_NAME) ?>"/>
     <?php endif; ?>
-    <p class="auth-left-panel-title">Premium Stone<br>Catalog Platform</p>
+    <p class="auth-left-panel-title"><?= h($tagline) ?></p>
     <div class="auth-left-panel-accent"></div>
   </div>
 

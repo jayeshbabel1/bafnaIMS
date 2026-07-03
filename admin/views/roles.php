@@ -263,7 +263,7 @@ $grouped = getAllPermissionsGrouped();
     <form method="POST" action="index.php" id="permForm">
       <input type="hidden" name="action"  value="save_role_permissions"/>
       <input type="hidden" name="role_id" id="permRoleId" value="<?= $firstRole['id'] ?>"/>
-
+	<?= csrfField() ?>
       <div id="permModules">
         <?php foreach ($grouped as $module => $permissions): ?>
         <div class="perm-module">
@@ -347,6 +347,7 @@ $grouped = getAllPermissionsGrouped();
     <form method="POST" action="index.php" id="roleForm">
       <input type="hidden" name="action"  id="roleFormAction" value="create_role"/>
       <input type="hidden" name="role_id" id="roleFormId"     value=""/>
+      <?= csrfField() ?>
       <div style="margin-bottom:14px;">
         <label class="admin-label">Role Name <span style="color:var(--danger);">*</span></label>
         <input type="text" name="name" id="roleFormName" class="admin-input"
@@ -382,6 +383,7 @@ $grouped = getAllPermissionsGrouped();
       <form method="POST" action="index.php" style="flex:1;">
         <input type="hidden" name="action"  value="delete_role"/>
         <input type="hidden" name="role_id" id="roleDeleteId" value=""/>
+        <?= csrfField() ?>
         <button type="submit" class="btn-admin-danger" style="width:100%;justify-content:center;">
           <?= icon('trash', 14) ?> Delete
         </button>
