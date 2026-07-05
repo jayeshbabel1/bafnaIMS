@@ -201,8 +201,8 @@ if ($isAjax) {
         form.method = 'POST'; form.action = 'index.php';
         form.innerHTML = '<input type="hidden" name="action" value="delete_selection"/>' +
           '<input type="hidden" name="selection_id" value="' + btn.dataset.id + '"/>' +
-          '<input type="hidden" name="client_id" value="' + clientId + '"/>';
-          '<input type="hidden" name="csrf_token" value="<?=h(csrfToken()) ?>"/>';
+          '<input type="hidden" name="client_id" value="' + clientId + '"/>' +
+          '<input type="hidden" name="csrf_token" value="<?= h(csrfToken()) ?>"/>';
         document.body.appendChild(form); form.submit();
       });
     });
@@ -227,11 +227,22 @@ if ($isAjax) {
   document.getElementById('editSelForm')?.addEventListener('submit', async function (e) {
     e.preventDefault();
     const body = new FormData(this);
-    const r    = await fetch('index.php', { method: 'POST', body });
-    modal.style.display = 'none';
-    load(state.page, false);
+    try {
+      const r = await fetch('index.php', {
+        method: 'POST',
+        body,
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+      });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      let d = {};
+      try { d = await r.json(); } catch (_) { /* non-JSON success path, ignore */ }
+      if (d && d.success === false) throw new Error(d.error || 'Update failed.');
+      modal.style.display = 'none';
+      load(state.page, false);
+    } catch (err) {
+      alert('Could not save changes: ' + err.message + '. Please refresh and try again.');
+    }
   });
-
   bindButtons();
 })();
 </script>

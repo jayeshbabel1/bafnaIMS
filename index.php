@@ -7,6 +7,7 @@ require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/notifications.php';
 require_once __DIR__ . '/includes/clients.php';
 require_once __DIR__ . '/includes/room_visualizer.php';
+require_once __DIR__ . '/includes/license.php';
 
 startSecureSession();
  
@@ -14,6 +15,10 @@ startSecureSession();
  // only where there is no session yet to bind the token to)
  
 $page = preg_replace('/[^a-z_]/', '', $_GET['page'] ?? 'catalog');
+
+// ── License / Activation middleware — runs before ANY routing, so a
+// bare ?page=catalog etc. can never bypass an invalid/expired license.
+enforceLicense($page);
 // Client AJAX search
 if (!empty($_GET['ajax_search']) && ($_GET['page'] ?? '') === 'clients' && isLoggedIn()) {
     $q      = trim($_GET['q'] ?? '');
@@ -125,7 +130,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         include BASE_PATH . '/pages/reset_password.php'; exit;
     }
   
-  
+      // ── Public activation action ────────────────────────────────────────
+    if ($action === 'activate_license') {
+        $result = activateLicenseKey($_POST['activation_key'] ?? '');
+        if ($result['success']) {
+            flash('toast', 'License activated successfully.');
+            redirect('index.php?page=catalog');
+        }
+        $inlineError = $result['error'];
+        include BASE_PATH . '/pages/activation.php'; exit;
+    }
    //  Authenticated actions 
     requireLogin();
   // ── Room Visualizer: generate preview ────────────────────────────────────
@@ -273,7 +287,7 @@ if ($action === 'delete_selection') {
 }
 
 //  Page routing 
-$publicPages    = ['login','register','forgot_password','reset_password','waiting_approval'];
+$publicPages    = ['login','register','forgot_password','reset_password','waiting_approval','activation'];
 $protectedPages = ['catalog','product','shortlist','profile','support','notifications',
                    'clients','client_form','client_selections','room_visualizer'];
 if (in_array($page ?? '', $protectedPages) && isLoggedIn()) {

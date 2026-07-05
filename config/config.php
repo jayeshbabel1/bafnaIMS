@@ -72,18 +72,19 @@ foreach ([PHOTOS_DIR, MEASUREMENT_DIR, DNA_DIR, EXCEL_DIR] as $_dir) {
 }
 
 
- if (!headers_sent()) {
+if (!headers_sent()) {
     header('X-Content-Type-Options: nosniff');
     header('X-Frame-Options: SAMEORIGIN');
     header('Referrer-Policy: strict-origin-when-cross-origin');
     header('Permissions-Policy: geolocation=(), microphone=(), camera=()');
     if (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') {
-        header('Strict-Transport-Security: max-age=31536000; includeSubDomains'); // ★ FIX #13
+        header('Strict-Transport-Security: max-age=31536000; includeSubDomains');
     }
     header(
         "Content-Security-Policy: default-src 'self'; " .
-        "img-src 'self' data: https:; " .
-        "script-src 'self' 'unsafe-inline'; " .
+        "img-src 'self' data: blob: https:; " .
+        "script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com; " .
+        "connect-src 'self' https://cloudflareinsights.com; " .
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " .
         "font-src 'self' https://fonts.gstatic.com;"
     );

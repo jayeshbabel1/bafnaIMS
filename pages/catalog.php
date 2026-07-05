@@ -60,24 +60,24 @@ function buildProductFilterSQL(array $filters): array {
         $where .= " AND p.quantity_available <= ?"; $params[] = $filters['sqft_max'];
     }
 
-    // Slab Length (sizes_l) — BETWEEN / >= / <=
+   // Slab Length (sizes_l_num) — pre-cast generated column, index-friendly
     if (isset($filters['sl_min']) && isset($filters['sl_max'])) {
-        $where .= " AND CAST(p.sizes_l AS DECIMAL(10,2)) BETWEEN ? AND ?";
+        $where .= " AND p.sizes_l_num BETWEEN ? AND ?";
         $params[] = $filters['sl_min']; $params[] = $filters['sl_max'];
     } elseif (isset($filters['sl_min'])) {
-        $where .= " AND CAST(p.sizes_l AS DECIMAL(10,2)) >= ?"; $params[] = $filters['sl_min'];
+        $where .= " AND p.sizes_l_num >= ?"; $params[] = $filters['sl_min'];
     } elseif (isset($filters['sl_max'])) {
-        $where .= " AND CAST(p.sizes_l AS DECIMAL(10,2)) <= ?"; $params[] = $filters['sl_max'];
+        $where .= " AND p.sizes_l_num <= ?"; $params[] = $filters['sl_max'];
     }
 
-    // Slab Height (sizes_h) — BETWEEN / >= / <=
+    // Slab Height (sizes_h_num) — pre-cast generated column, index-friendly
     if (isset($filters['sh_min']) && isset($filters['sh_max'])) {
-        $where .= " AND CAST(p.sizes_h AS DECIMAL(10,2)) BETWEEN ? AND ?";
+        $where .= " AND p.sizes_h_num BETWEEN ? AND ?";
         $params[] = $filters['sh_min']; $params[] = $filters['sh_max'];
     } elseif (isset($filters['sh_min'])) {
-        $where .= " AND CAST(p.sizes_h AS DECIMAL(10,2)) >= ?"; $params[] = $filters['sh_min'];
+        $where .= " AND p.sizes_h_num >= ?"; $params[] = $filters['sh_min'];
     } elseif (isset($filters['sh_max'])) {
-        $where .= " AND CAST(p.sizes_h AS DECIMAL(10,2)) <= ?"; $params[] = $filters['sh_max'];
+        $where .= " AND p.sizes_h_num <= ?"; $params[] = $filters['sh_max'];
     }
 
     return [$where, $params];

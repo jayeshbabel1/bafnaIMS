@@ -13,6 +13,12 @@ if (!$clientId) redirect('index.php?page=admin_clients');
 $client = adminGetClientWithOwner($clientId);
 if (!$client) { flash('error', 'Client not found.'); redirect('index.php?page=admin_clients'); }
 
+if (!empty($_GET['ajax']) || !empty($_GET['ajax_product_search'])) {
+    requireAdminPermissionJson('clients.view');
+} else {
+    requireAdminPermission('clients.view');
+}
+
 // ── AJAX: selection rows (search + pagination) ──────────────────────────────
 if (!empty($_GET['ajax'])) {
     $perPage     = 10;
@@ -46,7 +52,6 @@ if (!empty($_GET['ajax_product_search'])) {
 }
 
 $adminTitle = 'Selections — ' . $client['client_name'];
-requireAdminPermission('clients.view');
 include __DIR__ . '/../_layout_top.php';
 
 $perPage     = 10;
@@ -337,10 +342,19 @@ $totalPages = max(1, (int)ceil($total / $perPage));
   document.getElementById('acsEditSelForm')?.addEventListener('submit', function (e) {
     e.preventDefault();
     var body = new FormData(this);
-    fetch('index.php', { method: 'POST', body: body }).then(function () {
-      document.getElementById('acsEditSelModal').style.display = 'none';
-      load(state.page);
-    });
+    fetch('index.php', { method: 'POST', body: body, headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+      .then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
+      .then(function (d) {
+        if (d && d.success === false) throw new Error(d.error || 'Update failed.');
+        document.getElementById('acsEditSelModal').style.display = 'none';
+        load(state.page);
+      })
+      .catch(function (err) {
+        alert('Could not save changes: ' + err.message + '. Please refresh and try again.');
+      });
   });
 
   // ── Delete modal close ─────────────────────────────────────────────────

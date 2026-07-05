@@ -121,6 +121,16 @@ function requireAdminPermission(string $action): void {
     }
 }
 
+// ── Hard gate for JSON/AJAX endpoints: always responds with JSON on denial ────
+function requireAdminPermissionJson(string $action): void {
+    if (!adminCan($action)) {
+        http_response_code(403);
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'error' => 'Access denied.', 'required' => $action]);
+        exit;
+    }
+}
+
 // ── Fetch ALL permissions grouped by module (for the permission form) ─────────
 function getAllPermissionsGrouped(): array {
     try {

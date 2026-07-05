@@ -62,7 +62,7 @@ $templates = $db->query("SELECT * FROM room_templates ORDER BY room_type, sort_o
   <button type="button" class="btn-admin-secondary btn-admin-sm" onclick="rtResetPoints()">Reset Corners</button>
 </div>
 
-<div style="margin-top:18px;" id="rtClipSection" style="display:none;">
+<div style="margin-top:18px;display:none;" id="rtClipSection">
   <label class="admin-label">
     Step 2 (optional): Click outline of exact visible shape
     <span style="font-weight:400;color:var(--text3);">— for irregular surfaces (L-shape, curved edge). Skip to use the 4-corner quad as-is.</span>
@@ -120,6 +120,8 @@ $templates = $db->query("SELECT * FROM room_templates ORDER BY room_type, sort_o
   var ctx    = canvas.getContext('2d');
   var img    = new Image();
   var points = [];
+  var clipPoints = [];
+  var clipMode   = false;
 
   document.getElementById('rtBaseInput').addEventListener('change', function(e){
     var file = e.target.files[0];
@@ -136,36 +138,71 @@ $templates = $db->query("SELECT * FROM room_templates ORDER BY room_type, sort_o
     reader.readAsDataURL(file);
   });
 
-  canvas.addEventListener('click', function(e){
-    if (points.length >= 4) return;
+  // ── SINGLE unified click handler ──────────────────────────────────────
+  canvas.addEventListener('click', function (e) {
     var rect  = canvas.getBoundingClientRect();
     var scaleX = canvas.width / rect.width;
     var scaleY = canvas.height / rect.height;
     var x = Math.round((e.clientX - rect.left) * scaleX);
     var y = Math.round((e.clientY - rect.top)  * scaleY);
+
+    if (clipMode) {
+      clipPoints.push([x, y]);
+      updateClipList();
+      redraw();
+      return;
+    }
+
+    if (points.length >= 4) return;
     points.push([x, y]);
     redraw();
     updatePointList();
+    if (points.length === 4) {
+      document.getElementById('rtClipSection').style.display = 'block';
+    }
   });
 
+  // ── SINGLE redraw function ────────────────────────────────────────────
   function redraw(){
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+    // Perspective quad — gold
     ctx.fillStyle = '#B8975A';
     ctx.strokeStyle = '#B8975A';
     ctx.lineWidth = 3;
-    points.forEach(function(p, i){
+    points.forEach(function (p, i) {
       ctx.beginPath();
-      ctx.arc(p[0], p[1], 8, 0, Math.PI*2);
+      ctx.arc(p[0], p[1], 8, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillText((i+1).toString(), p[0]-3, p[1]-12);
+      ctx.fillText((i + 1).toString(), p[0] - 3, p[1] - 12);
     });
     if (points.length > 1) {
       ctx.beginPath();
       ctx.moveTo(points[0][0], points[0][1]);
-      for (var i=1;i<points.length;i++) ctx.lineTo(points[i][0], points[i][1]);
+      for (var i = 1; i < points.length; i++) ctx.lineTo(points[i][0], points[i][1]);
       if (points.length === 4) ctx.closePath();
       ctx.stroke();
     }
+
+    // Clip polygon — blue, dashed
+    if (clipPoints.length) {
+      ctx.fillStyle = '#2C6E8A';
+      ctx.strokeStyle = '#2C6E8A';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 4]);
+      clipPoints.forEach(function (p) {
+        ctx.beginPath();
+        ctx.arc(p[0], p[1], 6, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      ctx.beginPath();
+      ctx.moveTo(clipPoints[0][0], clipPoints[0][1]);
+      for (var j = 1; j < clipPoints.length; j++) ctx.lineTo(clipPoints[j][0], clipPoints[j][1]);
+      if (!clipMode) ctx.closePath();
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
     document.getElementById('rtMaskPoints').value = JSON.stringify(points);
   }
 
@@ -175,10 +212,39 @@ $templates = $db->query("SELECT * FROM room_templates ORDER BY room_type, sort_o
       : 'No points yet.';
   }
 
+  function updateClipList() {
+    document.getElementById('rtClipPointList').textContent = clipPoints.length
+      ? clipPoints.map(function (p, i) { return (i + 1) + ':(' + p[0] + ',' + p[1] + ')'; }).join('  ')
+      : 'No clip points yet.';
+  }
+
   window.rtResetPoints = function(){
     points = [];
     redraw();
     updatePointList();
+  };
+
+  window.rtStartClipMode = function () {
+    if (points.length !== 4) { alert('Place all 4 perspective corners first.'); return; }
+    clipMode = true;
+    clipPoints = [];
+    document.getElementById('rtClipSection').style.display = 'block';
+    updateClipList();
+  };
+
+  window.rtFinishClip = function () {
+    if (clipPoints.length < 3) { alert('Need at least 3 points for an outline.'); return; }
+    clipMode = false;
+    document.getElementById('rtClipPoints').value = JSON.stringify(clipPoints);
+    redraw();
+  };
+
+  window.rtResetClip = function () {
+    clipPoints = [];
+    document.getElementById('rtClipPoints').value = '';
+    clipMode = false;
+    redraw();
+    updateClipList();
   };
 
   document.getElementById('rtForm').addEventListener('submit', function(e){
@@ -187,97 +253,7 @@ $templates = $db->query("SELECT * FROM room_templates ORDER BY room_type, sort_o
       alert('Please click exactly 4 corner points on the image.');
     }
   });
-  var clipPoints = [];
-var clipMode   = false;
-
-window.rtStartClipMode = function () {
-  if (points.length !== 4) { alert('Place all 4 perspective corners first.'); return; }
-  clipMode = true;
-  clipPoints = [];
-  document.getElementById('rtClipSection').style.display = 'block';
-  updateClipList();
-};
-
-window.rtFinishClip = function () {
-  if (clipPoints.length < 3) { alert('Need at least 3 points for an outline.'); return; }
-  clipMode = false;
-  document.getElementById('rtClipPoints').value = JSON.stringify(clipPoints);
-  redraw();
-};
-
-window.rtResetClip = function () {
-  clipPoints = [];
-  document.getElementById('rtClipPoints').value = '';
-  clipMode = false;
-  redraw();
-  updateClipList();
-};
-
-// Extend existing canvas click handler
-canvas.addEventListener('click', function (e) {
-  var rect = canvas.getBoundingClientRect();
-  var scaleX = canvas.width / rect.width;
-  var scaleY = canvas.height / rect.height;
-  var x = Math.round((e.clientX - rect.left) * scaleX);
-  var y = Math.round((e.clientY - rect.top) * scaleY);
-
-  if (clipMode) {
-    clipPoints.push([x, y]);
-    updateClipList();
-    redraw();
-    return;
-  }
-  if (points.length >= 4) return;
-  points.push([x, y]);
-  redraw();
-  updatePointList();
-  if (points.length === 4) document.getElementById('rtClipSection').style.display = 'block';
-});
-
-function updateClipList() {
-  document.getElementById('rtClipPointList').textContent = clipPoints.length
-    ? clipPoints.map(function (p, i) { return (i + 1) + ':(' + p[0] + ',' + p[1] + ')'; }).join('  ')
-    : 'No clip points yet.';
-}
-
-// Extend redraw() to also draw clip polygon in a different color
-function redraw() {
-  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-  // Perspective quad — gold
-  ctx.fillStyle = '#B8975A'; ctx.strokeStyle = '#B8975A'; ctx.lineWidth = 3;
-  points.forEach(function (p, i) {
-    ctx.beginPath(); ctx.arc(p[0], p[1], 8, 0, Math.PI * 2); ctx.fill();
-    ctx.fillText((i + 1).toString(), p[0] - 3, p[1] - 12);
-  });
-  if (points.length > 1) {
-    ctx.beginPath();
-    ctx.moveTo(points[0][0], points[0][1]);
-    for (var i = 1; i < points.length; i++) ctx.lineTo(points[i][0], points[i][1]);
-    if (points.length === 4) ctx.closePath();
-    ctx.stroke();
-  }
-
-  // Clip polygon — blue, dashed
-  if (clipPoints.length) {
-    ctx.fillStyle = '#2C6E8A'; ctx.strokeStyle = '#2C6E8A'; ctx.lineWidth = 2;
-    ctx.setLineDash([6, 4]);
-    clipPoints.forEach(function (p, i) {
-      ctx.beginPath(); ctx.arc(p[0], p[1], 6, 0, Math.PI * 2); ctx.fill();
-    });
-    ctx.beginPath();
-    ctx.moveTo(clipPoints[0][0], clipPoints[0][1]);
-    for (var j = 1; j < clipPoints.length; j++) ctx.lineTo(clipPoints[j][0], clipPoints[j][1]);
-    if (!clipMode) ctx.closePath();
-    ctx.stroke();
-    ctx.setLineDash([]);
-  }
-
-  document.getElementById('rtMaskPoints').value = JSON.stringify(points);
-}
 })();
-  
-  
 </script>
 
 <?php include __DIR__ . '/../_layout_bottom.php'; ?>

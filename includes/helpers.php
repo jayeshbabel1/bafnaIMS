@@ -9,10 +9,11 @@ function csrfToken(): string {
 function csrfField(): string {
     return '<input type="hidden" name="csrf_token" value="' . h(csrfToken()) . '">';
 }
-function csrfVerify(): void {
+function csrfVerify(bool $forceJson = false): void {
     $token = $_POST['csrf_token'] ?? '';
     if (!hash_equals($_SESSION['csrf_token'] ?? '', (string)$token)) {
-        $wantsJson = !empty($_SERVER['HTTP_X_REQUESTED_WITH'])
+        $wantsJson = $forceJson
+            || !empty($_SERVER['HTTP_X_REQUESTED_WITH'])
             || stripos($_SERVER['HTTP_ACCEPT'] ?? '', 'application/json') !== false
             || stripos($_SERVER['CONTENT_TYPE'] ?? '', 'json') !== false;
 
@@ -78,17 +79,40 @@ function formatSizes(array $product): string {
     );
 }
 
-//  Settings 
-function getSetting(string $key, string $default = ''): string {
-    static $cache = null;
-    if ($cache === null) {
-        $rows  = getDB()->query("SELECT `key`,`value` FROM settings")->fetchAll();
-        $cache = array_column($rows, 'value', 'key');
+//  Settings — cross-request file cache (avoids hitting DB on every page load)
+define('SETTINGS_CACHE_FILE', BASE_PATH . '/storage/cache/settings.php');
+define('SETTINGS_CACHE_TTL', 300); // 5 min safety net even if invalidation is missed
+
+function _loadAllSettings(): array {
+    static $mem = null; // per-request memo, avoids re-reading file twice in one request
+    if ($mem !== null) return $mem;
+
+    $file = SETTINGS_CACHE_FILE;
+    if (file_exists($file) && (time() - filemtime($file)) < SETTINGS_CACHE_TTL) {
+        $data = @include $file;
+        if (is_array($data)) { $mem = $data; return $mem; }
     }
+
+    // Cache miss / stale — rebuild from DB
+    $rows = getDB()->query("SELECT `key`,`value` FROM settings")->fetchAll();
+    $mem  = array_column($rows, 'value', 'key');
+
+    $dir = dirname($file);
+    if (!is_dir($dir)) @mkdir($dir, 0755, true);
+    @file_put_contents($file, '<?php return ' . var_export($mem, true) . ';', LOCK_EX);
+
+    return $mem;
+}
+
+function getSetting(string $key, string $default = ''): string {
+    $cache = _loadAllSettings();
     return $cache[$key] ?? $default;
 }
+
 function setSetting(string $key, string $value): void {
     getDB()->prepare("INSERT INTO settings (`key`,`value`) VALUES (?,?) ON DUPLICATE KEY UPDATE `value`=VALUES(`value`)")->execute([$key, $value]);
+    // Invalidate cache immediately so the change shows on next request
+    @unlink(SETTINGS_CACHE_FILE);
 }
 
 function getCSSVariables(bool $isAdmin = false): string {
@@ -341,13 +365,6 @@ function shortlistCount(): int {
     return (int)$st->fetch()['c'];
 }
 
-function inquiryCount(): int {
-    if (!isLoggedIn()) return 0;
-    $st = getDB()->prepare("SELECT COUNT(*) as c FROM inquiries WHERE user_id=?");
-    $st->execute([$_SESSION['user_id']]);
-    return (int)$st->fetch()['c'];
-}
-
 function navActive(string $p): string {
     return ($_GET['page'] ?? 'catalog') === $p ? ' active' : '';
 }
@@ -406,4 +423,24 @@ function resolvePhotoPath(string $baseDir, string $relativePath): ?string {
     }
 
     return null;
+}
+
+/**
+ * Validate an uploaded file's real MIME type and size without renaming it.
+ * Returns ['valid'=>true] on pass, ['valid'=>false, 'error'=>string] on fail.
+ * The caller is responsible for move_uploaded_file() with whatever name it needs.
+ */
+function validateUploadMime(array $file, array $allowedMime, int $maxBytes): array {
+    if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+        return ['valid' => false, 'error' => 'Upload error code: ' . ($file['error'] ?? 'unknown')];
+    }
+    if (($file['size'] ?? 0) > $maxBytes) {
+        return ['valid' => false, 'error' => 'File exceeds maximum size of ' . round($maxBytes / 1048576) . 'MB'];
+    }
+    $finfo = new finfo(FILEINFO_MIME_TYPE);
+    $mime  = $finfo->file($file['tmp_name']);
+    if (!in_array($mime, $allowedMime, true)) {
+        return ['valid' => false, 'error' => 'File type not allowed (' . $mime . ')'];
+    }
+    return ['valid' => true, 'mime' => $mime];
 }

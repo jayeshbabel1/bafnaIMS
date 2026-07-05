@@ -1,4 +1,8 @@
 <?php
+
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/helpers.php';
@@ -29,7 +33,7 @@ require_once __DIR__ . '/../includes/wa_share.php';
 require_once __DIR__ . '/../includes/product_pdf.php';
 require_once __DIR__ . '/views/_permission_guards.php';
 require_once __DIR__ . '/../includes/room_visualizer.php';
-
+require_once __DIR__ . '/../includes/license.php';
 
 // Handle POST 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -37,13 +41,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($action === 'admin_login') {
         if (loginAdmin($_POST['username'] ?? '', $_POST['password'] ?? '')) {
+          csrfVerify();
             redirect('index.php');
         }
         $_SESSION['admin_error'] = 'Invalid credentials.';
         redirect('index.php');
     }
 
-    requireAdmin();
+   
+  requireAdmin();
+    $_jsonOnlyActions = ['admin_add_selection','admin_update_selection','admin_delete_selection','test_smtp'];
+    csrfVerify(in_array($action, $_jsonOnlyActions, true));
     csrfVerify();  
   
    if ($action === 'admin_logout') {
@@ -53,9 +61,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
   
-  // ── ROOM TEMPLATE: SAVE ──────────────────────────────────────────────────
+  // ── ROOM TEMPLATE: SAVE 
 if ($action === 'save_room_template') {
     requireAdmin();
+  requireAdminPermission('settings.logo');
     $roomType = $_POST['room_type'] ?? 'floor';
     $label    = trim($_POST['label'] ?? '');
     $maskJson = $_POST['mask_points'] ?? '[]';
@@ -97,18 +106,20 @@ if ($action === 'save_room_template') {
     redirect('index.php?page=room_templates');
 }
 
-// ── ROOM TEMPLATE: TOGGLE ────────────────────────────────────────────────
+// ── ROOM TEMPLATE: TOGGLE 
 if ($action === 'toggle_room_template') {
     requireAdmin();
+  requireAdminPermission('settings.logo');
     getDB()->prepare("UPDATE room_templates SET is_active=? WHERE id=?")
         ->execute([(int)$_POST['is_active'], (int)$_POST['template_id']]);
     flash('toast', 'Template updated.');
     redirect('index.php?page=room_templates');
 }
 
-// ── ROOM TEMPLATE: DELETE ────────────────────────────────────────────────
+// ── ROOM TEMPLATE: DELETE 
 if ($action === 'delete_room_template') {
     requireAdmin();
+  requireAdminPermission('settings.logo');
     $tid = (int)($_POST['template_id'] ?? 0);
     $st  = getDB()->prepare("SELECT * FROM room_templates WHERE id=?");
     $st->execute([$tid]);
@@ -167,7 +178,7 @@ if ($action === 'admin_delete_client') {
 //  ADMIN: ADD PRODUCT SELECTION (AJAX — returns JSON)
 if ($action === 'admin_add_selection') {
     requireAdmin();
-    requireAdminPermission('clients.edit');
+    requireAdminPermissionJson('clients.edit');
     $clientId  = (int)($_POST['client_id']  ?? 0);
     $productId = (int)($_POST['product_id'] ?? 0);
     $result    = adminCreateSelectionForClient($clientId, $productId, $_POST);
@@ -179,7 +190,7 @@ if ($action === 'admin_add_selection') {
 //  ADMIN: UPDATE PRODUCT SELECTION (AJAX) 
 if ($action === 'admin_update_selection') {
     requireAdmin();
-  requireAdminPermission('clients.edit');
+  requireAdminPermissionJson('clients.edit');
     $selectionId = (int)($_POST['selection_id'] ?? 0);
     $result = adminUpdateSelection($selectionId, $_POST);
     header('Content-Type: application/json');
@@ -190,13 +201,56 @@ if ($action === 'admin_update_selection') {
 //  ADMIN: DELETE PRODUCT SELECTION 
 if ($action === 'admin_delete_selection') {
     requireAdmin();
-  requireAdminPermission('clients.delete');
+  requireAdminPermissionJson('clients.edit');
     $selectionId = (int)($_POST['selection_id'] ?? 0);
     $clientId    = (int)($_POST['client_id']    ?? 0);
     adminDeleteSelection($selectionId);
     flash('toast', 'Product removed from selection.');
     redirect('index.php?page=admin_client_selections&client_id=' . $clientId);
 }
+  
+  // ── LICENSE: GENERATE 
+    if ($action === 'generate_license_key') {
+        requireAdmin();
+        requireAdminPermission('license.manage');
+        $result = createLicense($_POST);
+        if ($result['success']) {
+            flash('license_new_key', $result['plain_key']);
+            flash('toast', 'Activation key generated successfully.');
+        } else {
+            flash('error', $result['error']);
+        }
+        redirect('index.php?page=license');
+    }
+
+    // ── LICENSE: UPDATE EXPIRY / CONVERT TO LIFETIME 
+    if ($action === 'update_license') {
+        requireAdmin();
+        requireAdminPermission('license.manage');
+        $id = (int)($_POST['license_id'] ?? 0);
+        $result = updateLicenseExpiry($id, $_POST['expiry_date'] ?? '', !empty($_POST['is_lifetime']));
+        $result['success'] ? flash('toast', 'License updated.') : flash('error', $result['error']);
+        redirect('index.php?page=license');
+    }
+
+    // ── LICENSE: REVOKE ───────────────────────────────────────────────────
+    if ($action === 'revoke_license') {
+        requireAdmin();
+        requireAdminPermission('license.manage');
+        revokeLicense((int)($_POST['license_id'] ?? 0));
+        flash('toast', 'License revoked.');
+        redirect('index.php?page=license');
+    }
+
+    // ── LICENSE: REACTIVATE ───────────────────────────────────────────────
+    if ($action === 'reactivate_license') {
+        requireAdmin();
+        requireAdminPermission('license.manage');
+        reactivateLicense((int)($_POST['license_id'] ?? 0));
+        flash('toast', 'License reactivated.');
+        redirect('index.php?page=license');
+    }
+ 
 
     if ($action === 'save_colors') {
       requireAdminPermission('settings.colors');
@@ -438,6 +492,7 @@ if ($action === 'save_smtp') {
 if ($action === 'test_smtp') {
     header('Content-Type: application/json');
     requireAdmin();
+  requireAdminPermissionJson('settings.smtp');
     require_once BASE_PATH . '/includes/mailer.php';
     $to = trim($_POST['test_email'] ?? '');
     if (!filter_var($to, FILTER_VALIDATE_EMAIL)) {
@@ -533,10 +588,6 @@ if ($action === 'delete_user') {
     try {
         $db->beginTransaction();
         // Delete selections → clients → shortlist → inquiries → user
-        $clientIds = $db->prepare("SELECT id FROM clients WHERE user_id=?")->execute([$uid])
-            ? array_column($db->prepare("SELECT id FROM clients WHERE user_id=?")->execute([$uid]) ? (function() use ($db,$uid) {
-                $s=$db->prepare("SELECT id FROM clients WHERE user_id=?");$s->execute([$uid]);return $s->fetchAll();})() : [], 'id')
-            : [];
         $db->prepare("DELETE cs FROM client_selections cs
                       JOIN clients c ON cs.client_id=c.id WHERE c.user_id=?")->execute([$uid]);
         $db->prepare("DELETE FROM clients WHERE user_id=?")->execute([$uid]);
@@ -697,13 +748,20 @@ if ($action === 'delete_user') {
   
 //  AJAX Sync endpoint 
 if (isset($_GET["ajax_sync"]) && isAdmin()) {
+    requireAdminPermissionJson('sync.run');
     header("Content-Type: application/json");
     $step = (int)($_GET["ajax_sync"]);
     echo json_encode(runSyncStep($step));
     exit;
 }
+//  License CSV export 
+if (isset($_GET['export_licenses']) && isAdmin()) {
+    requireAdminPermission('license.manage');
+    exportLicensesCsv();
+}
 
 if (isset($_GET['ajax_role_perms']) && isAdmin()) {
+    requireAdminPermissionJson('roles.view');
     $roleId = (int)($_GET['role_id'] ?? 0);
     $role   = getRoleWithPermissions($roleId);
     header('Content-Type: application/json');
@@ -723,10 +781,12 @@ if (isset($_GET['ajax_role_perms']) && isAdmin()) {
 
 //  AJAX WhatsApp PDF generation endpoint 
 if (isset($_GET['wa_pdf']) && isAdmin()) {
+    requireAdminPermission('products.whatsapp');
     handleWaPdfAjax(); // outputs JSON + exits
 }
 //  Direct PDF download endpoint 
 if (isset($_GET['pdf_download']) && isAdmin()) {
+    requireAdminPermission('products.pdf');
     $pid = (int)($_GET['product_id'] ?? 0);
     if (!$pid) { http_response_code(400); echo 'Missing product_id'; exit; }
 
@@ -805,21 +865,39 @@ function saveProduct(array $data, array $files): void {
         'palette'           => trim($data['palette'] ?? '["F2F0EC","D8CFC4","BFB0A0"]'),
     ];
 
-    // Measurement sheet — keep original filename
-    if (!empty($files['measurement_sheet']['name'])) {
-        $fn = basename($files['measurement_sheet']['name']);
-        if (move_uploaded_file($files['measurement_sheet']['tmp_name'], MEASUREMENT_DIR.'/'.$fn)) {
-            $fields['measurement_sheet'] = $fn;
-        }
-    }
+    // Measurement sheet — MIME validated, original filename kept for sync
+     if (!empty($files['measurement_sheet']['name'])) {
+         $v = validateUploadMime(
+             $files['measurement_sheet'],
+             ['application/pdf'],
+             10 * 1024 * 1024
+         );
+         if ($v['valid']) {
+             $fn = basename($files['measurement_sheet']['name']);
+             if (move_uploaded_file($files['measurement_sheet']['tmp_name'], MEASUREMENT_DIR . '/' . $fn)) {
+                 $fields['measurement_sheet'] = $fn;
+             }
+         } else {
+             error_log('saveProduct: measurement_sheet rejected — ' . $v['error']);
+         }
+     }
 
-    // DNA report — keep original filename
-    if (!empty($files['dna_report']['name'])) {
-        $fn = basename($files['dna_report']['name']);
-        if (move_uploaded_file($files['dna_report']['tmp_name'], DNA_DIR.'/'.$fn)) {
-            $fields['dna_report'] = $fn;
-        }
-    }
+     // DNA report — MIME validated, original filename kept for sync
+     if (!empty($files['dna_report']['name'])) {
+         $v = validateUploadMime(
+             $files['dna_report'],
+             ['application/pdf'],
+             10 * 1024 * 1024
+         );
+         if ($v['valid']) {
+             $fn = basename($files['dna_report']['name']);
+             if (move_uploaded_file($files['dna_report']['tmp_name'], DNA_DIR . '/' . $fn)) {
+                 $fields['dna_report'] = $fn;
+             }
+         } else {
+             error_log('saveProduct: dna_report rejected — ' . $v['error']);
+         }
+     }
 
     if ($pid) {
         $set  = implode(',', array_map(fn($k) => "$k=?", array_keys($fields)));
@@ -846,6 +924,14 @@ function saveProduct(array $data, array $files): void {
         foreach ($names as $i => $origName) {
             if (($errors[$i] ?? 1) !== UPLOAD_ERR_OK) continue;
             if (empty($tmps[$i])) continue;
+          // Validate real MIME before accepting — keeps original filename for sync
+         $v = validateUploadMime(
+             ['tmp_name' => $tmps[$i], 'size' => $files['photos']['size'][$i] ?? 0, 'error' => $errors[$i]],
+             ['image/jpeg', 'image/png', 'image/webp'],8 * 1024 * 1024);
+         if (!$v['valid']) {
+             error_log('saveProduct: photo rejected at index ' . $i . ' — ' . $v['error']);
+             continue;
+         }
             $fn = basename(trim($origName));
             $chk = $db->prepare("SELECT id FROM product_photos WHERE product_id=? AND filename=?");
             $chk->execute([$pid, $fn]);
@@ -1015,6 +1101,35 @@ function runSyncStep(int $step): array {
     }
 }
 
+
+function fixUploadCasingAfterImport(): array {
+    $db = getDB();
+    $log = ['folders' => 0, 'photos_db' => 0, 'measurement' => 0, 'dna' => 0];
+
+    // 1. Fix photo color-folder casing (Q123/White -> Q123/White ucfirst-lower)
+    if (is_dir(PHOTOS_DIR)) {
+        $folders = array_diff(scandir(PHOTOS_DIR), ['.', '..']);
+        foreach ($folders as $folder) {
+            $path = PHOTOS_DIR . '/' . $folder;
+            if (!is_dir($path)) continue;
+            $target = ucfirst(strtolower($folder));
+            if ($folder !== $target) {
+                $newPath = PHOTOS_DIR . '/' . $target;
+                if (!file_exists($newPath)) {
+                    rename($path, $newPath);
+                    $log['folders']++;
+                } else {
+                    continue; // conflict — leave alone
+                }
+            }
+            $upd = $db->prepare("UPDATE product_photos SET filename = REPLACE(filename, ?, ?) WHERE filename LIKE ?");
+            $upd->execute([$folder . '/', $target . '/', $folder . '/%']);
+            $log['photos_db'] += $upd->rowCount();
+        }
+    }
+  
+    return $log;
+}
 //--------- sync photo directory -----------------------------------
 
 function syncPhotosFromDirectory(): void
@@ -1570,6 +1685,9 @@ foreach ($excelHeaders as $h) {
     if (file_exists($dest)) {
         unlink($dest);}
     }
+  
+      // 7d. Fix casing mismatches introduced by spreadsheet text
+    $casingLog = fixUploadCasingAfterImport();
 
     //  8. Notification & summary flash 
     createNotification(
@@ -1579,6 +1697,12 @@ foreach ($excelHeaders as $h) {
     );
 
     $summary = "Sync complete: {$countAdded} added · {$countUpdated} updated · {$countDeleted} deleted.";
+  if (array_sum($casingLog) > 0) {
+        $summary .= " Casing fixed: {$casingLog['folders']} folders, {$casingLog['photos_db']} photo rows.";
+    }
+        syncImages();
+        syncMeasurementSheets();
+         syncDnaReports();
     if (!empty($errors)) {
         $summary .= ' ' . count($errors) . ' row(s) skipped (see error log).';
         // Log to file for admin review
@@ -2021,7 +2145,7 @@ function syncDnaReports(): array {
 $pages = ['dashboard','products','product_edit','colors','users','inquiries','sync',
               'notifications','logo','user_clients','admin_selections','smtp',
               'admin_clients','admin_client_form','admin_client_selections',
-              'roles','admin_accounts','room_templates'];
+              'roles','admin_accounts','room_templates','license'];
 $file  = in_array($page, $pages)
        ? __DIR__ . '/views/' . $page . '.php'
        : __DIR__ . '/views/dashboard.php';
@@ -2044,6 +2168,7 @@ $file  = in_array($page, $pages)
         'roles'                  => 'roles.view',
         'admin_accounts'         => 'admins.view',
         'inquiries'              => 'users.view',
+         'license'                => 'license.manage',
     ];
     if (isset($routePermissions[$page])) {
         requireAdminPermission($routePermissions[$page]);

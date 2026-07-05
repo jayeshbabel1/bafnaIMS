@@ -9,13 +9,13 @@
 <style><?= getCSSVariables(true) ?></style>
 <link rel="stylesheet" href="../assets/css/style.css"/>
 <link rel="stylesheet" href="../assets/css/admin.css"/>
-<link rel="stylesheet" href="../assets/css/watermark.css"/>
+<!--<link rel="stylesheet" href="../assets/css/watermark.css"/>-->
   <link rel="stylesheet" href="../assets/css/clients.css"/>
 </head>
 <body class="admin-body">
 
 <?php
-/* ── Prerequisites ──────────────────────────────────────────── */
+/*  Prerequisites  */
 if (!function_exists('getLogo')) {
     require_once BASE_PATH . '/includes/logo.php';
 }
@@ -36,7 +36,7 @@ try {
 $_adminLogo = getLogo(true);
 $ap = $_GET['page'] ?? 'dashboard';
 
-$settingsPages    = ['colors', 'logo', 'smtp'];
+$settingsPages    = ['colors', 'logo', 'smtp','license'];
 $isSettingsActive = in_array($ap, $settingsPages);
 
 $t = getFlash('toast');
@@ -277,7 +277,9 @@ if (adminCan('settings.smtp')) {
     $settingsSubItems[] = ['page'=>'smtp',           'label'=>'Mail Settings'];
 }
     $settingsSubItems[] = ['page'=>'room_templates',           'label'=>'Room Templates'];
-
+//if (adminCan('license.manage')) {
+  //  $settingsSubItems[] = ['page'=>'license', 'label'=>'License & Activation'];
+//}
  
 // Roles & Permissions sub-items
 $rolesSubItems = [];

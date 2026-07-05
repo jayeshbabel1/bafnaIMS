@@ -49,12 +49,13 @@ function getProductImageUrl(int $productId): ?string {
     $row = $st->fetch();
     if (!$row) return null;
 
-    $filename = $row['filename'];
-    // Physical check
-    if (!file_exists(PHOTOS_DIR . '/' . $filename)) return null;
+    // Case-insensitive resolve, same as product.php / product_pdf.php
+    $resolved = resolvePhotoPath(PHOTOS_DIR, $row['filename']);
+    if (!$resolved) return null;
 
-    // Build public URL
-    return BASE_URL . '/assets/uploads/photos/' . rawurlencode(ltrim($filename, '/'));
+    // Build public URL (per-segment encoding — resolved may contain '/')
+    $encoded = implode('/', array_map('rawurlencode', explode('/', $resolved)));
+    return BASE_URL . '/assets/uploads/photos/' . $encoded;
 }
 
 /**

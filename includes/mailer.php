@@ -69,7 +69,7 @@ function getSmtpSettings(): array {
  */
 function sendMailSmtp(string $to, string $toName, string $subject, string $html, string $text, array $s): array {
     // Try to use PHPMailer if available (composer dependency already installed)
-    $autoload = dirname(__DIR__) . '/../vendor/autoload.php';
+    $autoload = BASE_PATH . '/vendor/autoload.php';
     if (file_exists($autoload)) {
         return sendMailPhpMailer($to, $toName, $subject, $html, $text, $s);
     }
@@ -84,19 +84,44 @@ function sendMailSmtp(string $to, string $toName, string $subject, string $html,
 function sendMailPhpMailer(string $to, string $toName, string $subject, string $html, string $text, array $s): array {
     try {
         if (!class_exists('PHPMailer\PHPMailer\PHPMailer')) {
-            require_once dirname(__DIR__) . '/../vendor/autoload.php';
+            require_once BASE_PATH . '/vendor/autoload.php';
         }
 
         $mail = new \PHPMailer\PHPMailer\PHPMailer(true);
         $mail->isSMTP();
         $mail->Host       = $s['smtp_host'];
         $mail->Port       = (int)$s['smtp_port'];
+        $mail->Timeout    = 15;
         $mail->SMTPAuth   = !empty($s['smtp_username']);
         $mail->Username   = $s['smtp_username'];
         $mail->Password   = $s['smtp_password'];
-        $mail->SMTPSecure = strtolower($s['smtp_encryption']) === 'ssl'
-            ? \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_SMTPS
-            : \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
+
+        // Capture PHPMailer's real debug trail so failures aren't just
+        // "Could not connect to SMTP host." with no actionable detail.
+        $debugLog = [];
+        $mail->SMTPDebug   = 2; // client + server messages
+        $mail->Debugoutput = function ($str) use (&$debugLog) { $debugLog[] = trim($str); };
+
+        // Some shared hosts have misconfigured/self-signed certs on their
+        // own mail server — this is a common cause of connect failures.
+        // Only relaxes verification for the outbound SMTP TLS handshake,
+        // does not affect the rest of the app.
+        $mail->SMTPOptions = [
+            'ssl' => [
+                'verify_peer'       => false,
+                'verify_peer_name'  => false,
+                'allow_self_signed' => true,
+            ],
+        ];
+        $enc = strtolower($s['smtp_encryption']);
+        if ($enc === 'ssl') {
+            $mail->SMTPSecure = \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_SMTPS;
+        } elseif ($enc === 'tls') {
+            $mail->SMTPSecure = \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
+        } else {
+            $mail->SMTPSecure = false;
+            $mail->SMTPAutoTLS = false; // admin explicitly chose "None" — don't opportunistically upgrade
+        }
         $mail->CharSet    = 'UTF-8';
         $mail->setFrom($s['smtp_from_email'], $s['smtp_from_name']);
         $mail->addAddress($to, $toName ?: $to);
@@ -107,8 +132,12 @@ function sendMailPhpMailer(string $to, string $toName, string $subject, string $
         $mail->send();
         return ['success' => true, 'error' => ''];
     } catch (Throwable $e) {
-        error_log('sendMailPhpMailer: ' . $e->getMessage());
-        return ['success' => false, 'error' => $e->getMessage()];
+        $detail = $e->getMessage();
+        if (!empty($debugLog)) {
+            $detail .= ' | SMTP trace: ' . implode(' → ', array_slice($debugLog, -6));
+        }
+        error_log('sendMailPhpMailer: ' . $detail);
+        return ['success' => false, 'error' => $detail];
     }
 }
 

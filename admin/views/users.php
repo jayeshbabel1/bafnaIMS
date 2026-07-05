@@ -2,6 +2,7 @@
 
 //  AJAX handler — runs before layout 
 if (!empty($_GET['ajax_users'])) {
+  requireAdminPermission('users.view');
     $db      = getDB();
     $search  = trim($_GET['q']   ?? '');
     $perPage = 25;
@@ -135,7 +136,6 @@ if (!empty($_GET['ajax_users'])) {
 }
 
 $adminTitle = 'Users';
-requireAdminPermission('users.view');
 include __DIR__ . '/../_layout_top.php';
 $db = getDB();
 ?>

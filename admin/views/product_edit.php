@@ -157,8 +157,9 @@ $g   = fn($k) => h($p[$k] ?? '');
     $waThumb = '';
     if (!empty($existingPhotos)) {
         $firstPhoto = $existingPhotos[0]['filename'] ?? '';
-        if ($firstPhoto && file_exists(PHOTOS_DIR.'/'.$firstPhoto)) {
-            $waThumb = '../assets/uploads/photos/' . $firstPhoto;
+        $firstResolved = $firstPhoto ? resolvePhotoPath(PHOTOS_DIR, $firstPhoto) : null;
+        if ($firstResolved) {
+            $waThumb = '../assets/uploads/photos/' . $firstResolved;
         }
     }
     ?>
@@ -372,10 +373,10 @@ $g   = fn($k) => h($p[$k] ?? '');
                 <p class="admin-form-section-title">Product Photos</p>
                 <?php if (!empty($existingPhotos)): ?>
                 <div class="photo-grid" style="margin-bottom:12px;">
-                    <?php foreach ($existingPhotos as $ph): ?>
+                    <?php foreach ($existingPhotos as $ph): $phResolved = resolvePhotoPath(PHOTOS_DIR, $ph['filename']); ?>
                     <div class="photo-grid-item">
-                        <?php if (file_exists(PHOTOS_DIR.'/'.$ph['filename'])): ?>
-                        <img src="../assets/uploads/photos/<?= h($ph['filename']) ?>" alt=""/>
+                        <?php if ($phResolved): ?>
+                        <img src="../assets/uploads/photos/<?= h($phResolved) ?>" alt=""/>
                         <?php else: ?>
                         <div style="width:100%;height:100%;display:flex;align-items:center;
                                     justify-content:center;font-size:9px;color:var(--text3);">

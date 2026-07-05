@@ -211,6 +211,10 @@ function requireLogin(): void {
  
 function requireAdmin(): void {
     if (!isAdmin()) {
-        header('Location: admin/index.php'); exit;
+        if (defined('ADMIN_PANEL') && ADMIN_PANEL) {
+            redirect('index.php');   // redirect() auto-prefixes '/admin/' + de-dupes any double path
+        } else {
+            redirect('/admin/index.php');
+        }
     }
 }
