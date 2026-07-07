@@ -1,8 +1,8 @@
 <?php
 
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
+//ini_set('display_errors', 1);
+//ini_set('display_startup_errors', 1);
+//error_reporting(E_ALL);
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/helpers.php';
@@ -39,6 +39,11 @@ require_once __DIR__ . '/../includes/license.php';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
 
+  
+   $_jsonOnlyActions = ['admin_add_selection','admin_update_selection','admin_delete_selection','test_smtp'];
+    csrfVerify(in_array($action, $_jsonOnlyActions, true));
+    csrfVerify(); 
+  
     if ($action === 'admin_login') {
         if (loginAdmin($_POST['username'] ?? '', $_POST['password'] ?? '')) {
           csrfVerify();
@@ -48,11 +53,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect('index.php');
     }
 
-   
-  requireAdmin();
-    $_jsonOnlyActions = ['admin_add_selection','admin_update_selection','admin_delete_selection','test_smtp'];
-    csrfVerify(in_array($action, $_jsonOnlyActions, true));
-    csrfVerify();  
+   requireAdmin();
+    
+  
   
    if ($action === 'admin_logout') {
         unset($_SESSION['admin_id'], $_SESSION['admin_name']);
@@ -253,89 +256,129 @@ if ($action === 'admin_delete_selection') {
  
 
     if ($action === 'save_colors') {
-      requireAdminPermission('settings.colors');
-        $defaults = array_keys(require __DIR__ . '/../config/colors.php');
-        $extraKeys = [
-            '--btn-radius','--card-radius',
-            // Buttons
-            '--btn-bg','--btn-color','--btn-border-color',
-            '--btn-hover-bg','--btn-hover-color','--btn-hover-border',
-            '--btn-sec-bg','--btn-sec-color','--btn-sec-border',
-            '--btn-sec-hover-bg','--btn-sec-hover-color','--btn-sec-hover-border',
-            // Labels
-            '--label-color','--label-font-size','--label-font-weight',
-            // Inputs
-            '--input-bg','--input-color','--input-placeholder',
-            '--input-border','--input-focus-border','--input-focus-shadow',
-            '--input-hover-border','--input-radius','--input-font-size',
-            // Navbar
-            '--navbar-bg','--navbar-color','--navbar-icon-color',
-            '--navbar-hover-color','--navbar-active-color','--navbar-border',
-            // Fonts
-            '--admin-font','--user-font',
-            //  Admin-panel-specific colors 
-            '--admin-bg','--admin-surface','--admin-surface2','--admin-surface3',
-            '--admin-sidebar-from','--admin-sidebar-to',
-            '--admin-sidebar-text','--admin-sidebar-active',
-            '--admin-sidebar-hover','--admin-sidebar-border',
-            '--admin-topbar-bg','--admin-topbar-border','--admin-topbar-text',
-            '--admin-accent','--admin-accent2',
-            '--admin-accent-light','--admin-accent-mid',
-            '--admin-table-header-bg','--admin-table-row-hover',
-            '--admin-table-border',
-            '--admin-card-bg','--admin-card-border','--admin-card-radius',
-            '--admin-badge-bg','--admin-badge-color',
-            //  Admin text 
-            '--admin-text','--admin-text2','--admin-text3',
-            //  Admin primary button 
-            '--admin-btn-primary-bg','--admin-btn-primary-color',
-            '--admin-btn-primary-border','--admin-btn-primary-hover-bg',
-            '--admin-btn-primary-hover-color','--admin-btn-primary-radius',
-            //  Admin secondary button
-            '--admin-btn-sec-bg','--admin-btn-sec-color',
-            '--admin-btn-sec-border','--admin-btn-sec-hover-bg',
-            '--admin-btn-sec-hover-color','--admin-btn-sec-radius',
-            //  Admin danger button 
-            '--admin-btn-danger-bg','--admin-btn-danger-color',
-            '--admin-btn-danger-border','--admin-btn-danger-hover-bg',
-            '--admin-btn-danger-hover-color',
-            //  Admin general / toolbar button 
-            '--admin-btn-general-bg','--admin-btn-general-color',
-            '--admin-btn-general-border','--admin-btn-general-hover-bg',
-            '--admin-btn-general-radius',
-            //  Admin input / text field 
-            '--admin-input-bg','--admin-input-color','--admin-input-placeholder',
-            '--admin-input-border','--admin-input-focus-border',
-            '--admin-input-focus-shadow','--admin-input-hover-border',
-            '--admin-input-radius','--admin-input-font-size',
-            //  Admin textarea 
-            '--admin-textarea-bg','--admin-textarea-color',
-            '--admin-textarea-border','--admin-textarea-focus-border',
-            '--admin-textarea-radius',
-            //  Admin label 
-            '--admin-label-color','--admin-label-font-size',
-            '--admin-label-font-weight','--admin-label-transform',
-            '--admin-label-letter-spacing',
-        ];
-        $defaults = array_unique(array_merge($defaults, $extraKeys));
-        foreach ($defaults as $k) {
-            if (isset($_POST[$k])) {
-                $val = strip_tags($_POST[$k]);
-                $val = preg_replace('/[<>]/', '', $val);
-                setSetting($k, trim($val));
-            }
+    requireAdminPermission('settings.colors');
+    $defaults = array_keys(require __DIR__ . '/../config/colors.php');
+    $extraKeys = [
+        '--btn-radius','--card-radius',
+        '--btn-bg','--btn-color','--btn-border-color',
+        '--btn-hover-bg','--btn-hover-color','--btn-hover-border',
+        '--btn-sec-bg','--btn-sec-color','--btn-sec-border',
+        '--btn-sec-hover-bg','--btn-sec-hover-color','--btn-sec-hover-border',
+        '--label-color','--label-font-size','--label-font-weight',
+        '--input-bg','--input-color','--input-placeholder',
+        '--input-border','--input-focus-border','--input-focus-shadow',
+        '--input-hover-border','--input-radius','--input-font-size',
+        '--navbar-bg','--navbar-color','--navbar-icon-color',
+        '--navbar-hover-color','--navbar-active-color','--navbar-border',
+        '--admin-font','--user-font',
+        '--admin-bg','--admin-surface','--admin-surface2','--admin-surface3',
+        '--admin-sidebar-from','--admin-sidebar-to',
+        '--admin-sidebar-text','--admin-sidebar-active',
+        '--admin-sidebar-hover','--admin-sidebar-border',
+        '--admin-topbar-bg','--admin-topbar-border','--admin-topbar-text',
+        '--admin-accent','--admin-accent2',
+        '--admin-accent-light','--admin-accent-mid',
+        '--admin-table-header-bg','--admin-table-row-hover',
+        '--admin-table-border',
+        '--admin-card-bg','--admin-card-border','--admin-card-radius',
+        '--admin-badge-bg','--admin-badge-color',
+        '--admin-text','--admin-text2','--admin-text3',
+        '--admin-btn-primary-bg','--admin-btn-primary-color',
+        '--admin-btn-primary-border','--admin-btn-primary-hover-bg',
+        '--admin-btn-primary-hover-color','--admin-btn-primary-radius',
+        '--admin-btn-sec-bg','--admin-btn-sec-color',
+        '--admin-btn-sec-border','--admin-btn-sec-hover-bg',
+        '--admin-btn-sec-hover-color','--admin-btn-sec-radius',
+        '--admin-btn-danger-bg','--admin-btn-danger-color',
+        '--admin-btn-danger-border','--admin-btn-danger-hover-bg',
+        '--admin-btn-danger-hover-color',
+        '--admin-btn-general-bg','--admin-btn-general-color',
+        '--admin-btn-general-border','--admin-btn-general-hover-bg',
+        '--admin-btn-general-radius',
+        '--admin-input-bg','--admin-input-color','--admin-input-placeholder',
+        '--admin-input-border','--admin-input-focus-border',
+        '--admin-input-focus-shadow','--admin-input-hover-border',
+        '--admin-input-radius','--admin-input-font-size',
+        '--admin-textarea-bg','--admin-textarea-color',
+        '--admin-textarea-border','--admin-textarea-focus-border',
+        '--admin-textarea-radius',
+        '--admin-label-color','--admin-label-font-size',
+        '--admin-label-font-weight','--admin-label-transform',
+        '--admin-label-letter-spacing',
+    ];
+    $defaults = array_unique(array_merge($defaults, $extraKeys));
+
+    // ── Whitelist validators per CSS-value shape. Anything that fails is
+    // silently rejected (kept at previous DB value) rather than saved raw.
+    // This closes the CSS-injection hole where `;`/`{`/`}`/`url(` could
+    // break out of the `:root{...}` block built by getCSSVariables().
+    $fontKeys   = ['--admin-font', '--user-font'];
+    $textKeys   = [ // free-form-ish but constrained (px/keyword lists), still whitelisted
+        '--btn-radius','--card-radius','--input-radius','--input-font-size',
+        '--label-font-size','--label-font-weight',
+        '--admin-card-radius','--admin-btn-primary-radius','--admin-btn-sec-radius',
+        '--admin-btn-general-radius','--admin-input-radius','--admin-input-font-size',
+        '--admin-textarea-radius','--admin-label-font-size','--admin-label-font-weight',
+        '--admin-label-transform','--admin-label-letter-spacing',
+    ];
+
+    function _sanitizeCssValue(string $key, string $raw, array $fontKeys, array $textKeys): ?string {
+        $v = trim($raw);
+        if ($v === '') return '';
+
+        // Hard block: no CSS statement/rule-breaking characters ever allowed.
+        if (preg_match('/[;{}]/', $v)) return null;
+        if (stripos($v, 'expression(') !== false) return null;
+        if (stripos($v, 'javascript:') !== false) return null;
+
+        if (in_array($key, $fontKeys, true)) {
+            // Allow: 'Font Name', sans-serif  (quoted family list only)
+            return preg_match("/^[A-Za-z0-9 ,'\"-]+$/", $v) ? $v : null;
         }
-        flash('toast', 'Theme settings saved.');
-        redirect('index.php?page=colors');
+
+        if (in_array($key, $textKeys, true)) {
+            // font-weight keyword/number, uppercase/none, px/em/rem length, or number
+            return preg_match('/^-?[A-Za-z0-9.%]+(px|em|rem)?$/', $v) ? $v : null;
+        }
+
+        // Everything else is expected to be a color: hex, rgb()/rgba(), or gradient
+        // built only from rgba()/hex/keywords used by admin-sidebar-gradient etc.
+        if (preg_match('/^#[0-9a-fA-F]{3,8}$/', $v)) return $v;
+        if (preg_match('/^rgba?\(\s*[\d.]+\s*,\s*[\d.]+\s*,\s*[\d.]+\s*(,\s*[\d.]+\s*)?\)$/', $v)) return $v;
+        if (preg_match('/^linear-gradient\([a-zA-Z0-9#, .%()-]+\)$/', $v)) return $v;
+
+        return null; // unrecognized shape — reject rather than trust
     }
+
+    $rejected = [];
+    $toSave   = [];
+    foreach ($defaults as $k) {
+        if (!isset($_POST[$k])) continue;
+        $clean = _sanitizeCssValue($k, (string)$_POST[$k], $fontKeys, $textKeys);
+        if ($clean === null) {
+            $rejected[] = $k;
+            continue;
+        }
+        $toSave[$k] = $clean;
+    }
+
+    setSettings($toSave); // one transaction, one cache invalidation
+
+    if ($rejected) {
+        flash('error', 'Some values were rejected as invalid and not saved: ' . implode(', ', $rejected));
+    } else {
+        flash('toast', 'Theme settings saved.');
+    }
+    redirect('index.php?page=colors');
+}
   
     if ($action === 'reset_colors') {
-      requireAdminPermission('settings.colors');
-        $defaults = require __DIR__ . '/../config/colors.php';
-        foreach ($defaults as $k => $v) setSetting($k, $v);
-        flash('toast', 'All theme settings reset to defaults.');
-        redirect('index.php?page=colors');
-    }
+    requireAdminPermission('settings.colors');
+    $defaults = require __DIR__ . '/../config/colors.php';
+    setSettings($defaults); // batched, single cache flush
+    flash('toast', 'All theme settings reset to defaults.');
+    redirect('index.php?page=colors');
+}
   
     if ($action === 'upload_logo') {
       requireAdminPermission('settings.logo');
@@ -782,13 +825,25 @@ if (isset($_GET['ajax_role_perms']) && isAdmin()) {
 //  AJAX WhatsApp PDF generation endpoint 
 if (isset($_GET['wa_pdf']) && isAdmin()) {
     requireAdminPermission('products.whatsapp');
-    handleWaPdfAjax(); // outputs JSON + exits
+    // max 10 PDF generations/min/session
+    if (!throttle('wa_pdf', 10, 60)) { 
+        http_response_code(429);
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'error' => 'Too many requests. Please wait a moment.']);
+        exit;
+    }
+    handleWaPdfAjax();
 }
 //  Direct PDF download endpoint 
 if (isset($_GET['pdf_download']) && isAdmin()) {
     requireAdminPermission('products.pdf');
     $pid = (int)($_GET['product_id'] ?? 0);
     if (!$pid) { http_response_code(400); echo 'Missing product_id'; exit; }
+    if (!throttle('pdf_download', 10, 60)) { 
+        http_response_code(429);
+        echo 'Too many requests. Please wait a moment.';
+        exit;
+    }
 
     $result = generateProductPdf($pid);
 

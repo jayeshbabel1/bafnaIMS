@@ -172,7 +172,7 @@ $allRoles = getAllRoles();
       <form method="POST" action="index.php" id="aaForm">
         <input type="hidden" name="action"   id="aaFormAction" value="create_admin_account"/>
         <input type="hidden" name="admin_id" id="aaFormId"     value=""/>
-<?= csrfField() ?>
+        <?= csrfField() ?>
         <div class="aa-form-grid">
           <div>
             <label class="admin-label">Full Name <span style="color:var(--danger);">*</span></label>
@@ -183,7 +183,7 @@ $allRoles = getAllRoles();
             <label class="admin-label">Username <span style="color:var(--danger);">*</span></label>
             <input type="text" name="username" id="aaUsername" class="admin-input"
                    placeholder="e.g. rahul.shah" required autocomplete="off"/>
-            <p style="font-size:11px;color:var(--admin-text3,var(--text3));margin-top:4px;" id="aaUsernamHint">
+            <p style="font-size:11px;color:var(--admin-text3,var(--text3));margin-top:4px;" id="aaUsernameHint">
               Lowercase letters, numbers and dots only.
             </p>
           </div>

@@ -115,6 +115,46 @@ function setSetting(string $key, string $value): void {
     @unlink(SETTINGS_CACHE_FILE);
 }
 
+/**
+ * Batch version of setSetting(). Writes all key/value pairs inside a single
+ * transaction and invalidates the settings cache file exactly once at the
+ * end, instead of once per key (which is what happens if setSetting() is
+ * called in a loop — e.g. the ~150-key theme save on admin/colors.php).
+ *
+ * @param array<string,string> $pairs
+ */
+function setSettings(array $pairs): void {
+    if (empty($pairs)) return;
+    $db = getDB();
+    $stmt = $db->prepare(
+        "INSERT INTO settings (`key`,`value`) VALUES (?,?) ON DUPLICATE KEY UPDATE `value`=VALUES(`value`)"
+    );
+    $db->beginTransaction();
+    try {
+        foreach ($pairs as $key => $value) {
+            $stmt->execute([$key, (string)$value]);
+        }
+        $db->commit();
+    } catch (Throwable $e) {
+        $db->rollBack();
+        throw $e;
+    }
+    // Single cache invalidation for the whole batch
+    @unlink(SETTINGS_CACHE_FILE);
+}
+
+// generic per-session throttle
+function throttle(string $key, int $maxPerWindow, int $windowSeconds): bool {
+    $now = time();
+    $bucket = $_SESSION['_throttle'][$key] ?? ['count' => 0, 'reset' => $now + $windowSeconds];
+    if ($now > $bucket['reset']) {
+        $bucket = ['count' => 0, 'reset' => $now + $windowSeconds];
+    }
+    $bucket['count']++;
+    $_SESSION['_throttle'][$key] = $bucket;
+    return $bucket['count'] <= $maxPerWindow;
+}
+
 function getCSSVariables(bool $isAdmin = false): string {
 
     $file = __DIR__ . '/../config/colors.php';
@@ -127,13 +167,15 @@ function getCSSVariables(bool $isAdmin = false): string {
         die("colors.php did not return array");
     }
 
-    $rows = getDB()->query("
-        SELECT `key`,`value`
-        FROM settings
-        WHERE `key` LIKE '--%'
-    ")->fetchAll(PDO::FETCH_ASSOC);
-
-    $overrides = array_column($rows, 'value', 'key');
+    // Use the shared settings cache (_loadAllSettings()) instead of a direct
+    // DB query — this was previously the only place in the app bypassing
+    // the file cache, causing one extra DB hit on every single page load.
+    $allSettings = _loadAllSettings();
+    $overrides   = array_filter(
+        $allSettings,
+        fn($k) => str_starts_with($k, '--'),
+        ARRAY_FILTER_USE_KEY
+    );
 
     $vars = $defaults;
     foreach ($overrides as $k => $v) {
@@ -146,34 +188,27 @@ function getCSSVariables(bool $isAdmin = false): string {
     $fontFamily = $isAdmin
         ? ($vars['--admin-font'] ?? "'DM Sans', sans-serif")
         : ($vars['--user-font']  ?? "'Plus Jakarta Sans', sans-serif");
- 
+
     $css = ":root{\n";
     foreach ($vars as $k => $v) {
         $css .= "{$k}:{$v};\n";
     }
- 
-    
+
     if ($isAdmin) {
         $adminOverrides = [
-            //  Shell / surfaces 
             '--bg'               => '--admin-bg',
             '--surface'          => '--admin-surface',
             '--surface2'         => '--admin-surface2',
             '--surface3'         => '--admin-surface3',
-            //  Accent 
             '--accent'           => '--admin-accent',
             '--accent2'          => '--admin-accent2',
             '--accent-light'     => '--admin-accent-light',
             '--accent-mid'       => '--admin-accent-mid',
-            //  Border 
             '--border'           => '--admin-table-border',
-            //  Nav / sidebar 
             '--nav-bg'           => '--admin-sidebar-from',
-            //  Text 
             '--text'             => '--admin-text',
             '--text2'            => '--admin-text2',
             '--text3'            => '--admin-text3',
-            //  Input (admin-input-* → generic input-* fallbacks) ─
             '--input-bg'         => '--admin-input-bg',
             '--input-color'      => '--admin-input-color',
             '--input-placeholder'=> '--admin-input-placeholder',
@@ -183,7 +218,6 @@ function getCSSVariables(bool $isAdmin = false): string {
             '--input-hover-border' => '--admin-input-hover-border',
             '--input-radius'     => '--admin-input-radius',
             '--input-font-size'  => '--admin-input-font-size',
-            //  Label 
             '--label-color'        => '--admin-label-color',
             '--label-font-size'    => '--admin-label-font-size',
             '--label-font-weight'  => '--admin-label-font-weight',
@@ -193,18 +227,16 @@ function getCSSVariables(bool $isAdmin = false): string {
                 $css .= "{$target}:{$vars[$source]};\n";
             }
         }
- 
-        // Sidebar gradient
+
         $from = $vars['--admin-sidebar-from'] ?? '#1A4D65';
         $to   = $vars['--admin-sidebar-to']   ?? '#0D2E3D';
         $css .= "--admin-sidebar-gradient:linear-gradient(180deg,{$from},{$to});\n";
     }
- 
-    // Inject resolved panel font as --font-body and --font-display
+
     $css .= "--font-body:{$fontFamily};\n";
     $css .= "--font-display:{$fontFamily};\n";
     $css .= "}";
- 
+
     return $css;
 }
 
