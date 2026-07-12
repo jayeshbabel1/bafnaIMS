@@ -143,7 +143,7 @@ function getSelections(int $clientId, int $userId, array $opts = []): array {
                 p.cutter_size_h,
                 p.quantity_available,
                 p.palette,
-                (SELECT filename FROM product_photos WHERE product_id = p.id ORDER BY sort_order LIMIT 1) AS primary_photo
+                p.primary_photo
             FROM client_selections cs
             JOIN products p ON p.id = cs.product_id
             $where
@@ -221,8 +221,6 @@ function deleteSelection(int $id, int $userId): bool {
     return $st->rowCount() > 0;
 }
 
-// ── Admin helpers ─────────────────────────────────────────────────────────────
-
 function adminGetClients(int $userId, array $opts = []): array {
     $db     = getDB();
     $search = trim($opts['search'] ?? '');
@@ -286,7 +284,7 @@ function adminGetSelections(int $clientId, array $opts = []): array {
                 p.cutter_size_h,
                 p.quantity_available,
                 p.palette,
-                (SELECT filename FROM product_photos WHERE product_id = p.id ORDER BY sort_order LIMIT 1) AS primary_photo
+                p.primary_photo
             FROM client_selections cs
             JOIN products p ON p.id = cs.product_id
             $where
@@ -472,8 +470,7 @@ function adminDeleteSelection(int $selectionId): bool {
 // ── Admin: lightweight product search for the "Add Product" picker ─────────
 function adminSearchProducts(string $q, int $limit = 20): array {
     $db = getDB();
-    $sql = "SELECT p.id, p.name, p.quarry_number, p.category, p.quantity_available, p.palette,
-                (SELECT filename FROM product_photos WHERE product_id=p.id ORDER BY sort_order LIMIT 1) AS primary_photo
+    $sql = "SELECT p.id, p.name, p.quarry_number, p.category, p.quantity_available, p.palette, p.primary_photo
             FROM products p WHERE 1=1";
     $params = [];
     if ($q !== '') {

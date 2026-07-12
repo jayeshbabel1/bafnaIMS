@@ -54,7 +54,7 @@ width:230px;background:var(--admin-sidebar-gradient,linear-gradient(180deg,var(-
 .admin-content {
     padding:24px;flex:1;}
 
-/* Admin Cards / Stats */
+/* Admin Cards -Stats */
 .stats-grid {
     display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px;}
 
@@ -70,7 +70,7 @@ width:230px;background:var(--admin-sidebar-gradient,linear-gradient(180deg,var(-
 .stat-icon {
     width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:14px;}
 
-/* Admin Cards / Stats
+/* Admin Cards Stats
 div.dashboard-grid  {
     
  display: grid !important;
@@ -81,18 +81,13 @@ div.dashboard-grid  {
  margin-bottom: 24px !important;
 }
 
-
-
 @media (max-width: 1024px) {
     
  .dashboard-grid  {
     
  grid-template-columns: repeat(2, 1fr);
  gap: 12px;
- }
-
-
-.admin-shell  {
+ 
     
  display: block; /* override flex row layout from desktop */}
 
@@ -386,12 +381,6 @@ to {
 
 }
 
-/*
- APPEND TO: assets/css/admin.css
- Tasks 1 (logo), 2 (admin products AJAX pagination)
- */
-
-/* ── Task 1: Logo Management */
 .logo-mgmt-wrap {
     max-width:680px;}
 
@@ -457,8 +446,6 @@ to {
 .logo-tips-list li svg {
     flex-shrink:0;margin-top:2px;}
 
-/* Task 2: Admin Products AJAX Pagination */
-
 /* Toolbar */
 
 .admin-products-toolbar  {
@@ -492,7 +479,6 @@ to {
   white-space: nowrap;
   font-family: inherit;
   transition: background 0.15s, opacity 0.15s, border-color 0.15s;
-  /* normalise <button> & <label> so they look identical */
   box-sizing: border-box;
   line-height: 1;
   vertical-align: middle;
@@ -512,32 +498,30 @@ to {
   color: var(--text);
 }
 
-
 .admin-toolbar-btn--solid:hover  {
      background: var(--surface2); }
-
-
  
 /* Variant: accent primary (Add Product) */
 .admin-toolbar-btn--primary  {
     
-  background: var(--accent);
-  border: 1.5px solid var(--accent);
-  color: #fff;
+  background: var(--admin-btn-primary-bg, var(--accent));
+  border: 1.5px solid var(--admin-btn-primary-border, var(--accent));
+  color: var(--admin-btn-primary-color, #fff);
+  border-radius: var(--admin-btn-primary-radius, 8px);
 }
 
-
 .admin-toolbar-btn--primary:hover  {
-     background: var(--accent2); border-color: var(--accent2); }
-
+     background: var(--admin-btn-primary-hover-bg, var(--accent2));
+     border-color: var(--admin-btn-primary-hover-bg, var(--accent2));
+     color: var(--admin-btn-primary-hover-color, #fff); }
 
  
 /* Variant: dashed accent (sync / upload) */
 .admin-toolbar-btn--dashed  {
     
-  background: var(--accent-light);
-  border: 1.5px dashed var(--accent);
-  color: var(--accent);
+  background: var(--admin-btn-sync-bg, var(--accent-light));
+  border: 1.5px dashed var(--admin-btn-sync-border, var(--accent));
+  color: var(--admin-btn-sync-color, var(--accent));
 }
 
 
@@ -545,13 +529,11 @@ to {
      opacity: 0.82; }
 
 
- 
-/* Variant: dashed upload (Upload Photos — visually distinct) */
 .admin-toolbar-btn--upload  {
     
-  background: var(--accent-light);
-  border: 1.5px dashed var(--accent);
-  color: var(--accent);
+  background: var(--admin-btn-sync-bg, var(--accent-light));
+  border: 1.5px dashed var(--admin-btn-sync-border, var(--accent));
+  color: var(--admin-btn-sync-color, var(--accent));
 }
 
 
@@ -559,9 +541,6 @@ to {
      opacity: 0.82; }
 
 
- 
-/* Legacy aliases — keep old class names working so existing HTML
-   doesn't need wholesale changes; they now just extend the master */
 .admin-toolbar-file-btn  {
     
   display: inline-flex;
@@ -595,9 +574,9 @@ to {
 
 .admin-toolbar-file-btn--accent  {
     
-  background: var(--accent-light);
-  border: 1.5px dashed var(--accent);
-  color: var(--accent);
+  background: var(--admin-btn-sync-bg, var(--accent-light));
+  border: 1.5px dashed var(--admin-btn-sync-border, var(--accent));
+  color: var(--admin-btn-sync-color, var(--accent));
 }
 
 
@@ -615,12 +594,12 @@ to {
   cursor: pointer;
   height: 36px;
   padding: 0 14px;
-  border: 1.5px dashed var(--accent);
+ border: 1.5px dashed var(--admin-btn-sync-border, var(--accent));
   border-radius: 8px;
   font-size: 12px;
   font-weight: 600;
-  background: var(--accent-light);
-  color: var(--accent);
+  background: var(--admin-btn-sync-bg, var(--accent-light));
+  color: var(--admin-btn-sync-color, var(--accent));
   transition: opacity 0.15s;
   white-space: nowrap;
   box-sizing: border-box;
@@ -632,18 +611,12 @@ to {
 .admin-toolbar-sync-btn:hover  {
      opacity: 0.8; }
 
-
- 
-/* Make btn-admin-primary match toolbar height when used in toolbar */
 .admin-products-toolbar .btn-admin-primary  {
     
   height: 36px;
   padding: 0 14px;
   box-sizing: border-box;
 }
-
-
-
 
 /* Category tabs strip */
 .admin-cat-tabs {
@@ -722,9 +695,6 @@ to {
 .admin-products-count {
     font-size:12px;color:var(--text3);}
 
-
-/*  Product-table row action buttons — uniform size  */
-/* Wraps the edit / whatsapp / delete buttons in each table row */
 .admin-table-actions  {
     
   display: flex;
@@ -734,8 +704,6 @@ to {
 }
 
 
- 
-/* Every small action button in product/user tables gets the same box */
 .btn-admin-secondary.btn-admin-sm,
 .btn-admin-danger.btn-admin-sm,
 .btn-admin-primary.btn-admin-sm  {
@@ -755,7 +723,6 @@ to {
 }
 
 
-/* Icon-only variant: perfect square */
 .btn-admin-secondary.btn-admin-sm:only-child:not(:has(span)),
 a.btn-admin-secondary.btn-admin-sm[title]  {
     
@@ -855,16 +822,12 @@ a.btn-admin-secondary.btn-admin-sm[title]  {
 .admin-sidebar.open {
     transform:translateX(0);box-shadow:4px 0 32px rgba(0,0,0,.25);}
 
-/* Always show full labels/icons inside the drawer — undo any icon-only
- collapse behaviour for this breakpoint range */
  .admin-logo-name,.admin-logo-sub,.admin-nav-item span {
     display:inline !important;}
 
 .admin-logo-name {
     display:block !important;}
 
-/* Submenu must be fully visible and scrollable inside the drawer —
- no clipped/hidden dropdowns regardless of how many items it has */
  .admin-nav-submenu {
     max-height:none;overflow:visible;}
 
@@ -895,9 +858,6 @@ a.btn-admin-secondary.btn-admin-sm[title]  {
 
 }
 
-/* Mobile only (768px) — replaces the old broken icon-collapse rules.
- These rules intentionally override the old 768px block above them in the
- file (later rules win), restoring full-width drawer behaviour. */
 @media (max-width:768px) {
     .admin-sidebar {
     width:86vw;max-width:300px;}
@@ -1002,9 +962,6 @@ a.btn-admin-secondary.btn-admin-sm[title]  {
   max-width: 420px;
 }
 
-
- 
-/* Users toolbar row (search + count + add button) */
 .users-toolbar  {
     
   display: flex;
@@ -1014,9 +971,6 @@ a.btn-admin-secondary.btn-admin-sm[title]  {
   flex-wrap: wrap;
 }
 
-
- 
-/* Clear button for user search */
 #userSearchClear  {
     
   position: absolute;
@@ -1083,13 +1037,7 @@ textarea.admin-input:focus {
     color:var(--admin-text3, var(--text3));
 }
 
-/* Fix: "Selections" (User Clients) and "Share" (Client Selections) buttons
-   were being squashed by the icon-only-button squish rule:
-     .btn-admin-secondary.btn-admin-sm:only-child:not(:has(span)) { width:30px; padding:0; }
-   That rule is meant for icon-only square buttons, but it also matched
-   these labeled (icon + text) buttons since SVG icons aren't <span>s.
-   Fix: give labeled buttons a dedicated class with higher specificity
-   that restores their normal box model.    */
+
 .btn-admin-secondary.btn-admin-sm.btn-admin-labeled,
 a.btn-admin-secondary.btn-admin-sm.btn-admin-labeled {
   width: auto !important;
@@ -1104,9 +1052,6 @@ a.btn-admin-secondary.btn-admin-sm.btn-admin-labeled {
   flex-shrink: 0;
 }
 
-/* Keep the action cell from squeezing the labeled button on narrow
-   screens — table scrolls horizontally instead (overflow-x:auto already
-   set on .admin-table-wrap). */
 .admin-table td:has(.btn-admin-labeled) {
   white-space: nowrap;
 }

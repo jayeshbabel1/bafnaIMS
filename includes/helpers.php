@@ -247,9 +247,7 @@ function getFontEmbedUrl(bool $isAdmin = false): string {
 
     $settingKey = $isAdmin ? '--admin-font' : '--user-font';
     try {
-        $st = getDB()->prepare("SELECT `value` FROM settings WHERE `key`=?");
-        $st->execute([$settingKey]);
-        $val = (string)($st->fetchColumn() ?: '');
+        $val = (string)(_loadAllSettings()[$settingKey] ?? '');
     } catch (Throwable $e) {
         $val = '';
     }
@@ -414,6 +412,88 @@ function timeAgo(int $timestamp): string {
     if ($diff < 604800)return floor($diff/86400) . 'd ago';
     return date('d M Y', $timestamp);
 }
+
+
+/**
+ * Generate a thumbnail into THUMBS_DIR, mirroring PHOTOS_DIR's subfolder
+ * structure (e.g. PHOTOS_DIR/White/Q123-IMG.jpg -> THUMBS_DIR/White/Q123-IMG.jpg).
+ * Kept in a completely separate directory tree so sync scripts that scan
+ * PHOTOS_DIR (syncPhotosFromDirectory, importPhotos, fix_folder_casing, etc.)
+ * never see thumb files and can't misparse them as extra quarry photos.
+ * Uses GD — no Imagick dependency required. Safe no-op if GD missing or
+ * source unreadable — caller falls back to the original photo via
+ * getPhotoThumbUrl().
+ *
+ * @param string $fullPath Absolute path to the ORIGINAL photo inside PHOTOS_DIR.
+ */
+function generateThumbnail(string $fullPath, int $maxW = 400, int $maxH = 400): bool {
+    if (!function_exists('imagecreatefromjpeg')) return false; // GD not installed
+    if (!file_exists($fullPath)) return false;
+
+    // Must live under PHOTOS_DIR so we can mirror its relative subpath
+    $realPhotos = realpath(PHOTOS_DIR);
+    $realFull   = realpath($fullPath);
+    if (!$realPhotos || !$realFull || strpos($realFull, $realPhotos) !== 0) return false;
+
+    $relative  = ltrim(substr($realFull, strlen($realPhotos)), '/\\');
+    $thumbPath = THUMBS_DIR . '/' . $relative;
+    $thumbDir  = dirname($thumbPath);
+    if (!is_dir($thumbDir) && !@mkdir($thumbDir, 0755, true)) return false;
+
+    $info = @getimagesize($fullPath);
+    if (!$info) return false;
+    [$srcW, $srcH, $type] = $info;
+
+    $ratio = min($maxW / $srcW, $maxH / $srcH, 1); // never upscale
+    $dstW  = max(1, (int)round($srcW * $ratio));
+    $dstH  = max(1, (int)round($srcH * $ratio));
+
+    switch ($type) {
+        case IMAGETYPE_JPEG: $src = @imagecreatefromjpeg($fullPath); break;
+        case IMAGETYPE_PNG:  $src = @imagecreatefrompng($fullPath);  break;
+        case IMAGETYPE_WEBP: $src = function_exists('imagecreatefromwebp') ? @imagecreatefromwebp($fullPath) : false; break;
+        default: return false;
+    }
+    if (!$src) return false;
+
+    $dst = imagecreatetruecolor($dstW, $dstH);
+    if ($type === IMAGETYPE_PNG || $type === IMAGETYPE_WEBP) {
+        imagealphablending($dst, false);
+        imagesavealpha($dst, true);
+    }
+    imagecopyresampled($dst, $src, 0, 0, 0, 0, $dstW, $dstH, $srcW, $srcH);
+
+    $ext = strtolower(pathinfo($fullPath, PATHINFO_EXTENSION));
+    $ok = match ($ext) {
+        'png'   => imagepng($dst, $thumbPath, 6),
+        'webp'  => imagewebp($dst, $thumbPath, 80),
+        default => imagejpeg($dst, $thumbPath, 80),
+    };
+
+    imagedestroy($src);
+    imagedestroy($dst);
+    return (bool)$ok;
+}
+
+/**
+ * Return the ready-to-use <img src> URL (relative to app root) for a
+ * product's stored photo path — thumb if it exists in THUMBS_DIR,
+ * otherwise falls back to the full-size original. This is the ONLY
+ * function templates should call for listing/grid thumbnails.
+ *
+ * @param string $relativePath The DB-stored photo path (e.g. "White/Q123-IMG.jpg")
+ */
+function getPhotoThumbUrl(string $relativePath): string {
+    $resolvedOrig = resolvePhotoPath(PHOTOS_DIR, $relativePath);
+    if (!$resolvedOrig) return '';
+
+    $thumbFull = THUMBS_DIR . '/' . $resolvedOrig;
+    if (file_exists($thumbFull)) {
+        return 'assets/uploads/_thumb/' . $resolvedOrig;
+    }
+    return 'assets/uploads/photos/' . $resolvedOrig;
+}
+
 
 function resolvePhotoPath(string $baseDir, string $relativePath): ?string {
     $fullPath = $baseDir . '/' . $relativePath;

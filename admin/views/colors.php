@@ -36,6 +36,9 @@ $adminColorGroups = [
   'Admin Table'           => ['--admin-table-header-bg','--admin-table-row-hover',
                               '--admin-table-border'],
   'Admin Cards'           => ['--admin-card-bg','--admin-card-border','--admin-card-radius'],
+  // NEW — was defined in config/colors.php and used in CSS (nav badge counts,
+  // e.g. sidebar unread notification pill) but had no edit control anywhere.
+  'Admin Badges'          => ['--admin-badge-bg','--admin-badge-color'],
 ];
 
 //  Font options 
@@ -64,14 +67,31 @@ function toHex(string $v): string {
     return '#cccccc';
 }
 
+// Extracts the primary font-family name from a CSS font-family value,
+// honoring quotes when present (e.g. "'Plus Jakarta Sans', sans-serif" -> "Plus Jakarta Sans").
+function extractFontFamilyName(string $cssValue): string {
+    if (preg_match('/^\s*[\'"]([^\'"]+)[\'"]/', $cssValue, $m)) {
+        return trim($m[1]);
+    }
+    $first = trim(explode(',', $cssValue)[0] ?? $cssValue);
+    return trim($first, "'\" ");
+}
+
 // Get font family label from value
 function fontLabel(string $val, array $map): string {
+    $valName = mb_strtolower(extractFontFamilyName($val));
+    if ($valName === '') return 'Plus Jakarta Sans';
+
     foreach ($map as $label => $css) {
-        if (trim($css, "'\" ") === trim($val, "'\" ") || $css === $val) return $label;
+        if (mb_strtolower(extractFontFamilyName($css)) === $valName) {
+            return $label;
+        }
     }
-    // Try matching family name
-    preg_match("/['\"]?([A-Za-z][A-Za-z0-9 ]+)['\"]?/", $val, $m);
-    return trim($m[1] ?? 'Plus Jakarta Sans');
+
+    // Unmapped/custom font (e.g. set directly via settings, not through this
+    // dropdown) — show its real name instead of silently mislabeling it as
+    // "Plus Jakarta Sans", which was the old (wrong) fallback behavior.
+    return mb_convert_case($valName, MB_CASE_TITLE, 'UTF-8');
 }
 ?>
 
@@ -206,7 +226,7 @@ function fontLabel(string $val, array $map): string {
             </div>
           </div>
         </div>
- 
+         
       </div>
     </div>
  
@@ -273,7 +293,7 @@ function fontLabel(string $val, array $map): string {
             <?php if ($type === 'select-weight'): ?>
               <select name="<?= htmlspecialchars($key) ?>" class="admin-input admin-select"
                       style="width:110px;"
-                      onchange="document.documentElement.style.setProperty('<?= $key ?>', this.value)">
+                      onchange="applyVar('<?= $key ?>', this.value)">
                 <?php foreach (['300','400','500','600','700','800'] as $w): ?>
                 <option value="<?= $w ?>" <?= ($val === $w) ? 'selected' : '' ?>><?= $w ?></option>
                 <?php endforeach; ?>
@@ -281,7 +301,7 @@ function fontLabel(string $val, array $map): string {
             <?php elseif ($type === 'select-transform'): ?>
               <select name="<?= htmlspecialchars($key) ?>" class="admin-input admin-select"
                       style="width:130px;"
-                      onchange="document.documentElement.style.setProperty('<?= $key ?>', this.value)">
+                      onchange="applyVar('<?= $key ?>', this.value)">
                 <?php foreach (['uppercase','lowercase','capitalize','none'] as $t): ?>
                 <option value="<?= $t ?>" <?= ($val === $t) ? 'selected' : '' ?>><?= $t ?></option>
                 <?php endforeach; ?>
@@ -480,6 +500,49 @@ function fontLabel(string $val, array $map): string {
         </button>
       </div>
     </div>
+    
+    <!-- ── ADMIN SYNC / DASHED TOOLBAR BUTTON ─────────────────────────── -->
+    <div class="admin-form-section">
+      <p class="admin-form-section-title">Admin Sync Button</p>
+      <p style="font-size:12px;color:var(--text3);margin-bottom:14px;line-height:1.6;">
+        Controls <code>.admin-toolbar-btn--dashed</code> / <code>.admin-toolbar-btn--upload</code> —
+        used for Sync Photos, Sync Sheets, Sync DNA, and Upload Photos actions on the Products page.
+      </p>
+      <?php
+      adminCompRow('--admin-btn-sync-bg',     'Background',   'color', $current);
+      adminCompRow('--admin-btn-sync-border', 'Border Color', 'color', $current, 'Dashed border + hover accent');
+      adminCompRow('--admin-btn-sync-color',  'Text Color',   'color', $current);
+      ?>
+      <!-- Live button preview -->
+      <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;align-items:center;">
+        <button type="button" style="
+          display:inline-flex;align-items:center;gap:6px;
+          height:36px;padding:0 14px;
+          background:var(--admin-btn-sync-bg,var(--accent-light));
+          color:var(--admin-btn-sync-color,var(--accent));
+          border:1.5px dashed var(--admin-btn-sync-border,var(--accent));
+          border-radius:8px;
+          font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;box-sizing:border-box;
+          transition:opacity .15s;"
+          onmouseover="this.style.opacity=0.82" onmouseout="this.style.opacity=1">
+          <?= icon('refresh',13) ?> Sync Photos
+        </button>
+        <button type="button" style="
+          display:inline-flex;align-items:center;gap:6px;
+          height:36px;padding:0 14px;
+          background:var(--admin-btn-sync-bg,var(--accent-light));
+          color:var(--admin-btn-sync-color,var(--accent));
+          border:1.5px dashed var(--admin-btn-sync-border,var(--accent));
+          border-radius:8px;
+          font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;box-sizing:border-box;
+          transition:opacity .15s;"
+          onmouseover="this.style.opacity=0.82" onmouseout="this.style.opacity=1">
+          <?= icon('image',13) ?> Upload Photos
+        </button>
+      </div>
+    </div>
+
+  </div>
  
     <!-- ── ADMIN DANGER / DELETE BUTTON ───────────────────────────────── -->
     <div class="admin-form-section">
@@ -703,7 +766,7 @@ function fontLabel(string $val, array $map): string {
           <input type="text" name="--input-radius" class="admin-input"
                  value="<?= h($current['--input-radius'] ?? '10px') ?>"
                  style="font-size:12px;padding:5px 10px;font-family:monospace;width:100px;"
-                 oninput="document.documentElement.style.setProperty('--input-radius', this.value)"/>
+                 oninput="applyVar('--input-radius', this.value)"/>
         </div>
       </div>
 
@@ -717,7 +780,7 @@ function fontLabel(string $val, array $map): string {
           <input type="text" name="--input-font-size" class="admin-input"
                  value="<?= h($current['--input-font-size'] ?? '14px') ?>"
                  style="font-size:12px;padding:5px 10px;font-family:monospace;width:100px;"
-                 oninput="document.documentElement.style.setProperty('--input-font-size', this.value)"/>
+                 oninput="applyVar('--input-font-size', this.value)"/>
         </div>
       </div>
     </div>
@@ -778,7 +841,7 @@ function fontLabel(string $val, array $map): string {
           <input type="text" name="--label-font-size" class="admin-input"
                  value="<?= h($current['--label-font-size'] ?? '11.5px') ?>"
                  style="font-size:12px;padding:5px 10px;font-family:monospace;width:100px;"
-                 oninput="document.documentElement.style.setProperty('--label-font-size', this.value)"/>
+                 oninput="applyVar('--label-font-size', this.value)" />
         </div>
       </div>
 
@@ -919,29 +982,29 @@ function fontLabel(string $val, array $map): string {
   <!-- ══ TAB: Radius ═══════════════════════════════════════════════════ -->
   <div class="theme-panel" id="panel-radius">
     <div class="admin-form-section">
-      <p class="admin-form-section-title">Border Radii</p>
+      <p class="admin-form-section-title">Border Radius</p>
       <div class="admin-form-grid">
         <div>
           <label class="admin-label">Button Radius (--btn-radius)</label>
           <input type="text" name="--btn-radius" class="admin-input"
                  value="<?= h($current['--btn-radius'] ?? '8px') ?>" placeholder="8px"
-                 oninput="document.documentElement.style.setProperty('--btn-radius', this.value)"/>
+                 oninput="applyVar('--btn-radius', this.value)"/>
         </div>
         <div>
           <label class="admin-label">Card Radius (--card-radius)</label>
           <input type="text" name="--card-radius" class="admin-input"
                  value="<?= h($current['--card-radius'] ?? '16px') ?>" placeholder="16px"
-                 oninput="document.documentElement.style.setProperty('--card-radius', this.value)"/>
+                 oninput="applyVar('--card-radius', this.value)"/>
         </div>
         <div>
           <label class="admin-label">Input Radius (--input-radius)</label>
           <input type="text" name="--input-radius" class="admin-input"
                  value="<?= h($current['--input-radius'] ?? '10px') ?>" placeholder="10px"
-                 oninput="document.documentElement.style.setProperty('--input-radius', this.value)"/>
+                 oninput="applyVar('--input-radius', this.value)"/>
         </div>
       </div>
       <!-- Visual radius preview -->
-      <div style="display:flex;gap:16px;margin-top:20px;flex-wrap:wrap;align-items:flex-end;">
+      <div id="radiusPreviewArea" style="display:flex;gap:16px;margin-top:20px;flex-wrap:wrap;align-items:flex-end;">
         <div style="text-align:center;">
           <div style="width:80px;height:40px;background:var(--accent);border-radius:var(--btn-radius,8px);margin-bottom:6px;"></div>
           <p style="font-size:11px;color:var(--text3);">Button</p>
@@ -966,7 +1029,7 @@ function fontLabel(string $val, array $map): string {
 </form>
 
 <script>
-// ── Tab switching ───────────────────────────────────────────────────────────
+// ── Tab switching 
 function switchTab(name) {
   document.querySelectorAll('.theme-tab').forEach(t => {
     t.classList.toggle('active', t.getAttribute('onclick').includes("'"+name+"'"));
@@ -976,7 +1039,7 @@ function switchTab(name) {
   });
 }
  
-// ── Admin preview live update ────────────────────────────────────────────────
+// ── Admin preview live update 
 document.querySelectorAll('[data-admin-preview="1"]').forEach(inp => {
   inp.addEventListener('input', () => {
     const key = inp.dataset.key;
@@ -996,11 +1059,11 @@ document.querySelectorAll('[data-admin-preview="1"]').forEach(inp => {
   });
 });
 
-// ── Color swatch sync ───────────────────────────────────────────────────────
+// ── Color swatch sync 
 document.querySelectorAll('.color-sync-input').forEach(inp => {
-  // Swatch inside swatch-item container
+  inp.dataset.syncBound = '1'; // claims this input so admin.js's generic handler skips it
+
   const swatchInItem = inp.closest('.color-swatch-item')?.querySelector('.color-preview');
-  // Swatch in theme-row (inline variant)
   const swatchInRow  = inp.closest('.theme-row-control')?.querySelector('.color-preview');
   const swatch = swatchInItem || swatchInRow;
 
@@ -1008,7 +1071,6 @@ document.querySelectorAll('.color-sync-input').forEach(inp => {
     swatch.style.background = inp.value;
     inp.addEventListener('input', () => swatch.style.background = inp.value);
 
-    // Click swatch → native colour picker
     swatch.addEventListener('click', () => {
       const ci = document.createElement('input');
       ci.type  = 'color';
@@ -1029,17 +1091,47 @@ function applyVar(name, val) {
   if (name.startsWith('--')) document.documentElement.style.setProperty(name, val);
 }
 
-// ── Full live preview ───────────────────────────────────────────────────────
+// ── Scoped preview — updates ONLY the preview widgets on this page,
+// never document.documentElement, so editing/previewing colors can no
+// longer visually override the real admin sidebar/topbar/buttons while
+// you're still mid-edit and haven't saved.
 function applyPreview() {
-  document.querySelectorAll('#colorForm input[name^="--"]').forEach(inp => {
-    document.documentElement.style.setProperty(inp.name, inp.value);
+  var vars = {};
+  document.querySelectorAll('#colorForm input[name^="--"]').forEach(function (inp) {
+    vars[inp.name] = inp.value;
   });
-  document.querySelectorAll('#colorForm select[name^="--"]').forEach(sel => {
-    document.documentElement.style.setProperty(sel.name, sel.value);
+  document.querySelectorAll('#colorForm select[name^="--"]').forEach(function (sel) {
+    vars[sel.name] = sel.value;
+  });
+  applyVarsToPreviewScopes(vars);
+}
+
+// Every element below already exists as a "preview" region in this page.
+// We scope-apply variables to each one individually instead of :root.
+function applyVarsToPreviewScopes(vars) {
+  var scopes = [
+    document.getElementById('colorPreview'),
+    document.getElementById('adminPreviewSidebar'),
+    document.getElementById('adminPreviewTopbar'),
+    document.getElementById('navbarPreview'),
+    document.getElementById('inputPreviewArea'),
+    document.getElementById('btnPreviewPrimary'),
+    document.getElementById('btnPreviewSecondary'),
+  ].filter(Boolean);
+
+  scopes.forEach(function (el) {
+    Object.keys(vars).forEach(function (k) {
+      el.style.setProperty(k, vars[k]);
+    });
   });
 }
 
-// ── Font selection ──────────────────────────────────────────────────────────
+// Single-variable version used by swatch/text inputs as you type.
+function applyVar(name, val) {
+  if (!name.startsWith('--')) return;
+  applyVarsToPreviewScopes({ [name]: val });
+}
+// ── Font selection 
 document.querySelectorAll('.font-option').forEach(label => {
   label.addEventListener('click', () => {
     const varKey  = label.dataset.fontKey;

@@ -209,6 +209,10 @@ return [
     '--admin-label-font-weight'     => '700',
     '--admin-label-transform'       => 'uppercase',
     '--admin-label-letter-spacing'  => '0.4px',
-  
+       // ── Admin Sync / Dashed Toolbar Button ─────────────────────────
+    '--admin-btn-sync-bg'           => '#E3EFF4',
+    '--admin-btn-sync-border'       => '#2C6E8A',
+    '--admin-btn-sync-color'        => '#2C6E8A',
+
   
 ];

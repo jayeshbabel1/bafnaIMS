@@ -1,9 +1,10 @@
 <?php
+
 $adminTitle = 'Room Visualizer Templates';
 requireAdminPermission('settings.logo'); // reuse an existing settings permission, or add 'room_templates.manage' to RBAC
 include __DIR__ . '/../_layout_top.php';
 
-$db = getDB();
+$db        = getDB();
 $templates = $db->query("SELECT * FROM room_templates ORDER BY room_type, sort_order")->fetchAll();
 ?>
 <style>
@@ -11,80 +12,30 @@ $templates = $db->query("SELECT * FROM room_templates ORDER BY room_type, sort_o
 @media(min-width:900px){.rt-grid{grid-template-columns:1fr 1fr;}}
 .rt-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--card-radius);padding:16px;}
 .rt-thumb{width:100%;aspect-ratio:16/10;object-fit:cover;border-radius:8px;background:var(--surface2);margin-bottom:10px;}
-#rtCanvasWrap{position:relative;border:1px dashed var(--border);border-radius:8px;overflow:hidden;max-width:520px;}
-#rtCanvas{width:100%;display:block;cursor:crosshair;}
-.rt-point-list{font-size:11px;color:var(--text3);margin-top:6px;font-family:monospace;}
+
+/* ── Vue app transition (used by the create-form panel) ─────────────── */
+.rv-fade-enter-active,.rv-fade-leave-active{transition:opacity .25s ease, transform .25s ease;}
+.rv-fade-enter-from{opacity:0;transform:translateY(6px);}
+.rv-fade-leave-to{opacity:0;transform:translateY(-6px);}
+
+/* ── Touch magnifier loupe ───────────────────────────────────────────── */
+.rt-loupe{
+  position:absolute;width:110px;height:110px;border-radius:50%;
+  border:3px solid #B8975A;box-shadow:0 6px 20px rgba(0,0,0,.4);
+  overflow:hidden;pointer-events:none;z-index:30;background:#000;
+}
+.rt-loupe canvas{display:block;}
+@media(max-width:768px){
+  .rt-loupe{width:96px;height:96px;}
+  .rt-loupe canvas{width:96px;height:96px;}
+}
 </style>
 
-<div style="margin-bottom:16px;">
-  <button class="btn-admin-primary" onclick="document.getElementById('rtCreateForm').style.display='block'">
-    <?= icon('plus',14) ?> Add Room Template
-  </button>
-</div>
+<!-- ══════════════════ Vue app mounts here (create/edit form) ══════════════════ -->
+<div id="rtVueApp"></div>
 
-<!-- Create/Edit form -->
-<div id="rtCreateForm" class="admin-form-section" style="display:none;">
-  <p class="admin-form-section-title">New Room Template</p>
-  <form method="POST" action="index.php" enctype="multipart/form-data" id="rtForm">
-    <input type="hidden" name="action" value="save_room_template"/>
-    <input type="hidden" name="mask_points" id="rtMaskPoints" value=""/>
-    <?= csrfField() ?>
-    <div class="admin-form-grid">
-      <div>
-        <label class="admin-label">Room Type</label>
-        <select name="room_type" class="admin-input admin-select">
-          <?php foreach (ROOM_TYPES as $k=>$v): ?>
-          <option value="<?= h($k) ?>"><?= h($v) ?></option>
-          <?php endforeach; ?>
-        </select>
-      </div>
-      <div>
-        <label class="admin-label">Label</label>
-        <input type="text" name="label" class="admin-input" placeholder="e.g. Modern Kitchen Floor" required/>
-      </div>
-      <div>
-        <label class="admin-label">Base Room Photo *</label>
-        <input type="file" name="base_image" class="admin-input" accept="image/*" id="rtBaseInput" required/>
-      </div>
-      <div>
-        <label class="admin-label">Shadow/Lighting Layer (optional, grayscale)</label>
-        <input type="file" name="shadow_layer" class="admin-input" accept="image/*"/>
-        <p style="font-size:11px;color:var(--text3);margin-top:4px;">A grayscale photo of just the surface's shadows — multiplied over the texture for realism. Leave blank to skip.</p>
-      </div>
-    </div>
-
-    <div style="margin-top:14px;">
-  <label class="admin-label">Step 1: Click 4 corners for perspective (TL → TR → BR → BL)</label>
-  <div id="rtCanvasWrap">
-    <canvas id="rtCanvas"></canvas>
-  </div>
-  <p class="rt-point-list" id="rtPointList">No points yet.</p>
-  <button type="button" class="btn-admin-secondary btn-admin-sm" onclick="rtResetPoints()">Reset Corners</button>
-</div>
-
-<div style="margin-top:18px;display:none;" id="rtClipSection">
-  <label class="admin-label">
-    Step 2 (optional): Click outline of exact visible shape
-    <span style="font-weight:400;color:var(--text3);">— for irregular surfaces (L-shape, curved edge). Skip to use the 4-corner quad as-is.</span>
-  </label>
-  <p class="rt-point-list" id="rtClipPointList">No clip points yet.</p>
-  <div style="display:flex;gap:8px;margin-top:8px;">
-    <button type="button" class="btn-admin-secondary btn-admin-sm" onclick="rtStartClipMode()">Start Drawing Outline</button>
-    <button type="button" class="btn-admin-secondary btn-admin-sm" onclick="rtFinishClip()">Finish Outline</button>
-    <button type="button" class="btn-admin-secondary btn-admin-sm" onclick="rtResetClip()">Clear Outline</button>
-  </div>
-</div>
-
-<input type="hidden" name="clip_points" id="rtClipPoints" value=""/>
-    <div style="margin-top:16px;display:flex;gap:10px;">
-      <button type="submit" class="btn-admin-primary"><?= icon('check',14) ?> Save Template</button>
-      <button type="button" class="btn-admin-secondary" onclick="document.getElementById('rtCreateForm').style.display='none'">Cancel</button>
-    </div>
-  </form>
-</div>
-
-<!-- Existing templates -->
-<div class="rt-grid">
+<!-- ══════════════════ Existing templates (plain PHP list) ═════════════════════ -->
+<div class="rt-grid" style="margin-top:20px;">
   <?php foreach ($templates as $t): ?>
   <div class="rt-card">
     <?php if ($t['base_image']): ?>
@@ -114,146 +65,21 @@ $templates = $db->query("SELECT * FROM room_templates ORDER BY room_type, sort_o
   <?php endforeach; ?>
 </div>
 
+<?php if (empty($templates)): ?>
+<div class="admin-table-empty" style="margin-top:20px;text-align:center;padding:40px 20px;">
+  <p style="font-weight:600;color:var(--admin-text,var(--text));margin-bottom:6px;">No room templates yet</p>
+  <p style="font-size:12px;color:var(--admin-text3,var(--text3));">Click "+ Add Room Template" above to create the first one.</p>
+</div>
+<?php endif; ?>
+
+<!-- ══════════════════ Vue mount config + scripts ═══════════════════════════════ -->
 <script>
-(function(){
-  var canvas = document.getElementById('rtCanvas');
-  var ctx    = canvas.getContext('2d');
-  var img    = new Image();
-  var points = [];
-  var clipPoints = [];
-  var clipMode   = false;
-
-  document.getElementById('rtBaseInput').addEventListener('change', function(e){
-    var file = e.target.files[0];
-    if (!file) return;
-    var reader = new FileReader();
-    reader.onload = function(ev){
-      img.onload = function(){
-        canvas.width  = img.naturalWidth;
-        canvas.height = img.naturalHeight;
-        redraw();
-      };
-      img.src = ev.target.result;
-    };
-    reader.readAsDataURL(file);
-  });
-
-  // ── SINGLE unified click handler ──────────────────────────────────────
-  canvas.addEventListener('click', function (e) {
-    var rect  = canvas.getBoundingClientRect();
-    var scaleX = canvas.width / rect.width;
-    var scaleY = canvas.height / rect.height;
-    var x = Math.round((e.clientX - rect.left) * scaleX);
-    var y = Math.round((e.clientY - rect.top)  * scaleY);
-
-    if (clipMode) {
-      clipPoints.push([x, y]);
-      updateClipList();
-      redraw();
-      return;
-    }
-
-    if (points.length >= 4) return;
-    points.push([x, y]);
-    redraw();
-    updatePointList();
-    if (points.length === 4) {
-      document.getElementById('rtClipSection').style.display = 'block';
-    }
-  });
-
-  // ── SINGLE redraw function ────────────────────────────────────────────
-  function redraw(){
-    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-    // Perspective quad — gold
-    ctx.fillStyle = '#B8975A';
-    ctx.strokeStyle = '#B8975A';
-    ctx.lineWidth = 3;
-    points.forEach(function (p, i) {
-      ctx.beginPath();
-      ctx.arc(p[0], p[1], 8, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillText((i + 1).toString(), p[0] - 3, p[1] - 12);
-    });
-    if (points.length > 1) {
-      ctx.beginPath();
-      ctx.moveTo(points[0][0], points[0][1]);
-      for (var i = 1; i < points.length; i++) ctx.lineTo(points[i][0], points[i][1]);
-      if (points.length === 4) ctx.closePath();
-      ctx.stroke();
-    }
-
-    // Clip polygon — blue, dashed
-    if (clipPoints.length) {
-      ctx.fillStyle = '#2C6E8A';
-      ctx.strokeStyle = '#2C6E8A';
-      ctx.lineWidth = 2;
-      ctx.setLineDash([6, 4]);
-      clipPoints.forEach(function (p) {
-        ctx.beginPath();
-        ctx.arc(p[0], p[1], 6, 0, Math.PI * 2);
-        ctx.fill();
-      });
-      ctx.beginPath();
-      ctx.moveTo(clipPoints[0][0], clipPoints[0][1]);
-      for (var j = 1; j < clipPoints.length; j++) ctx.lineTo(clipPoints[j][0], clipPoints[j][1]);
-      if (!clipMode) ctx.closePath();
-      ctx.stroke();
-      ctx.setLineDash([]);
-    }
-
-    document.getElementById('rtMaskPoints').value = JSON.stringify(points);
-  }
-
-  function updatePointList(){
-    document.getElementById('rtPointList').textContent = points.length
-      ? points.map(function(p,i){ return (i+1)+': ('+p[0]+','+p[1]+')'; }).join('  ')
-      : 'No points yet.';
-  }
-
-  function updateClipList() {
-    document.getElementById('rtClipPointList').textContent = clipPoints.length
-      ? clipPoints.map(function (p, i) { return (i + 1) + ':(' + p[0] + ',' + p[1] + ')'; }).join('  ')
-      : 'No clip points yet.';
-  }
-
-  window.rtResetPoints = function(){
-    points = [];
-    redraw();
-    updatePointList();
-  };
-
-  window.rtStartClipMode = function () {
-    if (points.length !== 4) { alert('Place all 4 perspective corners first.'); return; }
-    clipMode = true;
-    clipPoints = [];
-    document.getElementById('rtClipSection').style.display = 'block';
-    updateClipList();
-  };
-
-  window.rtFinishClip = function () {
-    if (clipPoints.length < 3) { alert('Need at least 3 points for an outline.'); return; }
-    clipMode = false;
-    document.getElementById('rtClipPoints').value = JSON.stringify(clipPoints);
-    redraw();
-  };
-
-  window.rtResetClip = function () {
-    clipPoints = [];
-    document.getElementById('rtClipPoints').value = '';
-    clipMode = false;
-    redraw();
-    updateClipList();
-  };
-
-  document.getElementById('rtForm').addEventListener('submit', function(e){
-    if (points.length !== 4) {
-      e.preventDefault();
-      alert('Please click exactly 4 corner points on the image.');
-    }
-  });
-})();
+window.RT_CONFIG = <?= json_encode([
+    'roomTypes' => ROOM_TYPES,
+    'csrfToken' => csrfToken(),
+]) ?>;
 </script>
+<script src="../assets/js/vue.runtime.global.prod.js"></script>
+<script src="../assets/js/room_templates.vue.js"></script>
 
 <?php include __DIR__ . '/../_layout_bottom.php'; ?>

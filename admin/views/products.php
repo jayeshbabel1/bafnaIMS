@@ -48,8 +48,7 @@ if (!empty($_GET['ajax_products'])) {
 
     $orderSQL = "p.{$sortCol} {$sortDir}, p.id DESC";
     $rowParams = array_merge($params, [$perPage, $offset]);
-    $sql = "SELECT p.*,
-                (SELECT filename FROM product_photos WHERE product_id=p.id ORDER BY sort_order LIMIT 1) AS primary_photo
+    $sql = "SELECT p.*
             FROM products p $where
             ORDER BY {$orderSQL}
             LIMIT ? OFFSET ?";

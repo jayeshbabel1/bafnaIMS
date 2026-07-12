@@ -1,0 +1,34 @@
+
+.rv-vue-layout { display: flex; flex-direction: column; gap: 20px; }
+@media (min-width: 900px) { .rv-vue-layout { flex-direction: row; align-items: flex-start; } }
+
+.rv-generate-btn { position: relative; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.rv-spin {
+  width: 15px; height: 15px; border: 2px solid rgba(255,255,255,.4);
+  border-top-color: #fff; border-radius: 50%; animation: rvspin .7s linear infinite;
+}
+@keyframes rvspin { to { transform: rotate(360deg); } }
+
+.rv-error {
+  margin-top: 10px; padding: 10px 14px; background: var(--danger-bg); color: var(--danger);
+  border-radius: 8px; font-size: 13px;
+}
+
+.rv-loading-img { filter: blur(2px) brightness(.85); transition: filter .2s; }
+
+.rv-result-wrap { margin-top: 24px; }
+.rv-result-frame { cursor: zoom-in; }
+
+.rv-lightbox {
+  position: fixed; inset: 0; background: rgba(0,0,0,.92); z-index: 9500;
+  display: flex; align-items: center; justify-content: center; padding: 24px; cursor: zoom-out;
+}
+.rv-lightbox img { max-width: 92vw; max-height: 92vh; object-fit: contain; border-radius: 8px; }
+
+/* Transitions */
+.rv-fade-enter-active, .rv-fade-leave-active { transition: opacity .25s ease, transform .25s ease; }
+.rv-fade-enter-from { opacity: 0; transform: translateY(6px); }
+.rv-fade-leave-to    { opacity: 0; transform: translateY(-6px); }
+
+.rv-scene-item { transition: transform .15s ease, border-color .15s ease; }
+.rv-scene-item:hover { transform: translateY(-2px); }

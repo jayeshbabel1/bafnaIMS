@@ -20,26 +20,18 @@ function createNotification(string $title, string $message, string $type = 'info
 }
 
 // ── Get notifications (admin) ────────────────────────────────────────────────
+// AFTER
 function getNotifications(int $limit = 30): array {
     try {
         $cutoff = time() - (20 * 86400);
-        return getDB()->prepare("
+        $st = getDB()->prepare("
             SELECT * FROM notifications
-            WHERE  created_at >= ?
-            ORDER  BY created_at DESC
-            LIMIT  ?
-        ")->execute([$cutoff, $limit])
-            ? (function() use ($limit, $cutoff) {
-                $st = getDB()->prepare("
-                    SELECT * FROM notifications
-                    WHERE  created_at >= ?
-                    ORDER  BY created_at DESC
-                    LIMIT  ?
-                ");
-                $st->execute([$cutoff, $limit]);
-                return $st->fetchAll();
-            })()
-            : [];
+            WHERE created_at >= ?
+            ORDER BY created_at DESC
+            LIMIT ?
+        ");
+        $st->execute([$cutoff, $limit]);
+        return $st->fetchAll();
     } catch (Throwable $e) {
         return [];
     }

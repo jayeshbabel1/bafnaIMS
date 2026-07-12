@@ -4,23 +4,27 @@ requireAdminPermission('dashboard.view');
 include __DIR__ . '/../_layout_top.php';
 $db = getDB();
 
-$pCount  = (int)$db->query("SELECT COUNT(*) FROM products")->fetchColumn();
-$uCount  = (int)$db->query("SELECT COUNT(*) FROM users")->fetchColumn();
-$inStock = (int)$db->query("SELECT COUNT(*) FROM products WHERE in_stock=1")->fetchColumn();
+// AFTER — products table stats in a single query
+$stats = $db->query("
+    SELECT
+      COUNT(*) AS total,
+      SUM(in_stock = 1) AS in_stock,
+      SUM(measurement_sheet IS NULL OR measurement_sheet = '') AS no_measurement,
+      SUM(dna_report IS NULL OR dna_report = '') AS no_dna
+    FROM products
+")->fetch();
+$pCount        = (int)$stats['total'];
+$inStock       = (int)$stats['in_stock'];
+$noMeasurement = (int)$stats['no_measurement'];
+$noDNA         = (int)$stats['no_dna'];
 
+// no_image needs the anti-join, kept separate (can't easily fold into the above without a LEFT JOIN + GROUP BY that changes cost profile)
 $noImage = (int)$db->query("
     SELECT COUNT(*) FROM products p
     WHERE NOT EXISTS (SELECT 1 FROM product_photos pp WHERE pp.product_id = p.id)
 ")->fetchColumn();
 
-$noMeasurement = (int)$db->query("
-    SELECT COUNT(*) FROM products WHERE (measurement_sheet IS NULL OR measurement_sheet = '')
-")->fetchColumn();
-
-$noDNA = (int)$db->query("
-    SELECT COUNT(*) FROM products WHERE (dna_report IS NULL OR dna_report = '')
-")->fetchColumn();
-
+$uCount = (int)$db->query("SELECT COUNT(*) FROM users")->fetchColumn();
 $recProd = $db->query("SELECT * FROM products ORDER BY created_at DESC LIMIT 5")->fetchAll();
 ?>
 

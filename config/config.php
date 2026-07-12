@@ -23,6 +23,7 @@ define('DB_CHARSET',  getenv('DB_CHARSET') ?: 'utf8mb4');
 
 //  Upload Directories
 define('PHOTOS_DIR',      BASE_PATH . '/assets/uploads/photos');
+define('THUMBS_DIR',      BASE_PATH . '/assets/uploads/_thumb');
 define('MEASUREMENT_DIR', BASE_PATH . '/assets/uploads/measurement_sheets');
 define('DNA_DIR',         BASE_PATH . '/assets/uploads/dna_reports');
 define('EXCEL_DIR',       BASE_PATH . '/assets/uploads/excel');
@@ -67,10 +68,9 @@ define('ROLES', [
 define('EXPERIENCE_OPTIONS', ['0–2 years','3–5 years','6–10 years','10+ years']);
 
 //  Ensure upload directories exist 
-foreach ([PHOTOS_DIR, MEASUREMENT_DIR, DNA_DIR, EXCEL_DIR] as $_dir) {
+foreach ([PHOTOS_DIR, THUMBS_DIR, MEASUREMENT_DIR, DNA_DIR, EXCEL_DIR] as $_dir) {
     if (!is_dir($_dir)) @mkdir($_dir, 0755, true);
 }
-
 
 if (!headers_sent()) {
     header('X-Content-Type-Options: nosniff');

@@ -97,9 +97,7 @@ function getSortedProducts(array $filters, string $sort, int $limit = 0, int $of
     $db = getDB();
     [$where, $params] = buildProductFilterSQL($filters);
 
-    $sql = "SELECT p.*,
-              (SELECT filename FROM product_photos WHERE product_id=p.id ORDER BY sort_order LIMIT 1) AS primary_photo
-            FROM products p" . $where;
+    $sql = "SELECT p.* FROM products p" . $where;
 
     switch ($sort) {
         case 'name_az':  $sql .= " ORDER BY p.name ASC"; break;
@@ -122,8 +120,7 @@ function getSortedProducts(array $filters, string $sort, int $limit = 0, int $of
 // Featured strip — separate cheap query, small LIMIT, not part of main slurp
 function getFeaturedProducts(int $limit = 8): array {
     $db = getDB();
-    $st = $db->prepare("SELECT p.*,
-              (SELECT filename FROM product_photos WHERE product_id=p.id ORDER BY sort_order LIMIT 1) AS primary_photo
+    $st = $db->prepare("SELECT p.*
             FROM products p WHERE p.featured=1 ORDER BY p.sort_order ASC, p.id DESC LIMIT ?");
     $st->bindValue(1, $limit, PDO::PARAM_INT);
     $st->execute();
@@ -173,8 +170,10 @@ function renderProductGrid(array $products, string $view = 'grid'): string {
             $h .= '<div class="list-card fade-up" style="animation-delay:'.round($i*.04,3).'s">';
             $h .= '<a href="index.php?page=product&id='.$p['id'].'" style="display:flex;align-items:center;flex:1;text-decoration:none;color:inherit;">';
             $h .= '<div class="list-thumb">';
-            if ($p['primary_photo'] && file_exists(PHOTOS_DIR.'/'.$p['primary_photo']))
-                $h .= '<img src="assets/uploads/photos/'.h($p['primary_photo']).'" alt="'.h($p['name']).'" loading="lazy"/>';
+            if ($p['primary_photo'] && file_exists(PHOTOS_DIR.'/'.$p['primary_photo'])) {
+                $thumbSrc = getPhotoThumbUrl($p['primary_photo']);
+                $h .= '<img src="'.h($thumbSrc).'" alt="'.h($p['name']).'" loading="lazy" decoding="async" width="100%" height="100%"/>';
+            }
             else $h .= marbleSVG($pal,90,90,'lv'.$p['id']);
             $h .= '</div>';
             $h .= '<div class="list-info">';
@@ -206,8 +205,11 @@ function renderProductGrid(array $products, string $view = 'grid'): string {
         $h .= '<div class="fade-up" style="animation-delay:'.round($i*.035,3).'s">';
         $h .= '<a href="index.php?page=product&id='.$p['id'].'" class="product-card">';
         $h .= '<div class="product-thumb">';
-        if ($p['primary_photo'] && file_exists(PHOTOS_DIR.'/'.$p['primary_photo']))
-            $h .= '<img src="assets/uploads/photos/'.h($p['primary_photo']).'" alt="'.h($p['name']).'" loading="lazy"/>';
+        if ($p['primary_photo'] && file_exists(PHOTOS_DIR.'/'.$p['primary_photo'])) {
+            $thumbSrc = getPhotoThumbUrl($p['primary_photo']);
+            $h .= '<img src="'.h($thumbSrc).'" alt="'.h($p['name']).'" loading="lazy" decoding="async" width="200" height="160"/>';
+        }
+       
         else $h .= marbleSVG($pal,200,160,'pg'.$p['id']);
         if (!$p['in_stock'] || (float)$p['quantity_available'] <= 0) $h .= '<div class="product-out-overlay"><span class="badge badge-gray">Out of Stock</span></div>';
         if ($p['featured'])  $h .= '<div style="position:absolute;top:10px;left:10px;"><span class="badge badge-gold">★ Featured</span></div>';

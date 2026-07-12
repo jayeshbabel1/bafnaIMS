@@ -1,4 +1,3 @@
-
 // ── Toast dismiss ─────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   const t = document.getElementById('admin-toast');
@@ -13,6 +12,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Color preview sync
   document.querySelectorAll('.color-sync-input').forEach(inp => {
+    if (inp.dataset.syncBound) return; // already bound by a page-specific script (e.g. colors.php)
+    inp.dataset.syncBound = '1';
+
     const prev = document.getElementById('prev_' + inp.name.replace('--',''));
     if (prev) {
       prev.style.background = inp.value;

@@ -305,6 +305,7 @@ if ($action === 'admin_delete_selection') {
         '--admin-label-color','--admin-label-font-size',
         '--admin-label-font-weight','--admin-label-transform',
         '--admin-label-letter-spacing',
+        '--admin-btn-sync-bg','--admin-btn-sync-border','--admin-btn-sync-color',
     ];
     $defaults = array_unique(array_merge($defaults, $extraKeys));
 
