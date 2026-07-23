@@ -68,10 +68,10 @@
               title="Edit account"
               onclick="openAaModal({
                 id:       <?= (int)$admin['id'] ?>,
-                name:     <?= json_encode($admin['name']     ?? '') ?>,
-                username: <?= json_encode($admin['username'] ?? '') ?>,
-                email:    <?= json_encode($admin['email']    ?? '') ?>,
-                role_id:  <?= json_encode($admin['role_id']  ?? '') ?>,
+                name:     <?= h(json_encode($admin['name']     ?? '')) ?>,
+                username: <?= h(json_encode($admin['username'] ?? '')) ?>,
+                email:    <?= h(json_encode($admin['email']    ?? '')) ?>,
+                role_id:  <?= h(json_encode($admin['role_id']  ?? '')) ?>,
                 is_active:<?= (int)$isActive ?>
               })">
         <?= icon('edit', 13) ?>

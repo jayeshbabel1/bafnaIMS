@@ -8,8 +8,14 @@ require_once __DIR__ . '/includes/notifications.php';
 require_once __DIR__ . '/includes/clients.php';
 require_once __DIR__ . '/includes/room_visualizer.php';
 require_once __DIR__ . '/includes/license.php';
+require_once __DIR__ . '/includes/product_views.php';
+require_once __DIR__ . '/includes/device_auth.php';
 
 startSecureSession();
+
+if (!isLoggedIn()) {
+    attemptDeviceAutoLogin('user');
+}
  
  // Verify CSRF token on every state-changing POST (public auth forms excluded
  // only where there is no session yet to bind the token to)
@@ -269,7 +275,52 @@ if ($action === 'delete_selection') {
         flash('toast', 'Profile updated.');
         redirect('index.php?page=profile');
     }
+ if ($action === 'register_device') {
+        $user   = currentUser();
+        $name   = trim($_POST['device_name'] ?? '') ?: 'My Device';
+        $return = $_POST['return_url'] ?? 'index.php?page=profile';
+        $result = issueTrustedDevice([
+            'user_id'     => $user['id'],
+            'panel'       => 'user',
+            'device_name' => $name,
+        ]);
+        flash($result['success'] ? 'toast' : 'error',
+              $result['success'] ? 'Device trusted — you\'ll be auto-signed in on this device.' : ($result['error'] ?? 'Could not trust device.'));
+        redirect($return);
+    }
 
+    if ($action === 'revoke_device') {
+        $user   = currentUser();
+        $did    = (int)($_POST['device_id'] ?? 0);
+        $return = $_POST['return_url'] ?? 'index.php?page=profile';
+        // Ownership check — only allow revoking own device
+        $chk = getDB()->prepare("SELECT id FROM trusted_devices WHERE id=? AND user_id=?");
+        $chk->execute([$did, $user['id']]);
+        if ($chk->fetch()) {
+            revokeTrustedDevice($did);
+            flash('toast', 'Device removed.');
+        } else {
+            flash('error', 'Device not found.');
+        }
+        redirect($return);
+    }
+
+    if ($action === 'rename_device') {
+        $user   = currentUser();
+        $did    = (int)($_POST['device_id'] ?? 0);
+        $name   = trim($_POST['device_name'] ?? '');
+        $return = $_POST['return_url'] ?? 'index.php?page=devices';
+        $chk = getDB()->prepare("SELECT id FROM trusted_devices WHERE id=? AND user_id=?");
+        $chk->execute([$did, $user['id']]);
+        if ($chk->fetch() && $name !== '') {
+            renameDevice($did, $name);
+            flash('toast', 'Device renamed.');
+        } else {
+            flash('error', 'Could not rename device.');
+        }
+        redirect($return);
+    }
+    
     if ($action === 'change_password') {
         $user = currentUser();
         $curr = $_POST['current_password'] ?? '';
@@ -281,16 +332,31 @@ if ($action === 'delete_selection') {
         if (strlen($new) < 8) { $inlineError = 'New password must be at least 8 characters.'; include BASE_PATH.'/pages/profile.php'; exit; }
         $hash = password_hash($new, PASSWORD_DEFAULT);
         getDB()->prepare("UPDATE users SET password=? WHERE id=?")->execute([$hash, $user['id']]);
-        flash('toast', 'Password changed successfully.');
+        // Security: password change invalidates all trusted devices — a
+        // compromised password shouldn't leave old trusted-device cookies
+        // valid on other machines.
+        revokeAllDevicesFor($user['id'], null);
+        clearDeviceCookie();
+        flash('toast', 'Password changed successfully. All trusted devices have been signed out for security.');
         redirect('index.php?page=profile');
     }
 }
 
-//  Page routing 
+///  Page routing 
 $publicPages    = ['login','register','forgot_password','reset_password','waiting_approval','activation'];
 $protectedPages = ['catalog','product','shortlist','profile','support','notifications',
-                   'clients','client_form','client_selections','room_visualizer'];
-if (in_array($page ?? '', $protectedPages) && isLoggedIn()) {
+                   'clients','client_form','client_selections','room_visualizer','devices'];
+
+// Unknown ?page= value → 404 immediately (checked first so bogus page
+// names never silently fall back to catalog/login).
+if (!in_array($page, $publicPages, true) && !in_array($page, $protectedPages, true)) {
+    http_response_code(404);
+    $pageTitle = 'Page Not Found — ' . APP_NAME;
+    include BASE_PATH . '/pages/404.php';
+    exit;
+}
+
+if (in_array($page, $protectedPages, true) && isLoggedIn()) {
     $db = getDB();
     $st = $db->prepare("SELECT is_verified FROM users WHERE id=?");
     $st->execute([$_SESSION['user_id']]);
@@ -300,19 +366,18 @@ if (in_array($page ?? '', $protectedPages) && isLoggedIn()) {
         redirect('index.php?page=waiting_approval');
     }
 }
-if (!in_array($page, $publicPages) && !in_array($page, $protectedPages)) {
-    $page = isLoggedIn() ? 'catalog' : 'login';
-}
 
-if (!in_array($page, $publicPages) && !isLoggedIn()) {
+if (!in_array($page, $publicPages, true) && !isLoggedIn()) {
     $_SESSION['redirect_after_login'] = $_SERVER['REQUEST_URI'];
     redirect('index.php?page=login');
 }
 
 $pageFile = BASE_PATH . '/pages/' . $page . '.php';
 if (!file_exists($pageFile)) {
-    $page     = isLoggedIn() ? 'catalog' : 'login';
-    $pageFile = BASE_PATH . '/pages/' . $page . '.php';
+    http_response_code(404);
+    $pageTitle = 'Page Not Found — ' . APP_NAME;
+    include BASE_PATH . '/pages/404.php';
+    exit;
 }
 
 include $pageFile;

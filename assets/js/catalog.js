@@ -1,5 +1,7 @@
 /**
  * assets/js/catalog.js — AJAX catalog with sidebar + drawer filter support
+ * Fire 4: adds Table view alongside Grid/List (3-way toggle), all driven by
+ * Settings → Product Views (user panel) field config on the server.
  *
  * Filters (category, color, available qty, useable length, useable height)
  * are buffered locally and only applied to the catalog when the user clicks
@@ -18,17 +20,27 @@
   const totalCountEl = document.getElementById('totalCount');
   const btnGrid      = document.getElementById('viewGrid');
   const btnList      = document.getElementById('viewList');
+  const btnTable     = document.getElementById('viewTable');
 
   if (!content) return;
 
+  function loadSavedView() {
+    var v = null;
+    try { v = localStorage.getItem('catalogView'); } catch (e) {}
+    if (v === 'grid' || v === 'list' || v === 'table') return v;
+    return content.dataset.view || window.CATALOG_DEFAULT_VIEW || 'grid';
+  }
+  function saveView(v) {
+    try { localStorage.setItem('catalogView', v); } catch (e) {}
+  }
+
   //  State 
-  // This is the APPLIED state — i.e. what's currently shown in the grid.
   const state = {
     cat:      content.dataset.cat      || '',
     color:    content.dataset.color    || '',
     q:        content.dataset.q        || '',
     sort:     content.dataset.sort     || 'latest',
-    view:     localStorage.getItem('catalogView') || 'grid',
+    view:     loadSavedView(),
     page:     1,
     sqft_min: content.dataset.sqftMin  || '',
     sqft_max: content.dataset.sqftMax  || '',
@@ -113,23 +125,22 @@
     sortSelect.addEventListener('change', function () { state.sort = this.value; loadPage(1); });
   }
 
-  // ── View toggle 
+  // ── View toggle (3-way: grid / list / table) 
   function applyViewButtons(view) {
-    if (btnGrid) btnGrid.classList.toggle('active', view === 'grid');
-    if (btnList) btnList.classList.toggle('active', view === 'list');
+    if (btnGrid)  btnGrid.classList.toggle('active', view === 'grid');
+    if (btnList)  btnList.classList.toggle('active', view === 'list');
+    if (btnTable) btnTable.classList.toggle('active', view === 'table');
   }
-  if (btnGrid) {
-    btnGrid.addEventListener('click', function () {
-      state.view = 'grid'; localStorage.setItem('catalogView', 'grid');
-      applyViewButtons('grid'); loadPage(1);
-    });
+  function switchView(view) {
+    if (view === state.view) return;
+    state.view = view;
+    saveView(view);
+    applyViewButtons(view);
+    loadPage(1);
   }
-  if (btnList) {
-    btnList.addEventListener('click', function () {
-      state.view = 'list'; localStorage.setItem('catalogView', 'list');
-      applyViewButtons('list'); loadPage(1);
-    });
-  }
+  if (btnGrid)  btnGrid.addEventListener('click', function () { switchView('grid'); });
+  if (btnList)  btnList.addEventListener('click', function () { switchView('list'); });
+  if (btnTable) btnTable.addEventListener('click', function () { switchView('table'); });
 
   //  Search — instant (debounced), independent of Apply Filters 
   let searchTimer = null;
@@ -174,17 +185,6 @@
   // ══════════════════════════════════════════════════════════════════════════
   // PUBLIC API — Apply Filters flow (desktop sidebar + mobile drawer)
   // ══════════════════════════════════════════════════════════════════════════
-  //
-  // Filters do NOT auto-apply. The page-level inline script (catalog.php)
-  // buffers chip selections + range inputs into a local "pending" object and
-  // only calls this function when the user clicks "Apply Filters".
-  //
-  // Usage:
-  //   window.catalogApplyAllFilters({
-  //     cat: 'Marble', color: '', sqft_min: '10', sqft_max: '',
-  //     sl_min: '', sl_max: '', sh_min: '', sh_max: ''
-  //   });
-  //
   window.catalogApplyAllFilters = function (newState) {
     if (!newState) return;
     if (newState.cat      !== undefined) state.cat      = newState.cat;
@@ -198,14 +198,10 @@
     loadPage(1);
   };
 
-  // Legacy single-key setter — updates local state only, does NOT reload.
-  // Kept for any code paths that still reference it directly.
   window.catalogUpdateRange = function (key, val) {
     state[key] = val;
   };
 
-  // One-shot setter that DOES reload immediately — used by code that wants
-  // an explicit apply-now action without going through the pending buffer.
   window.catalogSetRange = function (sqftMin, sqftMax, slMin, slMax, shMin, shMax) {
     state.sqft_min = sqftMin;
     state.sqft_max = sqftMax;
@@ -216,14 +212,19 @@
     loadPage(1);
   };
 
-  // Expose read-only snapshot of current applied state (used by catalog.php
-  // inline script to initialise its pending buffer on load / after apply).
   window.catalogGetState = function () {
     return Object.assign({}, state);
   };
 
   //  Initial shortlist bind 
   bindShortlist();
+
+  // If the saved/localStorage view differs from what the server rendered
+  // (SSR always uses the panel's configured default view), silently swap in
+  // without a jarring flash — the initial paint was already fast/SSR'd.
+  if (state.view !== (content.dataset.view || window.CATALOG_DEFAULT_VIEW || 'grid')) {
+    loadPage(1, false);
+  }
 })();
 
 /* Shortlist AJAX  */

@@ -44,17 +44,21 @@
         if (!file) return;
         const reader = new FileReader();
         reader.onload = (ev) => {
-          imgLoaded.value = false;
           const testImg = new Image();
-          testImg.onload = () => {
+          testImg.onload = async () => {
             imgNatural.w = testImg.naturalWidth;
             imgNatural.h = testImg.naturalHeight;
-            imgEl.value.src = ev.target.result;
-            imgLoaded.value = true;
             points.splice(0);
             clipPoints.splice(0);
             view.scale = 1; view.tx = 0; view.ty = 0;
-            nextTick(redraw);
+
+            // Flip this FIRST so Vue renders the <img>/<canvas> elements,
+            // THEN wait a tick before touching their refs.
+            imgLoaded.value = true;
+            await nextTick();
+
+            imgEl.value.src = ev.target.result;
+            redraw();
           };
           testImg.src = ev.target.result;
         };

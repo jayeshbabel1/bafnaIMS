@@ -123,7 +123,7 @@ $e = getFlash('error');
   .amt-logout-btn { display: none; }
 }
  
-/* ── Sidebar logout button emphasis ────────────────────────── */
+/* Sidebar logout button emphasis  */
 .admin-logout-btn {
   color: rgba(255,255,255,0.65) !important;
   transition: color .15s, background .15s !important;
@@ -246,6 +246,10 @@ if (adminCan('clients.view')) {
 if (adminCan('notifications.view')) {
     $navItems[] = ['page'=>'notifications', 'icon'=>'bell', 'label'=>'Notifications', 'badge'=>$_notifCount];
 }
+// Trusted Devices
+if (adminCan('devices.view')) {
+    $navItems[] = ['page'=>'devices', 'icon'=>'lock', 'label'=>'Trusted Devices'];
+}
       foreach ($navItems as $n):
   $isClientsGroup = $n['page'] === 'admin_clients'
       && in_array($ap, ['admin_clients','admin_client_form','admin_client_selections']);
@@ -272,6 +276,9 @@ if (adminCan('settings.colors')) {
 }
 if (adminCan('settings.logo')) {
     $settingsSubItems[] = ['page'=>'logo',           'label'=>'Company Profile'];
+}
+if (adminCan('settings.product_views')) {
+    $settingsSubItems[] = ['page'=>'product_view_settings', 'label'=>'Product Views'];
 }
 if (adminCan('settings.smtp')) {
     $settingsSubItems[] = ['page'=>'smtp',           'label'=>'Mail Settings'];
@@ -346,6 +353,11 @@ $isRolesActive = in_array($ap, ['roles','admin_accounts']);
     </nav>
 
     <div class="admin-sidebar-footer">
+       <?php if (adminCan('devices.view')): ?>
+      <a href="index.php?page=devices" class="admin-nav-item">
+        <?= icon('lock', 16) ?><span>Trusted Devices</span>
+      </a>
+      <?php endif; ?>
       <a href="../index.php?page=catalog" class="admin-nav-item" target="_blank">
         <?= icon('eye', 16) ?><span>View App</span>
       </a>

@@ -12,7 +12,22 @@ if ($pid) {
 }
  
 $adminTitle = $p ? 'Edit: ' . $p['name'] : 'Add Product';
-requireAdminPermission('products.view');
+
+$_canEdit        = adminCan('products.edit');
+$_canCreate      = adminCan('products.create');
+$_canViewDetails = adminCan('products.view_details');
+
+if ($p) {
+    // Editing an existing product: full edit access OR view-only access
+    requireAdminPermission($_canEdit ? 'products.edit' : 'products.view_details');
+} else {
+    // Adding a new product: create access required — view-only cannot add
+    requireAdminPermission('products.create');
+}
+
+// True only when the admin can see this product but cannot modify it
+$readOnly = (bool)$p && !$_canEdit && $_canViewDetails;
+
 include __DIR__ . '/../_layout_top.php';
  
 $pal = $p ? (json_decode($p['palette']??'[]',true) ?: ['F2F0EC','D8CFC4','BFB0A0']) : ['F2F0EC','D8CFC4','BFB0A0'];
@@ -148,6 +163,11 @@ $g   = fn($k) => h($p[$k] ?? '');
     <a href="index.php?page=products" class="btn-admin-secondary btn-admin-sm">
         <?= icon('back',14) ?> Back
     </a>
+    <?php if ($readOnly): ?>
+    <span class="badge badge-gray" style="height:36px;display:inline-flex;align-items:center;">
+        <?= icon('eye',12) ?>&nbsp; View only — you don't have edit access
+    </span>
+    <?php endif; ?>
     <?php if ($p): ?>
     <a href="../index.php?page=product&id=<?= $pid ?>" target="_blank"
        class="btn-admin-secondary btn-admin-sm">
@@ -186,6 +206,7 @@ $g   = fn($k) => h($p[$k] ?? '');
     <input type="hidden" name="action"     value="save_product"/>
     <input type="hidden" name="product_id" value="<?= $pid ?>"/>
     <?= csrfField() ?>
+  <?php if ($readOnly): ?><fieldset disabled style="border:none;padding:0;margin:0;opacity:.65;"><?php endif; ?>
     <div class="pe-layout">
  
         <!--  LEFT / MAIN COLUMN  -->
@@ -437,17 +458,21 @@ $g   = fn($k) => h($p[$k] ?? '');
             </div>
  
             <!-- Submit -->
+            <!-- Submit -->
             <div class="pe-submit-bar">
+                <?php if (!$readOnly): ?>
                 <button type="submit" class="btn-admin-primary" onclick="syncPalette()">
                     <?= icon('check',16) ?>
                     <?= $pid ? 'Update Product' : 'Create Product' ?>
                 </button>
-                <a href="index.php?page=products" class="btn-admin-secondary">Cancel</a>
+                <?php endif; ?>
+                <a href="index.php?page=products" class="btn-admin-secondary"><?= $readOnly ? 'Back to Products' : 'Cancel' ?></a>
             </div>
- 
+
         </div><!-- /.pe-side -->
- 
+
     </div><!-- /.pe-layout -->
+    <?php if ($readOnly): ?></fieldset><?php endif; ?>
 </form>
  
 <script>

@@ -56,6 +56,7 @@ if (!empty($_GET['ajax_users'])) {
       <td><span class="badge badge-blue" style="font-size:10px;"><?= h($roleLabel) ?></span></td>
       <td style="font-size:12px;color:var(--text2);"><?= h($u['city'] ?: '—') ?></td>
       <td>
+        <?php if (adminCan('users.verify')): ?>
         <form method="POST" action="index.php" id="vf<?= $u['id'] ?>">
           <input type="hidden" name="action"   value="update_user_status"/>
           <input type="hidden" name="user_id"  value="<?= $u['id'] ?>"/>
@@ -69,6 +70,13 @@ if (!empty($_GET['ajax_users'])) {
             <span class="usr-toggle-label"><?= $isVerified ? '<span style="color:var(--success)">Approved</span>' : '<span style="color:var(--text3)">Pending</span>' ?></span>
           </div>
         </form>
+        <?php else: ?>
+        <span class="usr-toggle-label" style="display:inline-flex;align-items:center;gap:5px;">
+          <?= $isVerified
+            ? icon('check', 12) . '<span style="color:var(--success)">Approved</span>'
+            : '<span style="color:var(--text3)">Pending</span>' ?>
+        </span>
+        <?php endif; ?>
       </td>
       <td style="color:var(--text3);font-size:11px;"><?= date('d M Y', $u['created_at']) ?></td>
       <td>

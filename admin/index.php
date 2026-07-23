@@ -7,7 +7,14 @@ require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/helpers.php';
 require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/device_auth.php';
+
 startSecureSession(); 
+
+// Trusted-device auto-login — no-op if already an admin session or no valid cookie
+if (!isAdmin()) {
+    attemptDeviceAutoLogin('admin');
+}
 $autoload = __DIR__ . '/../vendor/autoload.php';
 
 if (!file_exists($autoload)) {
@@ -34,6 +41,9 @@ require_once __DIR__ . '/../includes/product_pdf.php';
 require_once __DIR__ . '/views/_permission_guards.php';
 require_once __DIR__ . '/../includes/room_visualizer.php';
 require_once __DIR__ . '/../includes/license.php';
+require_once __DIR__ . '/../includes/product_views.php';
+
+ensureProductViewPermission();
 
 // Handle POST 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -44,7 +54,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrfVerify(in_array($action, $_jsonOnlyActions, true));
     csrfVerify(); 
   
-    if ($action === 'admin_login') {
+   if ($action === 'admin_login') {
         if (loginAdmin($_POST['username'] ?? '', $_POST['password'] ?? '')) {
           csrfVerify();
             redirect('index.php');
@@ -55,7 +65,58 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
    requireAdmin();
     
-  
+  if ($action === 'register_admin_device') {
+        $name = trim($_POST['device_name'] ?? '') ?: 'My Device';
+        $result = issueTrustedDevice([
+            'admin_id'    => (int)($_SESSION['admin_id'] ?? 0),
+            'panel'       => 'admin',
+            'device_name' => $name,
+        ]);
+        flash($result['success'] ? 'toast' : 'error',
+              $result['success'] ? 'Device trusted — you\'ll be auto-signed in on this device.' : ($result['error'] ?? 'Could not trust device.'));
+        redirect('index.php?page=devices');
+    }
+
+   if ($action === 'revoke_admin_device') {
+        $did = (int)($_POST['device_id'] ?? 0);
+        $chk = getDB()->prepare("SELECT id FROM trusted_devices WHERE id=? AND admin_id=?");
+        $chk->execute([$did, (int)$_SESSION['admin_id']]);
+        if ($chk->fetch()) {
+            revokeTrustedDevice($did);
+            flash('toast', 'Device removed.');
+        } else {
+            flash('error', 'Device not found.');
+        }
+        redirect('index.php?page=dashboard');
+    }
+
+    //  DEVICES: TOGGLE STATUS (any device, admin management) 
+    if ($action === 'admin_toggle_device') {
+        requireAdmin();
+        requireAdminPermission('devices.manage');
+        require_once __DIR__ . '/../includes/device_auth.php';
+        $did       = (int)($_POST['device_id']  ?? 0);
+        $newStatus = ($_POST['new_status'] ?? '') === 'active' ? 'active' : 'disabled';
+        if ($newStatus === 'disabled') {
+            revokeTrustedDevice($did);
+        } else {
+            getDB()->prepare("UPDATE trusted_devices SET status='active', revoked_at=NULL, updated_at=? WHERE id=?")
+                   ->execute([time(), $did]);
+            logDeviceActivity($did, 'device_reenabled', '');
+        }
+        flash('toast', 'Device status updated.');
+        redirect('index.php?page=devices');
+    }
+
+    // ── DEVICES: DELETE ──────────────────────────────────────────────────
+    if ($action === 'admin_delete_device') {
+        requireAdmin();
+        requireAdminPermission('devices.manage');
+        $did = (int)($_POST['device_id'] ?? 0);
+        getDB()->prepare("DELETE FROM trusted_devices WHERE id=?")->execute([$did]);
+        flash('toast', 'Device deleted.');
+        redirect('index.php?page=devices');
+    }
   
    if ($action === 'admin_logout') {
         unset($_SESSION['admin_id'], $_SESSION['admin_name']);
@@ -767,6 +828,12 @@ if ($action === 'delete_user') {
         $adminId = (int)($_POST['admin_id'] ?? 0);
         $result  = updateAdminAccount($adminId, $_POST);
         if ($result['success']) {
+            // Security: if a password was set, revoke that admin's trusted
+            // devices so old device cookies can't bypass the new credentials.
+            if (!empty($_POST['password'])) {
+                require_once __DIR__ . '/../includes/device_auth.php';
+                revokeAllDevicesFor(null, $adminId);
+            }
             flash('toast', 'Admin account updated.');
             flushAdminPermissionCache();
         } else {
@@ -988,7 +1055,7 @@ function saveProduct(array $data, array $files): void {
              error_log('saveProduct: photo rejected at index ' . $i . ' — ' . $v['error']);
              continue;
          }
-            $fn = basename(trim($origName));
+           $fn = normalizePhotoFilename(basename(trim($origName)));
             $chk = $db->prepare("SELECT id FROM product_photos WHERE product_id=? AND filename=?");
             $chk->execute([$pid, $fn]);
             if ($chk->fetch()) continue;
@@ -1032,7 +1099,7 @@ function importPhotos(?array $files): void
             continue;
 
         // keep exact filename
-        $fn = basename(trim($origName));
+        $fn = normalizePhotoFilename(basename(trim($origName)));
 
         // extension check
         $ext = strtolower(pathinfo($fn, PATHINFO_EXTENSION));
@@ -1188,6 +1255,8 @@ function fixUploadCasingAfterImport(): array {
 }
 //--------- sync photo directory -----------------------------------
 
+//--------- sync photo directory -----------------------------------
+
 function syncPhotosFromDirectory(): void
 {
     $db = getDB();
@@ -1213,11 +1282,7 @@ function syncPhotosFromDirectory(): void
         }
 
         $fullPath = $fileObj->getPathname();
-
-        // relative path from photos dir
-        $relativePath = str_replace(PHOTOS_DIR . '/','',$fullPath);
-
-        $file = $fileObj->getFilename();
+        $file     = $fileObj->getFilename();
 
         // extension check
         $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
@@ -1225,6 +1290,30 @@ function syncPhotosFromDirectory(): void
         if (!in_array($ext, ['jpg', 'jpeg', 'png', 'webp'])) {
             continue;
         }
+
+        // ── Normalize filename casing on disk before recording it ─────────
+        $normalizedFile = normalizePhotoFilename($file);
+        if ($normalizedFile !== $file) {
+            $dir = dirname($fullPath);
+            $normalizedFullPath = $dir . '/' . $normalizedFile;
+            if (!file_exists($normalizedFullPath)) {
+                if (rename($fullPath, $normalizedFullPath)) {
+                    $oldRelative = str_replace(PHOTOS_DIR . '/', '', $fullPath);
+                    $fullPath    = $normalizedFullPath;
+                    $file        = $normalizedFile;
+                    $newRelative = str_replace(PHOTOS_DIR . '/', '', $fullPath);
+
+                    $db->prepare("UPDATE product_photos SET filename=? WHERE filename=?")
+                       ->execute([$newRelative, $oldRelative]);
+                }
+                // if rename fails, fall through and use the file as originally found
+            }
+            // if a normalized version already exists, leave this file untouched
+            // (it will simply be skipped as a duplicate name below)
+        }
+
+        // relative path from photos dir
+        $relativePath = str_replace(PHOTOS_DIR . '/','',$fullPath);
 
         /*
         Supported formats:
@@ -1235,8 +1324,8 @@ function syncPhotosFromDirectory(): void
         */
 
         if (!preg_match('/^(.+)-IMG(?:-\d+)?\.(jpg|jpeg|png|webp)$/i', $file, $m)) {
-    continue;
-}
+            continue;
+        }
 
         // quarry number before -IMG
         $quarry = strtoupper(trim($m[1]));
@@ -1845,6 +1934,28 @@ function syncImages(): array {
             continue;
         }
 
+        // ── Normalize color-folder casing on disk (white -> White) ────────
+        $normalizedFolder = ucfirst(strtolower($colorFolder));
+        if ($normalizedFolder !== $colorFolder) {
+            $normalizedFolderPath = PHOTOS_DIR . '/' . $normalizedFolder;
+            if (!file_exists($normalizedFolderPath)) {
+                if (rename($colorPath, $normalizedFolderPath)) {
+                    $db->prepare("
+                        UPDATE product_photos
+                        SET filename = REPLACE(filename, ?, ?)
+                        WHERE filename LIKE ?
+                    ")->execute([$colorFolder . '/', $normalizedFolder . '/', $colorFolder . '/%']);
+
+                    $colorPath   = $normalizedFolderPath;
+                    $colorFolder = $normalizedFolder;
+                } else {
+                    $result['errors'][] = "Could not rename folder '$colorFolder' to '$normalizedFolder' — check permissions.";
+                }
+            } else {
+                $result['errors'][] = "Folder casing conflict: both '$colorFolder' and '$normalizedFolder' exist — merge manually.";
+            }
+        }
+
         $files = array_diff(scandir($colorPath), ['.', '..']);
 
         foreach ($files as $file) {
@@ -1862,6 +1973,28 @@ function syncImages(): array {
             }
 
             $result['found']++;
+
+            // ── Normalize filename casing on disk (q23048-img.JPG -> Q23048-IMG.jpg) ──
+            $normalizedFile = normalizePhotoFilename($file);
+            if ($normalizedFile !== $file) {
+                $normalizedFullPath = $colorPath . '/' . $normalizedFile;
+                if (!file_exists($normalizedFullPath)) {
+                    if (rename($fullPath, $normalizedFullPath)) {
+                        // Keep any existing DB row pointed at the old name in sync
+                        $oldRelative = $colorFolder . '/' . $file;
+                        $newRelative = $colorFolder . '/' . $normalizedFile;
+                        $db->prepare("UPDATE product_photos SET filename=? WHERE filename=?")
+                           ->execute([$newRelative, $oldRelative]);
+
+                        $fullPath = $normalizedFullPath;
+                        $file     = $normalizedFile;
+                    } else {
+                        $result['errors'][] = "Could not rename file '$file' in '$colorFolder' — check permissions.";
+                    }
+                } else {
+                    $result['errors'][] = "Filename casing conflict: '$normalizedFile' already exists in '$colorFolder', left '$file' as-is.";
+                }
+            }
 
             // Example:
             // Q228-IMG.jpg
@@ -1896,8 +2029,8 @@ function syncImages(): array {
                 continue;
             }
 
-            // Save relative path
-           $relativePath = ucfirst(strtolower($colorFolder)) . '/' . $file;
+            // Save relative path (folder + file are now both normalized)
+            $relativePath = $colorFolder . '/' . $file;
 
             // Skip duplicates
             $chk = $db->prepare("
@@ -1947,7 +2080,6 @@ function syncImages(): array {
 
     return $result;
 }
-
 // ── Step 2: Sync Measurement Sheets from /assets/uploads/measurement_sheets/ ─
 // File naming: Q23048-MS.pdf  or  Q23048-MS-1.pdf
 function syncMeasurementSheets(): array {
@@ -2201,15 +2333,21 @@ function syncDnaReports(): array {
 $pages = ['dashboard','products','product_edit','colors','users','inquiries','sync',
               'notifications','logo','user_clients','admin_selections','smtp',
               'admin_clients','admin_client_form','admin_client_selections',
-              'roles','admin_accounts','room_templates','license'];
-$file  = in_array($page, $pages)
-       ? __DIR__ . '/views/' . $page . '.php'
-       : __DIR__ . '/views/dashboard.php';
+              'roles','admin_accounts','room_templates','license','product_view_settings','devices'];
+
+// Unknown ?page= value in admin panel → 404 instead of silently falling
+// back to the dashboard.
+if (!in_array($page, $pages, true)) {
+    http_response_code(404);
+    include __DIR__ . '/views/404.php';
+    exit;
+}
+
+$file = __DIR__ . '/views/' . $page . '.php';
 
 //  Route-level permission gates 
     $routePermissions = [
         'products'               => 'products.view',
-        'product_edit'           => 'products.view',
         'users'                  => 'users.view',
         'user_clients'           => 'users.view',
         'admin_clients'          => 'clients.view',
@@ -2224,7 +2362,9 @@ $file  = in_array($page, $pages)
         'roles'                  => 'roles.view',
         'admin_accounts'         => 'admins.view',
         'inquiries'              => 'users.view',
-         'license'                => 'license.manage',
+        'license'                => 'license.manage',
+        'product_view_settings'  => 'settings.product_views',
+      'devices'                => 'devices.view',
     ];
     if (isset($routePermissions[$page])) {
         requireAdminPermission($routePermissions[$page]);

@@ -139,6 +139,31 @@ $slC = $slSt->fetch()['c'];
         </div>
       </div>
     </div>
+    <!-- Trusted Devices -->
+    <div class="profile-section">
+      <div class="profile-section-header">
+        <div class="profile-section-icon"><?= icon('verified',18) ?></div>
+        <p class="profile-section-title">Trusted Devices</p>
+      </div>
+      <div class="profile-section-body">
+        <p style="font-size:12px;color:var(--text3);margin-bottom:14px;line-height:1.6;">
+          Trust this device to skip the login screen next time. You can remove trusted devices anytime.
+        </p>
+        <form method="POST" action="index.php" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
+          <input type="hidden" name="action" value="register_device"/>
+          <input type="hidden" name="return_url" value="index.php?page=profile"/>
+          <?= csrfField() ?>
+          <input type="text" name="device_name" class="input-field" style="flex:1;min-width:180px;"
+                 placeholder="Device name (e.g. My Laptop)"/>
+          <button type="submit" class="btn btn-primary">
+            <?= icon('check',15) ?>&nbsp; Trust This Device
+          </button>
+        </form>
+        <a href="index.php?page=devices" style="font-size:12px;font-weight:600;color:var(--black);">
+          Manage all trusted devices →
+        </a>
+      </div>
+    </div>
 
     <!-- Sign out -->
     <div style="margin-bottom:32px;">

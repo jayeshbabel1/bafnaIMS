@@ -198,7 +198,10 @@ textarea.input-field { resize: vertical; min-height: 90px; line-height: 1.6; }
 .color-color  { background: linear-gradient(135deg,#e55,#5ae); }
 
 /* Controls bar */
-.catalog-controls { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; gap: 10px; flex-wrap: wrap; }
+.catalog-controls {
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; gap: 10px; flex-wrap: wrap;
+  position: sticky; top: var(--nav-h); z-index: 30; background: var(--bg); padding: 10px 0;
+}
 .catalog-count { font-size: 13px; color: var(--text3); display: flex; align-items: center; gap: 8px; }
 .catalog-count strong { font-family: var(--font-display); font-size: 20px; font-weight: 700; color: var(--text); }
 .catalog-controls-right { display: flex; align-items: center; gap: 8px; }

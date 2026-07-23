@@ -31,14 +31,18 @@ function csrfVerify(bool $forceJson = false): void {
 function h(string $s): string { return htmlspecialchars($s, ENT_QUOTES, 'UTF-8'); }
 function titleCase(string $s): string {return mb_convert_case(mb_strtolower(trim($s)), MB_CASE_TITLE, 'UTF-8');}
 function redirect(string $url): never {
-        if (
+    if (
         defined('ADMIN_PANEL') && ADMIN_PANEL
         && !preg_match('#^(https?://|/)#i', $url)
     ) {
         $url = '/admin/' . $url;
     }
     $url = preg_replace('#/admin/admin/#', '/admin/', $url);
- 
+
+    if (preg_match('#^//#', $url) || preg_match('#^https?://#i', $url) && !str_starts_with($url, BASE_URL)) {
+        $url = defined('ADMIN_PANEL') && ADMIN_PANEL ? '/admin/index.php' : 'index.php';
+    }
+
     header("Location: $url");
     exit;
 }
@@ -555,4 +559,36 @@ function validateUploadMime(array $file, array $allowedMime, int $maxBytes): arr
         return ['valid' => false, 'error' => 'File type not allowed (' . $mime . ')'];
     }
     return ['valid' => true, 'mime' => $mime];
+}
+
+/**
+ * Normalize a photo filename to the format the sync engine expects:
+ *   <QUARRY>-IMG.<ext>          or
+ *   <QUARRY>-IMG-<n>.<ext>
+ *
+ * Fixes:
+ *   - lowercase/mixed-case extensions        (JPG, Jpeg, PNG -> jpg, jpeg, png)
+ *   - lowercase/mixed-case "-img" token       (-img, -Img, -IMG -> -IMG)
+ *   - lowercase/mixed-case quarry number      (q23048 -> Q23048)
+ *
+ */
+function normalizePhotoFilename(string $filename): string {
+    $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+    if (!in_array($ext, ['jpg', 'jpeg', 'png', 'webp'], true)) {
+        // Not an image type we care about — return as-is but with lowercase ext
+        $stem = pathinfo($filename, PATHINFO_FILENAME);
+        return $ext !== '' ? "{$stem}.{$ext}" : $stem;
+    }
+
+    $stem = pathinfo($filename, PATHINFO_FILENAME);
+
+    // Match: <quarry>-IMG  or  <quarry>-IMG-<n>   (case-insensitive)
+    if (preg_match('/^(.+?)-IMG(-(\d+))?$/i', $stem, $m)) {
+        $quarry = strtoupper(trim($m[1]));
+        $suffix = isset($m[3]) ? '-' . $m[3] : '';
+        return "{$quarry}-IMG{$suffix}.{$ext}";
+    }
+
+    // Doesn't match the naming convention — leave stem alone, just fix extension casing
+    return "{$stem}.{$ext}";
 }

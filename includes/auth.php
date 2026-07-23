@@ -78,12 +78,22 @@ function createUserByAdmin(array $data): array {
     $check = $db->prepare("SELECT id FROM users WHERE email=?");
     $check->execute([$email]);
     if ($check->fetch()) return ['success' => false, 'error' => 'This email is already registered.'];
+
+    $role = $data['role'] ?? '';
+    if ($role !== '' && !array_key_exists($role, ROLES)) {
+        return ['success' => false, 'error' => 'Invalid role selected.'];
+    }
+    $experience = $data['experience'] ?? '';
+    if ($experience !== '' && !in_array($experience, EXPERIENCE_OPTIONS, true)) {
+        return ['success' => false, 'error' => 'Invalid experience range selected.'];
+    }
+
     $plainPassword = trim($data['password'] ?? '');
     if ($plainPassword !== '' && strlen($plainPassword) < 8) return ['success' => false, 'error' => 'Password must be at least 8 characters.'];
     if ($plainPassword === '') $plainPassword = generateRandomPassword(10);
     $hash = password_hash($plainPassword, PASSWORD_DEFAULT);
     $st = $db->prepare("INSERT INTO users (name,email,password,phone,firm,city,role,experience,is_verified,created_at) VALUES (?,?,?,?,?,?,?,?,1,?)");
-    $st->execute([$name,$email,$hash,trim($data['phone']??''),$firm,$city,$data['role']??'',$data['experience']??'',time()]);
+    $st->execute([$name,$email,$hash,trim($data['phone']??''),$firm,$city,$role,$experience,time()]);
     $userId = (int)$db->lastInsertId();
     return ['success'=>true,'id'=>$userId,'plain_password'=>$plainPassword,'user'=>['id'=>$userId,'name'=>$name,'email'=>$email]];
 }
@@ -149,29 +159,57 @@ function sendResetEmail(string $to, string $name, string $token): void {
  
 
 //  Login throttling 
+// Two independent keys are tracked per login attempt:
+//  - "ident|IP"   : the original per-IP lock (5 fails / 15 min from one IP)
+//  - "acct:ident" : a coarser, IP-independent lock on the account itself,
+//                   so rotating IPs/proxies can't be used to brute-force
+//                   a single account unlimited times.
 function loginThrottleKey(string $ident): string {
     return strtolower(trim($ident)) . '|' . ($_SERVER['REMOTE_ADDR'] ?? '');
 }
+function loginAccountThrottleKey(string $ident): string {
+    return 'acct:' . strtolower(trim($ident));
+}
 function isLoginLocked(string $ident): bool {
-    $st = getDB()->prepare("SELECT locked_until FROM login_attempts WHERE ident=?");
-    $st->execute([loginThrottleKey($ident)]);
-    $row = $st->fetch();
-    return $row && (int)$row['locked_until'] > time();
+    $db   = getDB();
+    $keys = [loginThrottleKey($ident), loginAccountThrottleKey($ident)];
+    $st   = $db->prepare("SELECT locked_until FROM login_attempts WHERE ident IN (?, ?)");
+    $st->execute($keys);
+    foreach ($st->fetchAll() as $row) {
+        if ((int)$row['locked_until'] > time()) return true;
+    }
+    return false;
 }
 function registerLoginFailure(string $ident): void {
-    $key = loginThrottleKey($ident);
     $db  = getDB();
+    $now = time();
+
+    // Per-IP lock — unchanged threshold (5 fails / 15 min)
     $db->prepare("
         INSERT INTO login_attempts (ident, attempts, locked_until, updated_at)
         VALUES (?, 1, 0, ?)
         ON DUPLICATE KEY UPDATE
             attempts     = attempts + 1,
-            locked_until = IF(attempts + 1 >= 5, ? , locked_until),
+            locked_until = IF(attempts + 1 >= 5, ?, locked_until),
             updated_at   = ?
-    ")->execute([$key, time(), time() + 900, time()]); // 15 min lock after 5 fails
+    ")->execute([loginThrottleKey($ident), $now, $now + 900, $now]);
+
+    // Account-wide lock — higher threshold since it aggregates across all
+    // IPs (avoids locking out the legitimate user too eagerly), longer
+    // cooldown since it indicates a more sustained distributed attempt.
+    $db->prepare("
+        INSERT INTO login_attempts (ident, attempts, locked_until, updated_at)
+        VALUES (?, 1, 0, ?)
+        ON DUPLICATE KEY UPDATE
+            attempts     = attempts + 1,
+            locked_until = IF(attempts + 1 >= 15, ?, locked_until),
+            updated_at   = ?
+    ")->execute([loginAccountThrottleKey($ident), $now, $now + 1800, $now]); // 30 min lock after 15 fails across any IP
 }
 function clearLoginFailures(string $ident): void {
-    getDB()->prepare("DELETE FROM login_attempts WHERE ident=?")->execute([loginThrottleKey($ident)]);
+    $db = getDB();
+    $db->prepare("DELETE FROM login_attempts WHERE ident IN (?, ?)")
+       ->execute([loginThrottleKey($ident), loginAccountThrottleKey($ident)]);
 }
 
 function loginAdmin(string $username, string $password): bool {
@@ -204,7 +242,10 @@ function loginAdmin(string $username, string $password): bool {
  
 function requireLogin(): void {
     if (!isLoggedIn()) {
-        $_SESSION['redirect_after_login'] = $_SERVER['REQUEST_URI'];
+        $reqUri = $_SERVER['REQUEST_URI'] ?? '';
+        $_SESSION['redirect_after_login'] = ($reqUri !== '' && $reqUri[0] === '/' && !str_starts_with($reqUri, '//'))
+            ? $reqUri
+            : 'index.php?page=catalog';
         header('Location: index.php?page=login'); exit;
     }
 }

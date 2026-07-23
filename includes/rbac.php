@@ -21,9 +21,24 @@
  * ─────────────────────────────────────────────────────────────────────────
  */
 
+// ── Permission cache versioning — bumped whenever role permissions change,
+// so already-logged-in admins pick up new grants without needing to log
+// out/in. Cheap: one getSetting() read per request (already file-cached).
+function _permissionsVersion(): string {
+    return getSetting('permissions_version', '0');
+}
+function _bumpPermissionsVersion(): void {
+    setSetting('permissions_version', (string)microtime(true));
+}
+
 // ── Load & cache the current admin's permissions ─────────────────────────────
 function _loadAdminPermissions(): void {
-    if (isset($_SESSION['admin_permissions'])) return;
+    $currentVersion = _permissionsVersion();
+    if (isset($_SESSION['admin_permissions'])
+        && ($_SESSION['admin_permissions_version'] ?? null) === $currentVersion) {
+        return;
+    }
+
 
     $adminId = $_SESSION['admin_id'] ?? null;
     if (!$adminId) {
@@ -50,7 +65,8 @@ function _loadAdminPermissions(): void {
 
         // Super admin → all permissions virtually
         if ($slug === 'super_admin') {
-            $_SESSION['admin_permissions'] = ['*'];
+            $_SESSION['admin_permissions']         = ['*'];
+            $_SESSION['admin_permissions_version'] = $currentVersion;
             return;
         }
 
@@ -64,7 +80,8 @@ function _loadAdminPermissions(): void {
             WHERE  a.id = ?
         ");
         $st->execute([$adminId]);
-        $_SESSION['admin_permissions'] = $st->fetchAll(PDO::FETCH_COLUMN) ?: [];
+        $_SESSION['admin_permissions']         = $st->fetchAll(PDO::FETCH_COLUMN) ?: [];
+        $_SESSION['admin_permissions_version']  = $currentVersion;
 
     } catch (Throwable $e) {
         error_log('_loadAdminPermissions: ' . $e->getMessage());
@@ -196,6 +213,10 @@ function saveRolePermissions(int $roleId, array $permissionIds): void {
             }
         }
         $db->commit();
+        // Bump the global version so every OTHER already-logged-in admin
+        // sharing this role picks up the change on their very next request,
+        // without needing to log out and back in.
+        _bumpPermissionsVersion();
     } catch (Throwable $e) {
         $db->rollBack();
         throw $e;
@@ -337,7 +358,10 @@ function updateAdminAccount(int $id, array $data): array {
 
     $db->prepare("UPDATE admins SET name=?, email=?, role_id=?, is_active=? WHERE id=?")
        ->execute([$name, $email, $roleId ?: null, $active, $id]);
-
+     
+       // Role reassignment changes effective permissions — bump so the
+    // affected admin's session refreshes without a manual re-login.
+    _bumpPermissionsVersion();
     // Update password if provided
     if (!empty($data['password'])) {
         if (strlen($data['password']) < 8) {
