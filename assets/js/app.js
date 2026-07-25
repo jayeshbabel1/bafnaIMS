@@ -1,11 +1,23 @@
-/* ── Toast auto-dismiss ─────────────────────────────────────────────── */
+/*  Toast auto-dismiss  */
 document.addEventListener('DOMContentLoaded', () => {
   const toast = document.getElementById('app-toast') || document.getElementById('admin-toast');
   if (toast) {
     setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity .5s'; }, 3200);
   }
-
-  /* ── Password toggle ─────────────────────────────────────────────── */
+  
+  /*  Language dropdown toggle  */
+const langBtn  = document.getElementById('langSwitchBtn');
+const langDrop = document.getElementById('langSwitchDropdown');
+if (langBtn && langDrop) {
+  langBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    langDrop.classList.toggle('open');
+  });
+  document.addEventListener('click', (e) => {
+    if (!langDrop.contains(e.target) && e.target !== langBtn) langDrop.classList.remove('open');
+  });
+}
+  /*  Password toggle  */
   document.querySelectorAll('.pwd-toggle').forEach(btn => {
     btn.addEventListener('click', () => {
       const inp = document.getElementById(btn.dataset.target);
@@ -18,7 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  /* ── Password strength ───────────────────────────────────────────── */
+  /*  Password strength  */
   const pwdInput = document.getElementById('regPwd') || document.getElementById('newPwd');
   const strength = document.getElementById('pwdStrength');
   if (pwdInput && strength) {
@@ -33,7 +45,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  /* ── Role option click ───────────────────────────────────────────── */
+  /*  Role option click  */
   document.querySelectorAll('.role-option').forEach(el => {
     el.addEventListener('click', () => {
       document.querySelectorAll('.role-option').forEach(o => o.classList.remove('selected'));
@@ -41,7 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  /* ── Exp chip click ──────────────────────────────────────────────── */
+  /*  Exp chip click  */
   document.querySelectorAll('.exp-chip').forEach(el => {
     el.addEventListener('click', () => {
       document.querySelectorAll('.exp-chip').forEach(o => o.classList.remove('active'));
@@ -49,7 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  /* ── Close mobile menu on outside click ─────────────────────────── */
+  /* ── Close mobile menu on outside click  */
   document.addEventListener('click', e => {
     const menu = document.getElementById('mobileMenu');
     const btn  = document.getElementById('hamburgerBtn');
@@ -59,7 +71,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
-/* ── Mobile menu ─────────────────────────────────────────────────────── */
+/*  Mobile menu  */
 function toggleMobileMenu() {
   const menu = document.getElementById('mobileMenu');
   const btn  = document.getElementById('hamburgerBtn');
@@ -77,7 +89,7 @@ function closeMobileMenu() {
   document.body.style.overflow = '';
 }
 
-/* ── Quick chip for inquiry form ────────────────────────────────────── */
+/*  Quick chip for inquiry form  */
 function addChip(btn, text) {
   const ta = document.getElementById('inqMessage');
   if (!ta) return;
@@ -87,7 +99,7 @@ function addChip(btn, text) {
   btn.classList.add('used');
 }
 
-/* ── FAQ accordion ──────────────────────────────────────────────────── */
+/*  FAQ accordion  */
 function toggleFaq(i) {
   const a    = document.getElementById('faqA' + i);
   const chev = document.getElementById('chev' + i);

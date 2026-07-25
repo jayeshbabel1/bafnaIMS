@@ -5,6 +5,7 @@
  */
 requireAdminPermission('products.view');
 require_once BASE_PATH . '/includes/product_views.php';
+require_once BASE_PATH . '/includes/categories.php';
 ensureProductViewTables();
 
 // ── Short header/card labels (table headers stay compact; config labels are longer) ─
@@ -31,9 +32,9 @@ function pvAdminFieldHtml(array $p, string $key): string {
             $pal = json_decode($p['palette'] ?? '[]', true) ?: ['F2F0EC','D8CFC4','BFB0A0'];
             return marbleSVG($pal, 60, 60, 'apv'.$p['id']);
         case 'name':
-            return adminCan('products.edit')
-                ? '<a href="index.php?page=product_edit&id='.$p['id'].'" style="color:var(--admin-text,var(--text));font-weight:600;">'.h($p['name']).'</a>'
-                : '<span style="font-weight:600;">'.h($p['name']).'</span>';
+            return (adminCan('products.edit') || adminCan('products.view_details'))
+        ? '<a href="index.php?page=product_edit&id='.$p['id'].'" style="color:var(--admin-text,var(--text));font-weight:600;">'.h($p['name']).'</a>'
+        : '<span style="font-weight:600;">'.h($p['name']).'</span>';
         case 'quarry_number':   return h($p['quarry_number'] ?: '—');
         case 'category':        return $p['category'] ? '<span class="badge badge-blue" style="font-size:10px;">'.h($p['category']).'</span>' : '—';
         case 'subcategory':      return h($p['subcategory'] ?: '—');
@@ -60,11 +61,9 @@ function pvAdminActionButtons(array $p): string {
     $thumbSrc = ($p['primary_photo'] && file_exists(PHOTOS_DIR.'/'.$p['primary_photo']))
         ? '../assets/uploads/photos/' . $p['primary_photo'] : '';
     $h = '<div class="admin-table-actions">';
-  if (adminCan('products.view')) {
-        $h .= '<a href="index.php?page=product_edit" class="btn-admin-secondary btn-admin-sm" title="Edit">'.icon('View',13).'</a>';
-    }
-    if (adminCan('products.edit')) {
-        $h .= '<a href="index.php?page=product_edit&id='.$p['id'].'" class="btn-admin-secondary btn-admin-sm" title="Edit">'.icon('edit',13).'</a>';
+  
+    if (adminCan('products.view_details') && !adminCan('products.edit')) {
+        $h .= '<a href="index.php?page=product_edit&id='.$p['id'].'" class="btn-admin-secondary btn-admin-sm" title="View Details">'.icon('eye',13).'</a>';
     }
     if (adminCan('products.whatsapp')) {
         $h .= '<button type="button" onclick="openWaShare('.$p['id'].', '.h(json_encode($p['name'])).', '.h(json_encode($p['quarry_number'])).', '.h(json_encode($thumbSrc)).')" class="btn-admin-secondary btn-admin-sm" style="color:#25D366;border-color:#25D366;" title="Share via WhatsApp">'.icon('whatsapp',13).'</button>';
@@ -97,7 +96,8 @@ function renderAdminProductsTable(array $products, array $fields, string $sortCo
     }
     $h .= '</tr></thead><tbody>';
     foreach ($products as $p) {
-        $h .= '<tr>';
+        $editUrl = adminCan('products.edit') ? 'index.php?page=product_edit&id='.$p['id'] : '';
+        $h .= '<tr'.($editUrl?' class="apv-row-clickable" onclick="if(!event.target.closest(\'a,button,form\'))window.location=\''.$editUrl.'\'"':'').'>';
         foreach ($fields as $f) {
             $cell = pvAdminFieldHtml($p, $f['key']);
             $h .= $f['key'] === 'photo' ? '<td><div class="tbl-thumb">'.$cell.'</div></td>' : '<td>'.$cell.'</td>';
@@ -108,12 +108,13 @@ function renderAdminProductsTable(array $products, array $fields, string $sortCo
     return $h;
 }
 
-// ── GRID view ─────────────────────────────────────────────────────────────
+//  GRID view 
 function renderAdminProductsGrid(array $products, array $fields): string {
     if (empty($products)) return '<div class="admin-table-empty">No products found.</div>';
     $h = '<div class="apv-grid">';
-    foreach ($products as $p) {
-        $h .= '<div class="apv-card">';
+   foreach ($products as $p) {
+        $editUrl = adminCan('products.edit') ? 'index.php?page=product_edit&id='.$p['id'] : '';
+        $h .= '<div class="apv-card'.($editUrl?' apv-card-clickable':'').'"'.($editUrl?' onclick="if(!event.target.closest(\'a,button,form\'))window.location=\''.$editUrl.'\'"':'').'>';
         foreach ($fields as $f) {
             if ($f['key'] === 'photo') {
                 $h .= '<div class="apv-card-photo">'.pvAdminFieldHtml($p, 'photo').'</div>';
@@ -131,12 +132,13 @@ function renderAdminProductsGrid(array $products, array $fields): string {
     return $h;
 }
 
-// ── LIST view ─────────────────────────────────────────────────────────────
+//  LIST view 
 function renderAdminProductsList(array $products, array $fields): string {
     if (empty($products)) return '<div class="admin-table-empty">No products found.</div>';
     $h = '<div class="apv-list">';
     foreach ($products as $p) {
-        $h .= '<div class="apv-list-row">';
+        $editUrl = adminCan('products.edit') ? 'index.php?page=product_edit&id='.$p['id'] : '';
+        $h .= '<div class="apv-list-row'.($editUrl?' apv-row-clickable':'').'"'.($editUrl?' onclick="if(!event.target.closest(\'a,button,form\'))window.location=\''.$editUrl.'\'"':'').'>';
         if (in_array('photo', array_column($fields, 'key'), true)) {
             $h .= '<div class="apv-list-thumb">'.pvAdminFieldHtml($p, 'photo').'</div>';
         }
@@ -161,8 +163,8 @@ function renderAdminProductsList(array $products, array $fields): string {
 
 // ── AJAX handler ──────────────────────────────────────────────────────────
 if (!empty($_GET['ajax_products'])) {
-    $allowedPer  = [25, 50, 75, 100];
-    $perPage     = in_array((int)($_GET['per'] ?? 25), $allowedPer) ? (int)$_GET['per'] : 25;
+    $allowedPer  = [24, 48, 72, 100];
+    $perPage     = in_array((int)($_GET['per'] ?? 24), $allowedPer) ? (int)$_GET['per'] : 24;
     $currentPage = max(1, (int)($_GET['p'] ?? 1));
     $search      = trim($_GET['q']      ?? '');
     $cat         = trim($_GET['cat']    ?? '');
@@ -202,9 +204,10 @@ if (!empty($_GET['ajax_products'])) {
     $currentPage = min($currentPage, $totalPages);
     $offset     = ($currentPage - 1) * $perPage;
 
-    $orderSQL = "p.{$sortCol} {$sortDir}, p.id DESC";
+    $orderSQL = "has_photo DESC, p.{$sortCol} {$sortDir}, p.id DESC";
     $rowParams = array_merge($params, [$perPage, $offset]);
-    $sql = "SELECT p.* FROM products p $where ORDER BY {$orderSQL} LIMIT ? OFFSET ?";
+    $sql = "SELECT p.*, EXISTS(SELECT 1 FROM product_photos pp WHERE pp.product_id=p.id) AS has_photo
+        FROM products p $where ORDER BY {$orderSQL} LIMIT ? OFFSET ?";
     $st = $db->prepare($sql);
     $st->execute($rowParams);
     $products = $st->fetchAll();
@@ -307,6 +310,8 @@ $serverDefaultView = getDefaultView('admin');
 @media (min-width:900px)  { .apv-grid { grid-template-columns:repeat(3,1fr); } }
 @media (min-width:1280px) { .apv-grid { grid-template-columns:repeat(4,1fr); } }
 .apv-card { background:var(--admin-card-bg,var(--surface)); border:1px solid var(--admin-card-border,var(--border)); border-radius:var(--admin-card-radius,var(--card-radius)); padding:12px; display:flex; flex-direction:column; gap:6px; }
+.apv-card-clickable { cursor:pointer; transition:box-shadow .15s,transform .15s; }
+.apv-card-clickable:hover { box-shadow:0 4px 16px rgba(0,0,0,.08); transform:translateY(-1px); }
 .apv-card-photo { width:100%; aspect-ratio:4/3; border-radius:8px; overflow:hidden; background:var(--admin-surface2,var(--surface2)); }
 .apv-card-photo img, .apv-card-photo svg { width:100%; height:100%; object-fit:cover; display:block; }
 .apv-card-name { font-size:14px; font-weight:700; margin-top:4px; }
@@ -325,7 +330,9 @@ $serverDefaultView = getDefaultView('admin');
 .apv-list-chip { font-size:11.5px; color:var(--admin-text2,var(--text2)); margin-right:10px; }
 .apv-list-chip b { color:var(--admin-text3,var(--text3)); font-weight:600; }
 .apv-list-actions { flex-shrink:0; margin-left:auto; }
-
+.apv-row-clickable { cursor:pointer; }
+tr.apv-row-clickable:hover td { background:var(--admin-table-row-hover,var(--surface2)); }
+  
 @media (max-width:768px) { .admin-table-actions .btn-admin-sm { width:30px; } }
 </style>
 
@@ -419,7 +426,7 @@ $serverDefaultView = getDefaultView('admin');
 <!-- Category tabs -->
 <div class="admin-cat-tabs" id="adminCatTabs">
   <button class="tag-pill active" data-cat="" type="button">All</button>
-  <?php foreach (CATEGORIES as $c): ?>
+  <?php foreach (getCategoryNames() as $c): ?>
   <button class="tag-pill" data-cat="<?= h($c) ?>" type="button"><?= h($c) ?></button>
   <?php endforeach; ?>
 </div>
@@ -436,9 +443,9 @@ $serverDefaultView = getDefaultView('admin');
     <div class="admin-perpage-wrap">
       <label class="admin-label" style="margin:0;white-space:nowrap;">Show</label>
       <select id="adminPerPage" class="admin-input admin-select admin-perpage-select">
-        <option value="25" selected>25</option>
-        <option value="50">50</option>
-        <option value="75">75</option>
+        <option value="24" selected>24</option>
+        <option value="48">48</option>
+        <option value="72">72</option>
         <option value="100">100</option>
       </select>
       <span class="admin-perpage-label">per page</span>

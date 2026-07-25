@@ -37,7 +37,7 @@
   var state = {
     q:      '',
     cat:    '',
-    per:    25,
+    per:    24,
     page:   1,
     sort:   '',        // column key (table view only)
     dir:    'ASC',
@@ -197,9 +197,9 @@
   //  Per-page 
   if (perPageEl) {
     perPageEl.addEventListener('change', function () {
-      var allowed = [25, 50, 75, 100];
+      var allowed = [24, 48, 72, 100];
       var val     = parseInt(perPageEl.value, 10);
-      state.per  = allowed.includes(val) ? val : 25;
+      state.per  = allowed.includes(val) ? val : 24;
       state.page = 1;
       loadProducts();
     });

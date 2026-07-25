@@ -35,7 +35,7 @@ function pvAllFields(): array {
         'quantity_available'  => ['label' => 'Available Qty',       'panels' => ['admin','user']],
         'quantity_on_hold'    => ['label' => 'On Hold Qty',          'panels' => ['admin']],
         'in_stock'            => ['label' => 'Stock Status',        'panels' => ['admin','user']],
-        'featured'            => ['label' => 'Featured Badge',      'panels' => ['admin','user']],
+      //  'featured'            => ['label' => 'Featured Badge',      'panels' => ['admin','user']],
         'actions'             => ['label' => 'Action Buttons',      'panels' => ['admin','user']],
     ];
 }

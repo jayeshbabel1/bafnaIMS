@@ -9,7 +9,9 @@
 <style><?= getCSSVariables(true) ?></style>
 <link rel="stylesheet" href="../assets/css/style.css"/>
 <link rel="stylesheet" href="../assets/css/admin.css"/>
-<!--<link rel="stylesheet" href="../assets/css/watermark.css"/>-->
+<?php if (!function_exists('renderWatermarkCSS'))
+ require_once BASE_PATH . '/includes/watermark.php'; ?>
+<style><?= renderWatermarkCSS(true) ?></style>
   <link rel="stylesheet" href="../assets/css/clients.css"/>
 </head>
 <body class="admin-body">
@@ -34,6 +36,7 @@ try {
 } catch (Throwable $_e) {}
 
 $_adminLogo = getLogo(true);
+$_trustedDeviceAdmin = isAdmin() ? getCurrentTrustedDevice('admin') : null;
 $ap = $_GET['page'] ?? 'dashboard';
 
 $settingsPages    = ['colors', 'logo', 'smtp','license'];
@@ -65,16 +68,21 @@ $e = getFlash('error');
  
   <!-- Right: logout (always visible on mobile) + hamburger -->
   <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
-    <form method="POST" action="index.php" style="display:contents;">
-      <input type="hidden" name="action" value="admin_logout"/>
-      <?= csrfField() ?>
-      <button type="submit"
-              class="amt-logout-btn"
-              title="Sign Out">
-        <?= icon('logout', 16) ?>
-        <span>Logout</span>
-      </button>
-    </form>
+    <?php if ($_trustedDeviceAdmin): ?>
+<button type="button" class="amt-logout-btn" title="Sign Out" onclick="openAdminForceLogoutConfirm()">
+  <?= icon('logout', 16) ?>
+  <span>Logout</span>
+</button>
+<?php else: ?>
+<form method="POST" action="index.php" style="display:contents;">
+  <input type="hidden" name="action" value="admin_logout"/>
+  <?= csrfField() ?>
+  <button type="submit" class="amt-logout-btn" title="Sign Out">
+    <?= icon('logout', 16) ?>
+    <span>Logout</span>
+  </button>
+</form>
+<?php endif; ?>
     <button class="admin-hamburger-btn" id="adminHamburgerBtn"
             aria-label="Open menu" aria-expanded="false" aria-controls="adminSidebar"
             type="button">
@@ -284,6 +292,12 @@ if (adminCan('settings.smtp')) {
     $settingsSubItems[] = ['page'=>'smtp',           'label'=>'Mail Settings'];
 }
     $settingsSubItems[] = ['page'=>'room_templates',           'label'=>'Room Templates'];
+if (adminCan('categories.view')) {
+    $settingsSubItems[] = ['page'=>'product_categories', 'label'=>'Product Categories'];
+}
+if (adminCan('translations.manage')) {
+    $settingsSubItems[] = ['page'=>'translations', 'label'=>'Translations'];
+}
 //if (adminCan('license.manage')) {
   //  $settingsSubItems[] = ['page'=>'license', 'label'=>'License & Activation'];
 //}
@@ -361,16 +375,57 @@ $isRolesActive = in_array($ap, ['roles','admin_accounts']);
       <a href="../index.php?page=catalog" class="admin-nav-item" target="_blank">
         <?= icon('eye', 16) ?><span>View App</span>
       </a>
-      <form method="POST" action="index.php">
-        <input type="hidden" name="action" value="admin_logout"/>
-        <?= csrfField() ?>
-        <button type="submit" class="admin-nav-item w-full admin-logout-btn">
-          <?= icon('logout', 16) ?><span>Sign Out</span>
-        </button>
-      </form>
+      <?php if ($_trustedDeviceAdmin): ?>
+<button type="button" class="admin-nav-item w-full admin-logout-btn" onclick="openAdminForceLogoutConfirm()">
+  <?= icon('logout', 16) ?><span>Sign Out</span>
+</button>
+<?php else: ?>
+<form method="POST" action="index.php">
+  <input type="hidden" name="action" value="admin_logout"/>
+  <?= csrfField() ?>
+  <button type="submit" class="admin-nav-item w-full admin-logout-btn">
+    <?= icon('logout', 16) ?><span>Sign Out</span>
+  </button>
+</form>
+<?php endif; ?>
     </div>
   </aside>
 
+  <?php if ($_trustedDeviceAdmin): ?>
+<div id="adminForceLogoutModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9600;align-items:center;justify-content:center;padding:16px;">
+  <div style="background:var(--admin-card-bg,var(--surface));border-radius:14px;padding:26px;max-width:400px;width:100%;box-shadow:0 16px 48px rgba(0,0,0,.22);">
+    <div id="aflStep1">
+      <p style="font-size:16px;font-weight:700;color:var(--admin-text,var(--text));margin-bottom:8px;">Sign Out of Trusted Device?</p>
+      <p style="font-size:13px;color:var(--admin-text3,var(--text3));line-height:1.6;margin-bottom:20px;">
+        This device is trusted for admin auto sign-in. Signing out here also removes its trusted status.
+      </p>
+      <div style="display:flex;gap:10px;">
+        <button type="button" class="btn-admin-secondary" style="flex:1;justify-content:center;" onclick="closeAdminForceLogoutConfirm()">Cancel</button>
+        <button type="button" class="btn-admin-danger" style="flex:1;justify-content:center;" onclick="aflGoStep2()">Continue</button>
+      </div>
+    </div>
+    <div id="aflStep2" style="display:none;">
+      <p style="font-size:16px;font-weight:700;color:var(--admin-text,var(--text));margin-bottom:8px;">Confirm Forced Logout</p>
+      <p style="font-size:13px;color:var(--admin-text3,var(--text3));line-height:1.6;margin-bottom:20px;">
+        You'll need your <strong>username and password</strong> to sign back in here. Continue?
+      </p>
+      <form method="POST" action="index.php">
+        <input type="hidden" name="action" value="admin_forced_logout"/>
+        <?= csrfField() ?>
+        <div style="display:flex;gap:10px;">
+          <button type="button" class="btn-admin-secondary" style="flex:1;justify-content:center;" onclick="closeAdminForceLogoutConfirm()">Cancel</button>
+          <button type="submit" class="btn-admin-danger" style="flex:1;justify-content:center;">Yes, Sign Out</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+<script>
+function openAdminForceLogoutConfirm(){document.getElementById('aflStep1').style.display='';document.getElementById('aflStep2').style.display='none';document.getElementById('adminForceLogoutModal').style.display='flex';}
+function closeAdminForceLogoutConfirm(){document.getElementById('adminForceLogoutModal').style.display='none';}
+function aflGoStep2(){document.getElementById('aflStep1').style.display='none';document.getElementById('aflStep2').style.display='';}
+</script>
+<?php endif; ?>
   <!-- ════════════════════════════════════════════════════════════
        MAIN CONTENT
        ════════════════════════════════════════════════════════════ -->

@@ -10,6 +10,7 @@ require_once __DIR__ . '/includes/room_visualizer.php';
 require_once __DIR__ . '/includes/license.php';
 require_once __DIR__ . '/includes/product_views.php';
 require_once __DIR__ . '/includes/device_auth.php';
+require_once __DIR__ . '/includes/translations.php';
 
 startSecureSession();
 
@@ -135,7 +136,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $inlineError = $result['error'];
         include BASE_PATH . '/pages/reset_password.php'; exit;
     }
-  
+    
+  if ($action === 'switch_language') {
+    $lang   = $_POST['lang'] ?? 'en';
+    $return = $_POST['return_url'] ?? 'index.php?page=catalog';
+    setCurrentLang($lang);
+    // Guard against open-redirect — only allow internal relative paths
+    if (!preg_match('#^index\.php#', $return)) $return = 'index.php?page=catalog';
+    redirect($return);
+}
       // ── Public activation action ────────────────────────────────────────
     if ($action === 'activate_license') {
         $result = activateLicenseKey($_POST['activation_key'] ?? '');
@@ -242,6 +251,17 @@ if ($action === 'delete_selection') {
 
     if ($action === 'logout') {
         logoutUser();
+        redirect('index.php?page=login');
+    }
+  
+   if ($action === 'forced_logout') {
+        $device = getCurrentTrustedDevice('user');
+        if ($device) {
+            revokeTrustedDevice((int)$device['id']);
+        }
+        clearDeviceCookie();
+        logoutUser();
+        flash('toast', 'Signed out and this device is no longer trusted.');
         redirect('index.php?page=login');
     }
 

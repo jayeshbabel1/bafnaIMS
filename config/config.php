@@ -27,7 +27,8 @@ define('THUMBS_DIR',      BASE_PATH . '/assets/uploads/_thumb');
 define('MEASUREMENT_DIR', BASE_PATH . '/assets/uploads/measurement_sheets');
 define('DNA_DIR',         BASE_PATH . '/assets/uploads/dna_reports');
 define('EXCEL_DIR',       BASE_PATH . '/assets/uploads/excel');
-
+define('VIDEOS_DIR', BASE_PATH . '/assets/uploads/videos');
+define('VIDEOS_URL', 'assets/uploads/videos');
 // ── Room Visualizer settings ─────────────────────────────────────
 define('ROOM_TEMPLATES_DIR', BASE_PATH . '/assets/uploads/room_templates');
 define('ROOM_PREVIEWS_DIR',  BASE_PATH . '/storage/room_previews');
@@ -54,7 +55,7 @@ define('SESSION_TTL',  86400 * 2); // 2 days
 define('MAIL_FROM',      'noreply@bafnamarbles.com');
 define('MAIL_FROM_NAME', 'Bafna Marbles');
 
-define('CATEGORIES',         ['Marble','Travertino','Onyx','Quartzite']);
+//define('CATEGORIES',         ['Marble','Travertino','Onyx','Quartzite']);
 define('COLOR_SUBCATEGORIES',['White','Grey','Beige','Exotic','Color']);
 
 define('ROLES', [
@@ -68,7 +69,7 @@ define('ROLES', [
 define('EXPERIENCE_OPTIONS', ['0–2 years','3–5 years','6–10 years','10+ years']);
 
 //  Ensure upload directories exist 
-foreach ([PHOTOS_DIR, THUMBS_DIR, MEASUREMENT_DIR, DNA_DIR, EXCEL_DIR] as $_dir) {
+foreach ([PHOTOS_DIR, THUMBS_DIR, MEASUREMENT_DIR, DNA_DIR, EXCEL_DIR , VIDEOS_DIR] as $_dir) {
     if (!is_dir($_dir)) @mkdir($_dir, 0755, true);
 }
 
@@ -80,12 +81,15 @@ if (!headers_sent()) {
     if (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') {
         header('Strict-Transport-Security: max-age=31536000; includeSubDomains');
     }
-    header(
-        "Content-Security-Policy: default-src 'self'; " .
-        "img-src 'self' data: blob: https:; " .
-        "script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com; " .
-        "connect-src 'self' https://cloudflareinsights.com; " .
-        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " .
-        "font-src 'self' https://fonts.gstatic.com;"
-    );
+   header(
+    "Content-Security-Policy: " .
+    "default-src 'self'; " .
+    "img-src 'self' data: blob: https:; " .
+    "script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com https://www.youtube.com https://player.vimeo.com https://cdn.jsdelivr.net; " .
+    "connect-src 'self' https://cloudflareinsights.com https://www.youtube.com https://player.vimeo.com https://vimeo.com; " .
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " .
+    "font-src 'self' https://fonts.gstatic.com; " .
+    "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com; " .
+    "media-src 'self' https: blob:;"
+);
 }

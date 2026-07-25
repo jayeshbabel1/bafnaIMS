@@ -294,17 +294,24 @@ function verifyTrustedDeviceCookieThrottled(): ?array {
 
 function adminListAllDevices(array $opts = []): array {
     ensureDeviceTables();
-    $db     = getDB();
-    $search = trim($opts['search'] ?? '');
-    $limit  = (int)($opts['limit']  ?? 25);
-    $offset = (int)($opts['offset'] ?? 0);
+    $db      = getDB();
+    $search  = trim($opts['search'] ?? '');
+    $limit   = (int)($opts['limit']  ?? 25);
+    $offset  = (int)($opts['offset'] ?? 0);
+    $ownerAdminId = $opts['admin_id'] ?? null; // null = no owner restriction (super admin)
 
     $where  = "WHERE 1=1";
     $params = [];
+
+    if ($ownerAdminId !== null) {
+        $where   .= " AND td.admin_id = ?";
+        $params[] = (int)$ownerAdminId;
+    }
+
     if ($search !== '') {
         $where   .= " AND (td.device_name LIKE ? OR td.ip_last LIKE ? OR u.name LIKE ? OR a.name LIKE ?)";
         $like     = "%{$search}%";
-        $params   = [$like, $like, $like, $like];
+        $params   = array_merge($params, [$like, $like, $like, $like]);
     }
 
     $countSt = $db->prepare("SELECT COUNT(*) FROM trusted_devices td
@@ -372,4 +379,21 @@ function attemptDeviceAutoLogin(string $panel): bool {
     markDeviceLoginSuccess((int)$device['id']);
     logDeviceActivity((int)$device['id'], 'auto_login', $panel);
     return true;
+}
+// ── Get current trusted device ONLY if it belongs to the currently
+// logged-in session (user or admin). Used to decide whether Logout
+// should be a plain logout or a Forced Logout (double-confirm + revoke).
+function getCurrentTrustedDevice(string $panel): ?array {
+    $device = verifyTrustedDeviceCookie();
+    if (!$device) return null;
+
+    if ($panel === 'user' && !empty($device['user_id'])
+        && (int)$device['user_id'] === (int)($_SESSION['user_id'] ?? 0)) {
+        return $device;
+    }
+    if ($panel === 'admin' && !empty($device['admin_id'])
+        && (int)$device['admin_id'] === (int)($_SESSION['admin_id'] ?? 0)) {
+        return $device;
+    }
+    return null;
 }

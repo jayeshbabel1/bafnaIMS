@@ -5,6 +5,7 @@
  * Settings → Product Views (user panel).
  */
 require_once BASE_PATH . '/includes/product_views.php';
+require_once BASE_PATH . '/includes/categories.php';
 ensureProductViewTables();
 
 $pageTitle = 'Catalog — ' . APP_NAME;
@@ -96,14 +97,15 @@ function getSortedProducts(array $filters, string $sort, int $limit = 0, int $of
     $db = getDB();
     [$where, $params] = buildProductFilterSQL($filters);
 
-    $sql = "SELECT p.* FROM products p" . $where;
+   $sql = "SELECT p.*, EXISTS(SELECT 1 FROM product_photos pp WHERE pp.product_id=p.id) AS has_photo
+        FROM products p" . $where;
 
-    switch ($sort) {
-        case 'name_az':  $sql .= " ORDER BY p.name ASC"; break;
-        case 'qty_asc':  $sql .= " ORDER BY p.quantity_available ASC"; break;
-        case 'qty_desc': $sql .= " ORDER BY p.quantity_available DESC"; break;
-        default:         $sql .= " ORDER BY p.featured DESC, p.sort_order ASC, p.id DESC"; break;
-    }
+switch ($sort) {
+    case 'name_az':  $sql .= " ORDER BY has_photo DESC, p.name ASC"; break;
+    case 'qty_asc':  $sql .= " ORDER BY has_photo DESC, p.quantity_available ASC"; break;
+    case 'qty_desc': $sql .= " ORDER BY has_photo DESC, p.quantity_available DESC"; break;
+    default:         $sql .= " ORDER BY has_photo DESC, p.featured DESC, p.sort_order ASC, p.id DESC"; break;
+}
 
     if ($limit > 0) {
         $sql .= " LIMIT ? OFFSET ?";
@@ -296,7 +298,7 @@ $totalPages  = max(1, (int)ceil($totalCount / $perPage));
 $currentPage = min($currentPage, $totalPages);
 $products    = getSortedProducts($filters, $sort, $perPage, ($currentPage - 1) * $perPage);
 $featured    = getFeaturedProducts(8);
-$categories  = CATEGORIES;
+$categories  = getCategoryNames();
 $colorSubs   = COLOR_SUBCATEGORIES;
 $hasFilter   = $cat || $color || $search
                || $sqftMin !== null || $sqftMax !== null

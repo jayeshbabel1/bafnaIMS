@@ -13,6 +13,16 @@ $extraCSS  = ['zoom.css','clients.css'];
 $pal           = $p['palette_arr'];
 $photos        = $p['photos'];
 $saved         = isShortlisted($id);
+
+// Flat, de-duped list of resolved photo URLs — drives the gallery
+// lightbox's next/prev navigation and swipe support.
+$galleryImages = [];
+if ($photos) {
+    foreach ($photos as $ph) {
+        $resolved = resolvePhotoPath(PHOTOS_DIR, $ph['filename']);
+        if ($resolved) $galleryImages[] = 'assets/uploads/photos/' . $resolved;
+    }
+}
 $cutterDisplay = $p['cutter_size_display'] ?? '';
 $sizesDisplay  = $p['sizes_display'] ?? '';
 $hasClients    = clientCount($_SESSION['user_id']) > 0;
@@ -170,22 +180,47 @@ $specs = [
     </div>
 
     <!-- Photo gallery -->
-    <?php if ($photos): ?>
+    <!-- Photo gallery -->
+    <?php if ($galleryImages): ?>
     <p class="section-label">Gallery</p>
     <div class="photo-gallery">
-      <?php foreach ($photos as $ph):
-       $resolved = resolvePhotoPath(PHOTOS_DIR, $ph['filename']);
-	   $imgSrc   = $resolved ? 'assets/uploads/photos/'.h($resolved) : null;
-        if (!$imgSrc) continue;
-      ?>
-      <div class="gallery-item" onclick="openLightbox('<?= h($imgSrc) ?>')">
+      <?php foreach ($galleryImages as $i => $imgSrc): ?>
+      <div class="gallery-item" onclick="openLightbox(<?= $i ?>)">
         <img src="<?= h($imgSrc) ?>" alt="" loading="lazy"/>
         <div class="gallery-overlay"><?= icon('zoom',18) ?></div>
       </div>
       <?php endforeach; ?>
     </div>
     <?php endif; ?>
-
+    
+    <?php if ($p['video_file'] || $p['video_url']): ?>
+<p class="section-label">Video</p>
+<div style="border-radius:var(--radius-lg);overflow:hidden;margin-bottom:20px;background:#000;">
+  <?php if ($p['video_file'] && file_exists(VIDEOS_DIR.'/'.$p['video_file'])): ?>
+  <video controls style="width:100%;display:block;" src="<?= VIDEOS_URL ?>/<?= h($p['video_file']) ?>"></video>
+  <?php elseif ($p['video_url']):
+    $vu = $p['video_url'];
+    $embed = null;
+    if (preg_match('#youtu\.?be(?:\.com)?/(?:watch\?v=)?([A-Za-z0-9_-]{6,})#', $vu, $m)) $embed = 'https://www.youtube.com/embed/'.$m[1];
+    elseif (preg_match('#vimeo\.com/(\d+)#', $vu, $m)) $embed = 'https://player.vimeo.com/video/'.$m[1];
+  ?>
+    <?php if ($embed): ?>
+    <div style="aspect-ratio:16/9;"><iframe src="<?= h($embed) ?>" style="width:100%;height:100%;border:0;" allowfullscreen></iframe></div>
+    <?php else: ?>
+    <video controls style="width:100%;display:block;" src="<?= h($vu) ?>"></video>
+    <?php endif; ?>
+  <?php endif; ?>
+  <?php
+$vidShareUrl = $p['video_file'] ? BASE_URL.'/'.VIDEOS_URL.'/'.$p['video_file'] : ($p['video_url'] ?? '');
+$vidShareMsg = rawurlencode(($p['name'] ?? '').' — Video: '.$vidShareUrl);
+?>
+<a href="https://wa.me/?text=<?= $vidShareMsg ?>" target="_blank" rel="noopener"
+   style="display:inline-flex;align-items:center;gap:7px;margin-bottom:20px;padding:9px 16px;background:#25D366;color:#fff;border-radius:24px;font-size:12px;font-weight:600;text-decoration:none;">
+  <?= icon('whatsapp',15) ?> Share Video on WhatsApp
+</a>
+</div>
+<?php endif; ?>   
+    
     <!-- Documents -->
     <?php if ($p['measurement_sheet'] || $p['dna_report']): ?>
     <p class="section-label">Documents</p>
@@ -244,6 +279,81 @@ $specs = [
     <?= icon('image',16) ?>&nbsp; Visualize in a Room
   </a>
 </div>
+<div style="margin-top:10px;">
+  <button type="button" class="btn btn-secondary btn-block btn-lg" onclick="open3DPreview()">
+    <?= icon('grid',16) ?>&nbsp; 3D Room Preview
+  </button>
+</div>
+
+<!-- 3D Preview Modal -->
+<div id="rv3dModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:9500;align-items:center;justify-content:center;padding:14px;">
+  <div style="background:var(--white);border-radius:var(--radius-xl);max-width:680px;width:100%;overflow:hidden;">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border);">
+      <p style="font-weight:700;">3D Room Preview</p>
+      <button onclick="close3DPreview()" style="cursor:pointer;"><?= icon('close',18) ?></button>
+    </div>
+    <div id="rv3dContainer" style="width:100%;height:420px;background:#111;"></div>
+    <div style="display:flex;gap:6px;padding:12px 18px 0;flex-wrap:wrap;" id="rv3dRoomTabs"></div>
+    <div style="display:flex;gap:8px;padding:12px 18px 14px;flex-wrap:wrap;align-items:center;">
+      <div id="rv3dSurfaceBtns" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+      <a class="btn btn-primary btn-sm" style="margin-left:auto;" id="rv3dDownload" download="room-3d-preview.jpg" onclick="this.href=rv3d_snapshot_rv3dContainer()">
+        <?= icon('download',13) ?>&nbsp;Save Snapshot
+      </a>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="assets/js/room_visualizer_three.js"></script>
+<script>
+var rv3dInited = false;
+var RV3D_ROOMS = ['kitchen','hall','dining','drawing','bedroom'];
+
+function rv3dRenderSurfaceBtns() {
+  var wrap = document.getElementById('rv3dSurfaceBtns');
+  var keys = rv3d_getSurfaces_rv3dContainer();
+  var labels = { floor:'Floor', wall:'Back Wall', sidewall:'Side Wall', counter:'Countertop' };
+  wrap.innerHTML = '';
+  keys.forEach(function (k, i) {
+    var b = document.createElement('button');
+    b.className = 'btn btn-secondary btn-sm';
+    b.textContent = labels[k] || k;
+    b.onclick = function () { rv3d_setSurface_rv3dContainer(k); };
+    wrap.appendChild(b);
+  });
+}
+function rv3dRenderRoomTabs(active) {
+  var wrap = document.getElementById('rv3dRoomTabs');
+  wrap.innerHTML = '';
+  RV3D_ROOMS.forEach(function (r) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'filter-chip' + (r === active ? ' active' : '');
+    b.textContent = rv3d_getRoomLabel(r);
+    b.onclick = function () {
+      rv3d_setRoom_rv3dContainer(r);
+      rv3dRenderRoomTabs(r);
+      rv3dRenderSurfaceBtns();
+    };
+    wrap.appendChild(b);
+  });
+}
+
+function open3DPreview() {
+  document.getElementById('rv3dModal').style.display = 'flex';
+  if (!rv3dInited) {
+    var photoSrc = <?= json_encode(($photos[0] ?? null) && file_exists(PHOTOS_DIR.'/'.$photos[0]['filename']) ? 'assets/uploads/photos/'.$photos[0]['filename'] : '') ?>;
+    if (photoSrc) {
+      RoomVisualizer3D('rv3dContainer', { textureUrl: photoSrc, room: 'kitchen' });
+      rv3dInited = true;
+      rv3dRenderRoomTabs('kitchen');
+      rv3dRenderSurfaceBtns();
+    }
+  }
+}
+function close3DPreview() { document.getElementById('rv3dModal').style.display = 'none'; }
+</script>
     <?php if (!$hasClients): ?>
     <p style="text-align:center;font-size:12px;color:var(--text4);margin-top:8px;">
       No clients yet — <a href="index.php?page=client_form" style="color:var(--black);font-weight:600;">add a client</a> to use selections.
@@ -254,8 +364,17 @@ $specs = [
 </div><!-- .detail-page -->
 
 <!-- Lightbox -->
+<!-- Lightbox -->
 <div class="lightbox" id="lightbox" onclick="lightboxBgClick(event)">
   <button class="lightbox-close" onclick="closeLightbox()"><?= icon('close',22) ?></button>
+
+  <button class="lightbox-nav lightbox-nav--prev" id="lightboxPrev"
+          onclick="event.stopPropagation(); lightboxPrev()" title="Previous"><?= icon('back',22) ?></button>
+  <button class="lightbox-nav lightbox-nav--next" id="lightboxNext"
+          onclick="event.stopPropagation(); lightboxNext()" title="Next"><?= icon('forward',22) ?></button>
+
+  <p class="lightbox-counter" id="lightboxCounter"></p>
+
   <div class="zoom-controls zoom-controls--lightbox" data-target="lightbox">
     <button class="zoom-btn" data-action="in">+</button>
     <button class="zoom-btn" data-action="out">−</button>
@@ -266,6 +385,10 @@ $specs = [
   </div>
   <a class="lightbox-dl" id="lightboxDl" href="#" download><?= icon('download',17) ?> Download</a>
 </div>
+
+<script>
+window.GALLERY_IMAGES = <?= json_encode($galleryImages) ?>;
+</script>
 
 <!-- Share modal -->
 <div class="modal-overlay" id="shareModal" onclick="if(event.target===this)closeShareModal()">
@@ -623,6 +746,42 @@ document.getElementById('addToSelModal')?.addEventListener('click', function(e) 
 /* Lightbox */
 .lightbox { display: none; }
 .lightbox.open { display: flex; }
+  /* Lightbox gallery nav */
+.lightbox-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.12);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: none;
+  z-index: 15;
+  transition: background .15s;
+}
+.lightbox-nav:hover { background: rgba(255,255,255,.24); }
+.lightbox-nav--prev { left: 12px; }
+.lightbox-nav--next { right: 12px; }
+.lightbox-counter {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: rgba(255,255,255,.8);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .3px;
+}
+@media (max-width: 480px) {
+  .lightbox-nav { width: 38px; height: 38px; }
+  .lightbox-nav--prev { left: 6px; }
+  .lightbox-nav--next { right: 6px; }
+}
  
 /* Add-to-selection modal — full-width on mobile, sheet */
 #addToSelModal > div {

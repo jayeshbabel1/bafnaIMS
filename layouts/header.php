@@ -10,7 +10,9 @@
 <link href="<?= getFontEmbedUrl(false) ?>" rel="stylesheet"/>
 <style><?= getCSSVariables() ?></style>
 <link rel="stylesheet" href="assets/css/style.css"/>
-<!-- <link rel="stylesheet" href="assets/css/watermark.css"/> -->
+<?php if (!function_exists('renderWatermarkCSS')) 
+  require_once BASE_PATH . '/includes/watermark.php'; ?>
+<style><?= renderWatermarkCSS(false) ?></style>
 <link rel="stylesheet" href="assets/css/clients.css"/>
 <?php if (!empty($extraCSS)) foreach ($extraCSS as $f): ?>
 <link rel="stylesheet" href="assets/css/<?= h($f) ?>"/>
@@ -25,6 +27,7 @@ $_error   = getFlash('error');
 $_success = getFlash('success');
 if (!function_exists('getLogo')) require_once BASE_PATH . '/includes/logo.php';
 $_authLogo = getLogo(false);
+$_trustedDeviceUser = isLoggedIn() ? getCurrentTrustedDevice('user') : null;
 ?>
 
 <?php if ($_toast || $_success): ?>
@@ -93,6 +96,7 @@ $_authLogo = getLogo(false);
 
   <!-- Right actions -->
   <div class="navbar-right">
+       
     <!-- Shortlist icon (mobile) -->
     <a href="index.php?page=shortlist" class="navbar-icon-btn" title="Shortlist">
       <?= icon('heart',17) ?>
@@ -103,13 +107,39 @@ $_authLogo = getLogo(false);
       <div class="navbar-avatar"><?= h($initials) ?></div>
       <span class="navbar-user-name"><?= h(explode(' ', $user['name'] ?? 'User')[0]) ?></span>
     </a>
-    <form method="POST" action="index.php" class="navbar-signout-form" style="display:contents;">
-      <input type="hidden" name="action" value="logout"/>
+    <?php if ($_trustedDeviceUser): ?>
+<button type="button" class="navbar-signout" onclick="openForceLogoutConfirm()">
+  <?= icon('logout',14) ?> Sign Out
+</button>
+<?php else: ?>
+<form method="POST" action="index.php" class="navbar-signout-form" style="display:contents;">
+  <input type="hidden" name="action" value="logout"/>
+  <?= csrfField() ?>
+  <button type="submit" class="navbar-signout">
+    <?= icon('logout',14) ?> Sign Out
+  </button>
+</form>
+<?php endif; ?>
+    
+    <!-- Language switcher -->
+<div class="lang-switch-wrap" id="langSwitchWrap">
+  <button class="navbar-icon-btn" id="langSwitchBtn" type="button" title="Language">
+    <span style="font-size:11px;font-weight:700;"><?= strtoupper(currentLang()) ?></span>
+  </button>
+  <div class="lang-switch-dropdown" id="langSwitchDropdown">
+    <?php foreach (LANG_LABELS as $code => $label): ?>
+    <form method="POST" action="index.php">
+      <input type="hidden" name="action" value="switch_language"/>
+      <input type="hidden" name="lang" value="<?= h($code) ?>"/>
+      <input type="hidden" name="return_url" value="index.php?page=<?= h($curPage) ?>"/>
       <?= csrfField() ?>
-      <button type="submit" class="navbar-signout">
-        <?= icon('logout',14) ?> Sign Out
+      <button type="submit" class="lang-switch-item <?= currentLang()===$code?'active':'' ?>">
+        <?= h($label) ?>
       </button>
     </form>
+    <?php endforeach; ?>
+  </div>
+</div>
     <!-- Hamburger -->
     <div class="navbar-hamburger" id="hamburgerBtn" onclick="toggleMobileMenu()">
       <div class="hamburger-line"></div>
@@ -147,17 +177,57 @@ $_authLogo = getLogo(false);
     </a>
   </div>
   <div class="mobile-menu-footer">
-    <form method="POST" action="index.php">
-      <input type="hidden" name="action" value="logout"/>
-      <?= csrfField() ?>
-      <button type="submit" class="btn btn-danger btn-block" style="border-radius:12px;">
-        <?= icon('logout',16) ?> Sign Out
-      </button>
-    </form>
+    <?php if ($_trustedDeviceUser): ?>
+<button type="button" class="btn btn-danger btn-block" style="border-radius:12px;" onclick="openForceLogoutConfirm()">
+  <?= icon('logout',16) ?> Sign Out
+</button>
+<?php else: ?>
+<form method="POST" action="index.php">
+  <input type="hidden" name="action" value="logout"/>
+  <?= csrfField() ?>
+  <button type="submit" class="btn btn-danger btn-block" style="border-radius:12px;">
+    <?= icon('logout',16) ?> Sign Out
+  </button>
+</form>
+<?php endif; ?>
   </div>
 </div>
 
 <?php endif; ?>
-
+<?php if (!empty($_trustedDeviceUser)): ?>
+<div id="forceLogoutModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9200;align-items:center;justify-content:center;padding:16px;">
+  <div style="background:var(--white);border-radius:var(--radius-xl);padding:26px;max-width:400px;width:100%;box-shadow:var(--shadow-xl);">
+    <div id="flStep1">
+      <p style="font-size:16px;font-weight:700;margin-bottom:8px;">Sign Out of Trusted Device?</p>
+      <p style="font-size:13px;color:var(--text3);line-height:1.6;margin-bottom:20px;">
+        This device is trusted for auto sign-in. Signing out here will also remove its trusted status.
+      </p>
+      <div style="display:flex;gap:10px;">
+        <button type="button" class="btn btn-secondary btn-block" onclick="closeForceLogoutConfirm()">Cancel</button>
+        <button type="button" class="btn btn-danger btn-block" onclick="flGoStep2()">Continue</button>
+      </div>
+    </div>
+    <div id="flStep2" style="display:none;">
+      <p style="font-size:16px;font-weight:700;margin-bottom:8px;">Confirm Forced Logout</p>
+      <p style="font-size:13px;color:var(--text3);line-height:1.6;margin-bottom:20px;">
+        You'll need your <strong>email and password</strong> to sign back in on this device. Continue?
+      </p>
+      <form method="POST" action="index.php">
+        <input type="hidden" name="action" value="forced_logout"/>
+        <?= csrfField() ?>
+        <div style="display:flex;gap:10px;">
+          <button type="button" class="btn btn-secondary btn-block" onclick="closeForceLogoutConfirm()">Cancel</button>
+          <button type="submit" class="btn btn-danger btn-block">Yes, Sign Out</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+<script>
+function openForceLogoutConfirm(){document.getElementById('flStep1').style.display='';document.getElementById('flStep2').style.display='none';document.getElementById('forceLogoutModal').style.display='flex';}
+function closeForceLogoutConfirm(){document.getElementById('forceLogoutModal').style.display='none';}
+function flGoStep2(){document.getElementById('flStep1').style.display='none';document.getElementById('flStep2').style.display='';}
+</script>
+<?php endif; ?>
 <!-- Page wrapper -->
 <div class="page-wrapper">

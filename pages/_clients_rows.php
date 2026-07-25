@@ -90,24 +90,14 @@ if (!isset($clients)) {
   <?php endforeach; ?>
 </div>
 
-<!-- Pagination -->
-<?php if ($totalPages > 1): ?>
-<?php
-$range = 2; $s = max(1, $currentPage - $range); $e = min($totalPages, $currentPage + $range);
-?>
-<div class="pagination">
-  <button class="pag-btn <?= $currentPage <= 1 ? 'disabled' : '' ?>" data-page="<?= $currentPage - 1 ?>">&lsaquo;</button>
-  <?php if ($s > 1): ?><button class="pag-btn" data-page="1">1</button><?php if ($s > 2): ?><span class="pag-ellipsis">…</span><?php endif; endif; ?>
-  <?php for ($pi = $s; $pi <= $e; $pi++): ?>
-  <button class="pag-btn <?= $pi === $currentPage ? 'active' : '' ?>" data-page="<?= $pi ?>"><?= $pi ?></button>
-  <?php endfor; ?>
-  <?php if ($e < $totalPages): ?><?php if ($e < $totalPages - 1): ?><span class="pag-ellipsis">…</span><?php endif; ?><button class="pag-btn" data-page="<?= $totalPages ?>"><?= $totalPages ?></button><?php endif; ?>
-  <button class="pag-btn <?= $currentPage >= $totalPages ? 'disabled' : '' ?>" data-page="<?= $currentPage + 1 ?>">&rsaquo;</button>
-</div>
-<p style="text-align:center;font-size:12px;color:var(--text4);margin-top:-10px;margin-bottom:20px;">
-  Showing <?= (($currentPage - 1) * $perPage) + 1 ?>–<?= min($currentPage * $perPage, $total) ?> of <?= $total ?>
-</p>
-<?php endif; ?>
+
+<!-- Pagination mount point — filled by pagination.js -->
+ <div class="pagination" id="paginationWrap"></div>
+ <?php if ($totalPages > 1): ?>
+<p style="text-align:center;font-size:12px;color:var(--text4);margin-top:10px;margin-bottom:20px;">
+   Showing <?= (($currentPage - 1) * $perPage) + 1 ?>–<?= min($currentPage * $perPage, $total) ?> of <?= $total ?>
+ </p>
+ <?php endif; ?>
 
 <?php endif; ?>
 

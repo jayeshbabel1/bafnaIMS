@@ -27,7 +27,8 @@ if ($p) {
 
 // True only when the admin can see this product but cannot modify it
 $readOnly = (bool)$p && !$_canEdit && $_canViewDetails;
-
+require_once BASE_PATH . '/includes/categories.php';
+$categoryNames = getCategoryNames();
 include __DIR__ . '/../_layout_top.php';
  
 $pal = $p ? (json_decode($p['palette']??'[]',true) ?: ['F2F0EC','D8CFC4','BFB0A0']) : ['F2F0EC','D8CFC4','BFB0A0'];
@@ -35,7 +36,7 @@ $g   = fn($k) => h($p[$k] ?? '');
 ?>
  
 <style>
-/* ── Product Edit Responsive Layout ─────────────────────────── */
+/*  Product Edit Responsive Layout  */
  
 /* Mobile first: single column */
 .pe-layout {
@@ -168,11 +169,16 @@ $g   = fn($k) => h($p[$k] ?? '');
         <?= icon('eye',12) ?>&nbsp; View only — you don't have edit access
     </span>
     <?php endif; ?>
-    <?php if ($p): ?>
+   <?php if ($p): ?>
     <a href="../index.php?page=product&id=<?= $pid ?>" target="_blank"
        class="btn-admin-secondary btn-admin-sm">
         <?= icon('eye',14) ?> Preview
     </a>
+    <?php if ($p): ?>
+    <button type="button" class="btn-admin-secondary btn-admin-sm" onclick="open3DPreviewAdmin()">
+        <?= icon('grid',14) ?> 3D Preview
+    </button>
+    <?php endif; ?>
     <?php
     $waThumb = '';
     if (!empty($existingPhotos)) {
@@ -229,13 +235,11 @@ $g   = fn($k) => h($p[$k] ?? '');
                     <div>
                         <label class="admin-label">Category</label>
                         <select name="category" class="admin-input admin-select">
-                            <option value="">— Select —</option>
-                            <?php foreach (CATEGORIES as $c): ?>
-                            <option value="<?= h($c) ?>" <?= ($p['category']??'')===$c?'selected':'' ?>>
-                                <?= h($c) ?>
-                            </option>
-                            <?php endforeach; ?>
-                        </select>
+    <option value="">— Select —</option>
+    <?php foreach ($categoryNames as $c): ?>
+    <option value="<?= h($c) ?>" <?= ($p['category']??'')===$c?'selected':'' ?>><?= h($c) ?></option>
+    <?php endforeach; ?>
+</select>
                     </div>
                     <div>
                         <label class="admin-label">Sub-Category</label>
@@ -299,9 +303,14 @@ $g   = fn($k) => h($p[$k] ?? '');
                 </div>
  
                 <div style="margin-top:14px;">
-                    <label class="admin-label">Description</label>
-                    <textarea name="description" class="admin-input" rows="3"
-                              style="resize:vertical;"><?= $g('description') ?></textarea>
+                    <div style="display:flex;align-items:center;justify-content:space-between;">
+                        <label class="admin-label" style="margin-bottom:0;">Description</label>
+                        <button type="button" onclick="autoGenDescription()" class="btn-admin-secondary btn-admin-sm">
+                            <?= icon('refresh',12) ?> Auto-Generate
+                        </button>
+                    </div>
+                    <textarea name="description" id="descField" class="admin-input" rows="3"
+                              style="resize:vertical;margin-top:6px;"><?= $g('description') ?></textarea>
                 </div>
             </div>
  
@@ -448,7 +457,43 @@ $g   = fn($k) => h($p[$k] ?? '');
                 <input type="hidden" name="palette" id="paletteHidden"
                        value="<?= h($p['palette'] ?? '["F2F0EC","D8CFC4","BFB0A0"]') ?>"/>
             </div>
- 
+           
+           <div class="admin-form-section">
+  <p class="admin-form-section-title">Product Video</p>
+  <?php if ($p && $p['video_file']): ?>
+  <video src="../<?= VIDEOS_URL ?>/<?= h($p['video_file']) ?>" controls style="width:100%;border-radius:8px;margin-bottom:10px;"></video>
+  <form method="POST" action="index.php" style="margin-bottom:10px;">
+    <input type="hidden" name="action" value="delete_video"/>
+    <input type="hidden" name="product_id" value="<?= $pid ?>"/>
+    <?= csrfField() ?>
+    <button type="submit" class="btn-admin-danger btn-admin-sm" data-confirm="Remove video?"><?= icon('trash',13) ?> Remove Video</button>
+  </form>
+  <?php elseif ($p && $p['video_url']): ?>
+  <p style="font-size:12px;margin-bottom:10px;word-break:break-all;"><?= icon('info',12) ?> <?= h($p['video_url']) ?></p>
+  <form method="POST" action="index.php" style="margin-bottom:10px;">
+    <input type="hidden" name="action" value="delete_video"/>
+    <input type="hidden" name="product_id" value="<?= $pid ?>"/>
+    <?= csrfField() ?>
+    <button type="submit" class="btn-admin-danger btn-admin-sm" data-confirm="Remove video?"><?= icon('trash',13) ?> Remove Video</button>
+  </form>
+  <?php endif; ?>
+  <label class="admin-label">Upload Video File</label>
+  <input type="file" name="video_file" accept="video/mp4,video/webm,video/quicktime" class="admin-input" style="padding:6px;margin-bottom:10px;"/>
+  <label class="admin-label">Or Video URL (YouTube/Vimeo/etc.)</label>
+  <input type="url" name="video_url" class="admin-input" value="<?= $g('video_url') ?>" placeholder="https://youtube.com/watch?v=..."/>
+  <p style="font-size:11px;color:var(--text3);margin-top:5px;">Uploaded file takes priority over URL if both set.</p>
+             
+             <?php if ($p && ($p['video_file'] || $p['video_url'])):
+ $vidPublicUrl = $p['video_file'] ? BASE_URL.'/'.VIDEOS_URL.'/'.$p['video_file'] : $p['video_url'];
+  $waVidMsg = rawurlencode("*".$p['name']." — Video*\n\n".$vidPublicUrl);
+?>
+<a href="https://wa.me/?text=<?= $waVidMsg ?>" target="_blank" rel="noopener"
+   class="btn-admin-secondary btn-admin-sm" style="color:#25D366;border-color:#25D366;text-decoration:none;margin-top:8px;display:inline-flex;">
+  <?= icon('whatsapp',13) ?> Share Video
+</a>
+<?php endif; ?>
+</div>
+          
             <!-- Sort Order -->
             <div class="admin-form-section">
                 <p class="admin-form-section-title">Display Order</p>
@@ -517,7 +562,103 @@ function downloadProductPdf(productId, productName) {
         .catch(function(e) { alert('PDF generation failed: ' + e.message); })
         .finally(function() { btn.disabled = false; btn.innerHTML = orig; });
 }
+  function toTitleCase(str) {
+    return str.toLowerCase().replace(/\b\w/g, function(char) {
+        return char.toUpperCase();
+    });
+}
+  
+  function autoGenDescription() {
+    var rawName = (document.querySelector('[name="name"]')?.value || '').trim();
+    if (!rawName) { alert('Enter product name first.'); return; }
+                    var name = toTitleCase(rawName);
+
+   var templates = [
+        name + ' is a premium natural stone prized for its distinctive veining and rich texture, making it a striking choice for both residential and commercial interiors.',
+        name + ' brings timeless elegance to any space, with a refined surface that pairs beautifully with modern and classical design alike.',
+        name + ' features a luxurious finish and natural character, ideal for flooring, countertops, wall cladding, and statement architectural elements.',
+        name + ' is a high-grade stone selection known for its durability and aesthetic appeal, perfect for creating sophisticated, long-lasting interiors.',
+        name + ' showcases a unique natural pattern and premium quality, offering a versatile option for luxury flooring, facades, and bespoke interior finishes.',
+        name + ' stands out with its exquisite natural grain and premium craftsmanship, a favorite among architects and designers for high-end projects.',
+        name + ' offers an elegant blend of strength and beauty, well-suited for kitchens, bathrooms, lobbies, and other premium living spaces.',
+        name + ' is a distinguished stone with a naturally captivating surface, delivering enduring style and exceptional value for discerning clients.',
+        name + ' combines rich tonal depth with a smooth polished character, making it an outstanding choice for luxury flooring and cladding projects.',
+        name + ' is carefully selected for its superior quality and visual appeal, bringing a touch of natural sophistication to any architectural design.'
+    ];
+    var pick = templates[Math.floor(Math.random() * templates.length)];
+    document.getElementById('descField').value = pick;
+}
 </script>
+
+<?php if ($p): ?>
+<div id="rv3dModalA" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:9500;align-items:center;justify-content:center;padding:14px;">
+  <div style="background:#fff;border-radius:14px;max-width:680px;width:100%;overflow:hidden;">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border);">
+      <p style="font-weight:700;">3D Room Preview</p>
+      <button onclick="close3DPreviewAdmin()" style="cursor:pointer;"><?= icon('close',18) ?></button>
+    </div>
+    <div id="rv3dContainerA" style="width:100%;height:420px;background:#111;"></div>
+   <div style="display:flex;gap:6px;padding:12px 18px 0;flex-wrap:wrap;" id="rv3dRoomTabsA"></div>
+    <div style="display:flex;gap:8px;padding:12px 18px 14px;flex-wrap:wrap;align-items:center;">
+      <div id="rv3dSurfaceBtnsA" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+      <a class="btn-admin-primary btn-admin-sm" style="margin-left:auto;" id="rv3dDownloadA" download="room-3d-preview.jpg" onclick="this.href=rv3d_snapshot_rv3dContainerA()">
+        <?= icon('download',13) ?> Save
+      </a>
+    </div>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="../assets/js/room_visualizer_three.js"></script>
+<script>
+var rv3dInitedA = false;
+var RV3D_ROOMS_A = ['kitchen','hall','dining','drawing','bedroom'];
+
+function rv3dRenderSurfaceBtnsA() {
+  var wrap = document.getElementById('rv3dSurfaceBtnsA');
+  var keys = rv3d_getSurfaces_rv3dContainerA();
+  var labels = { floor:'Floor', wall:'Back Wall', sidewall:'Side Wall', counter:'Countertop' };
+  wrap.innerHTML = '';
+  keys.forEach(function (k) {
+    var b = document.createElement('button');
+    b.className = 'btn-admin-secondary btn-admin-sm';
+    b.textContent = labels[k] || k;
+    b.onclick = function () { rv3d_setSurface_rv3dContainerA(k); };
+    wrap.appendChild(b);
+  });
+}
+function rv3dRenderRoomTabsA(active) {
+  var wrap = document.getElementById('rv3dRoomTabsA');
+  wrap.innerHTML = '';
+  RV3D_ROOMS_A.forEach(function (r) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'tag-pill' + (r === active ? ' active' : '');
+    b.textContent = rv3d_getRoomLabel(r);
+    b.onclick = function () {
+      rv3d_setRoom_rv3dContainerA(r);
+      rv3dRenderRoomTabsA(r);
+      rv3dRenderSurfaceBtnsA();
+    };
+    wrap.appendChild(b);
+  });
+}
+
+function open3DPreviewAdmin() {
+  document.getElementById('rv3dModalA').style.display = 'flex';
+  if (!rv3dInitedA) {
+    var photoSrc = <?= json_encode((!empty($existingPhotos) && ($r = resolvePhotoPath(PHOTOS_DIR, $existingPhotos[0]['filename']))) ? '../assets/uploads/photos/'.$r : '') ?>;
+    if (photoSrc) {
+      RoomVisualizer3D('rv3dContainerA', { textureUrl: photoSrc, room: 'kitchen' });
+      rv3dInitedA = true;
+      rv3dRenderRoomTabsA('kitchen');
+      rv3dRenderSurfaceBtnsA();
+    }
+  }
+}
+function close3DPreviewAdmin() { document.getElementById('rv3dModalA').style.display = 'none'; }
+</script>
+<?php endif; ?>
  
 <?php include __DIR__ . '/_wa_share_modal.php'; ?>
 <?php include __DIR__ . '/../_layout_bottom.php'; ?>

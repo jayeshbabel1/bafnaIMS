@@ -4,10 +4,10 @@
  */
 $pageTitle = 'Clients — ' . APP_NAME;
 $showNav   = true;
-
+$extraJS   = ['pagination.js'];
 require_once BASE_PATH . '/includes/clients.php';
 
-$perPage     = 10;
+$perPage     = 9;
 $currentPage = max(1, (int)($_GET['p'] ?? 1));
 $search      = trim($_GET['q'] ?? '');
 $isAjax      = !empty($_GET['ajax']);
@@ -86,6 +86,8 @@ if ($isAjax) {
 
   let state = { q: <?= json_encode($search) ?>, page: <?= $currentPage ?> };
   let timer = null;
+  let totalPages = <?= (int)$totalPages ?>;
+  let pager = null;
 
   async function load(page, push) {
     state.page = page;
@@ -97,7 +99,11 @@ if ($isAjax) {
       const d = await r.json();
       content.innerHTML = d.html;
       if (countEl) countEl.innerHTML = '<strong style="font-size:18px;color:var(--text);">' + d.total + '</strong> clients';
-      bindPagination();
+      totalPages = d.pages;
+    if (pager) {
+       pager.setWrapEl(document.getElementById('paginationWrap'));
+       pager.render(d.current, d.pages);
+     }
       if (push !== false) {
         const hp = new URLSearchParams({ page: 'clients' });
         if (state.q) hp.set('q', state.q);
@@ -109,15 +115,7 @@ if ($isAjax) {
     }
   }
 
-  function bindPagination() {
-    content.querySelectorAll('.pag-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        if (btn.classList.contains('disabled') || btn.classList.contains('active')) return;
-        load(parseInt(btn.dataset.page));
-      });
-    });
-  }
-
+  
   if (searchEl) {
     searchEl.addEventListener('input', () => {
       const v = searchEl.value.trim();
@@ -133,7 +131,14 @@ if ($isAjax) {
     });
   }
 
-  bindPagination();
+ document.addEventListener('DOMContentLoaded', () => {
+   pager = initPagination({
+     wrapEl: document.getElementById('paginationWrap'),
+     btnClass: 'pag-btn',
+     onPage: (page) => load(page)
+   });
+   pager.render(state.page, totalPages);
+ });
 })();
 </script>
 

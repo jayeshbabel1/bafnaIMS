@@ -6,6 +6,11 @@
  */
 requireAdminPermission('settings.product_views');
 require_once BASE_PATH . '/includes/product_views.php';
+require_once BASE_PATH . '/includes/watermark.php';
+ensureWatermarkPermission();
+$wm = getWatermarkSettings();
+$wmCanManage = adminCan('settings.watermark');
+$wmCurrentUrl = getWatermarkUrl(true);
 ensureProductViewTables();
 
 // ── AJAX: save one panel's full config (default view + all 3 view field sets) ─
@@ -162,6 +167,9 @@ function pvsRenderPanel(string $panel, array $bundle, array $fieldLabels, array 
 <div class="pvs-tabs">
   <button class="pvs-tab active" onclick="pvsSwitchTab('admin')">Admin Product View</button>
   <button class="pvs-tab" onclick="pvsSwitchTab('user')">User Product View</button>
+  <?php if ($wmCanManage): ?>
+  <button class="pvs-tab" onclick="pvsSwitchTab('watermark')">Watermark</button>
+  <?php endif; ?>
 </div>
 
 <div class="pvs-panel active" id="pvs-panel-admin">
@@ -170,6 +178,77 @@ function pvsRenderPanel(string $panel, array $bundle, array $fieldLabels, array 
 <div class="pvs-panel" id="pvs-panel-user">
   <?php pvsRenderPanel('user', $userBundle, $fieldLabels, $themes, $currentTheme); ?>
 </div>
+<?php if ($wmCanManage): ?>
+<div class="pvs-panel" id="pvs-panel-watermark">
+  <div class="admin-form-section">
+    <p class="admin-form-section-title">Watermark Settings</p>
+
+    <form method="POST" action="index.php" style="margin-bottom:20px;">
+      <input type="hidden" name="action" value="save_watermark_settings"/>
+      <?= csrfField() ?>
+
+      <label class="admin-check-row" style="margin-bottom:12px;">
+        <input type="checkbox" name="enable_user" value="1" <?= $wm['enable_user']?'checked':'' ?>/>
+        <span style="font-size:13px;font-weight:600;">Enable watermark on User Panel product images</span>
+      </label>
+      <label class="admin-check-row" style="margin-bottom:18px;">
+        <input type="checkbox" name="enable_admin" value="1" <?= $wm['enable_admin']?'checked':'' ?>/>
+        <span style="font-size:13px;font-weight:600;">Enable watermark on Admin Panel product images</span>
+      </label>
+
+      <div class="acf-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px;">
+        <div>
+          <label class="admin-label">Position</label>
+          <select name="position" class="admin-input admin-select">
+            <?php foreach (WM_POSITIONS as $p): ?>
+            <option value="<?= h($p) ?>" <?= $wm['position']===$p?'selected':'' ?>><?= h(ucwords(str_replace('-',' ',$p))) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div>
+          <label class="admin-label">Color</label>
+          <input type="color" name="color" class="admin-input" value="<?= h($wm['color']) ?>" style="height:40px;padding:4px;"/>
+        </div>
+        <div>
+          <label class="admin-label">Opacity (0–1)</label>
+          <input type="number" name="opacity" class="admin-input" step="0.05" min="0" max="1" value="<?= h($wm['opacity']) ?>"/>
+        </div>
+        <div>
+          <label class="admin-label">Size (px)</label>
+          <input type="number" name="size" class="admin-input" min="10" max="200" value="<?= h($wm['size']) ?>"/>
+        </div>
+      </div>
+
+      <button type="submit" class="btn-admin-primary"><?= icon('check',15) ?> Save Watermark Settings</button>
+    </form>
+
+    <hr class="divider"/>
+
+    <p class="admin-form-section-title" style="border:none;">Watermark Image</p>
+    <?php if ($wmCurrentUrl): ?>
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;">
+      <div style="width:80px;height:80px;border:1px solid var(--admin-table-border,var(--border));border-radius:8px;background:#333;display:flex;align-items:center;justify-content:center;">
+        <img src="<?= h($wmCurrentUrl) ?>" alt="" style="max-width:100%;max-height:100%;object-fit:contain;"/>
+      </div>
+      <form method="POST" action="index.php">
+        <input type="hidden" name="action" value="remove_watermark_image"/>
+        <?= csrfField() ?>
+        <button type="submit" class="btn-admin-danger btn-admin-sm" data-confirm="Remove watermark image?"><?= icon('trash',13) ?> Remove</button>
+      </form>
+    </div>
+    <?php else: ?>
+    <p style="font-size:12px;color:var(--admin-text3,var(--text3));margin-bottom:14px;">No watermark image uploaded yet.</p>
+    <?php endif; ?>
+
+    <form method="POST" action="index.php" enctype="multipart/form-data">
+      <input type="hidden" name="action" value="upload_watermark_image"/>
+      <?= csrfField() ?>
+      <input type="file" name="wm_image_file" accept=".png,.jpg,.jpeg,.webp" class="admin-input" style="padding:6px;margin-bottom:10px;" required/>
+      <button type="submit" class="btn-admin-primary"><?= icon('upload',15) ?> Upload Watermark</button>
+    </form>
+  </div>
+</div>
+<?php endif; ?>
 
 <script>
 function pvsSwitchTab(panel) {

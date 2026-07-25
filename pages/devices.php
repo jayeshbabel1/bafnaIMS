@@ -77,14 +77,10 @@ $devices = getUserDevices($user['id']);
                 data-id="<?= (int)$d['id'] ?>" data-name="<?= h($d['device_name']) ?>">
           <?= icon('edit', 13) ?>&nbsp; Rename
         </button>
-        <form method="POST" action="index.php">
-          <input type="hidden" name="action"    value="revoke_device"/>
-          <input type="hidden" name="device_id" value="<?= (int)$d['id'] ?>"/>
-          <input type="hidden" name="return_url" value="index.php?page=devices"/>
-          <?= csrfField() ?>
-          <button type="submit" class="btn btn-danger btn-sm">
-            <?= icon('trash', 13) ?>&nbsp; Remove
-          </button>
+        <button type="button" class="btn btn-danger btn-sm dev-forcelogout-btn"
+                data-id="<?= (int)$d['id'] ?>" data-name="<?= h($d['device_name']) ?>">
+          <?= icon('logout', 13) ?>&nbsp; Forced Logout
+        </button>
         </form>
       </div>
     </div>
@@ -96,7 +92,80 @@ $devices = getUserDevices($user['id']);
     Removing a device signs it out immediately and it will need to log in normally again.
   </p>
 </div>
+<!-- Forced Logout modal — double confirmation -->
+<div id="devForceLogoutModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9100;align-items:center;justify-content:center;padding:16px;">
+  <div style="background:var(--white);border-radius:var(--radius-xl);padding:26px;max-width:400px;width:100%;box-shadow:var(--shadow-xl);">
 
+    <!-- Step 1 -->
+    <div id="dflStep1">
+      <div style="width:52px;height:52px;border-radius:50%;background:var(--danger-bg);color:var(--danger);display:flex;align-items:center;justify-content:center;margin-bottom:16px;">
+        <?= icon('logout', 22) ?>
+      </div>
+      <p style="font-size:16px;font-weight:700;margin-bottom:8px;">Force Logout This Device?</p>
+      <p style="font-size:13px;color:var(--text3);line-height:1.6;margin-bottom:20px;">
+        "<span id="dflName1"></span>" will be removed from your trusted devices and signed out immediately.
+      </p>
+      <div style="display:flex;gap:10px;">
+        <button type="button" class="btn btn-secondary btn-block" id="dflCancel1">Cancel</button>
+        <button type="button" class="btn btn-danger btn-block" id="dflNext">Continue</button>
+      </div>
+    </div>
+
+    <!-- Step 2 — final confirmation -->
+    <div id="dflStep2" style="display:none;">
+      <div style="width:52px;height:52px;border-radius:50%;background:var(--danger-bg);color:var(--danger);display:flex;align-items:center;justify-content:center;margin-bottom:16px;">
+        <?= icon('lock', 22) ?>
+      </div>
+      <p style="font-size:16px;font-weight:700;margin-bottom:8px;">Are You Absolutely Sure?</p>
+      <p style="font-size:13px;color:var(--text3);line-height:1.6;margin-bottom:20px;">
+        You will need your <strong>username and password</strong> to access this device again as "<span id="dflName2"></span>". This cannot be undone.
+      </p>
+      <form method="POST" action="index.php" id="dflForm">
+        <input type="hidden" name="action"     value="revoke_device"/>
+        <input type="hidden" name="device_id"  id="dflDeviceId" value=""/>
+        <input type="hidden" name="return_url" value="index.php?page=devices"/>
+        <?= csrfField() ?>
+        <div style="display:flex;gap:10px;">
+          <button type="button" class="btn btn-secondary btn-block" id="dflCancel2">Cancel</button>
+          <button type="submit" class="btn btn-danger btn-block">Yes, Forced Logout</button>
+        </div>
+      </form>
+    </div>
+
+  </div>
+</div>
+
+<script>
+(function () {
+  var modal = document.getElementById('devForceLogoutModal');
+  var step1 = document.getElementById('dflStep1');
+  var step2 = document.getElementById('dflStep2');
+
+  function openModal(id, name) {
+    document.getElementById('dflName1').textContent = name;
+    document.getElementById('dflName2').textContent = name;
+    document.getElementById('dflDeviceId').value = id;
+    step1.style.display = '';
+    step2.style.display = 'none';
+    modal.style.display = 'flex';
+  }
+  function closeModal() { modal.style.display = 'none'; }
+
+  document.querySelectorAll('.dev-forcelogout-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      openModal(btn.dataset.id, btn.dataset.name);
+    });
+  });
+
+  document.getElementById('dflNext').addEventListener('click', function () {
+    step1.style.display = 'none';
+    step2.style.display = '';
+  });
+  document.getElementById('dflCancel1').addEventListener('click', closeModal);
+  document.getElementById('dflCancel2').addEventListener('click', closeModal);
+  modal.addEventListener('click', function (e) { if (e.target === modal) closeModal(); });
+})();
+</script>
 <!-- Rename modal -->
 <div id="devRenameModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9000;align-items:center;justify-content:center;padding:16px;">
   <div style="background:var(--white);border-radius:var(--radius-xl);padding:24px;max-width:380px;width:100%;box-shadow:var(--shadow-xl);">

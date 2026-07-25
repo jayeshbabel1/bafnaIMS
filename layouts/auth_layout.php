@@ -14,7 +14,19 @@
 </head>
 <body class="auth-body">
 <div class="app-shell">
-
+<div style="position:absolute;top:14px;right:14px;z-index:50;display:flex;gap:4px;">
+  <?php foreach (LANG_LABELS as $code => $label): ?>
+  <form method="POST" action="index.php" style="display:inline;">
+    <input type="hidden" name="action" value="switch_language"/>
+    <input type="hidden" name="lang" value="<?= h($code) ?>"/>
+    <input type="hidden" name="return_url" value="<?= h($_SERVER['REQUEST_URI'] ?? 'index.php?page=login') ?>"/>
+    <?= csrfField() ?>
+    <button type="submit" style="font-size:11px;font-weight:700;padding:5px 9px;border-radius:6px;border:1px solid #e0d8ce;background:<?= currentLang()===$code?'#111':'#fff' ?>;color:<?= currentLang()===$code?'#fff':'#555' ?>;cursor:pointer;">
+      <?= strtoupper($code) ?>
+    </button>
+  </form>
+  <?php endforeach; ?>
+</div>
 <?php
 $_toast   = getFlash('toast');
 $_error   = getFlash('error');

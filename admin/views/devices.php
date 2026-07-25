@@ -15,9 +15,10 @@ if (!empty($_GET['ajax_devices'])) {
     $currentPage = max(1, (int)($_GET['p'] ?? 1));
 
     $result = adminListAllDevices([
-        'search' => $search,
-        'limit'  => $perPage,
-        'offset' => ($currentPage - 1) * $perPage,
+        'search'   => $search,
+        'limit'    => $perPage,
+        'offset'   => ($currentPage - 1) * $perPage,
+        'admin_id' => isSuperAdmin() ? null : (int)($_SESSION['admin_id'] ?? 0),
     ]);
     $devices    = $result['rows'];
     $total      = $result['total'];
@@ -136,6 +137,11 @@ include __DIR__ . '/../_layout_top.php';
     </button>
   </form>
 </div>
+<?php if (isSuperAdmin()): ?>
+<p style="font-size:12px;color:var(--admin-text3,var(--text3));margin-bottom:12px;">
+  <?= icon('info', 12) ?> Showing trusted devices for <strong>all</strong> admins and users.
+</p>
+<?php endif; ?>
 <div class="devices-toolbar" style="display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap;">
   <div class="dev-search-wrap">
     <?= icon('search', 14) ?>
