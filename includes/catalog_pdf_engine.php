@@ -152,12 +152,24 @@ function generateCatalogPdf(int $catalogId): array {
         _cpeRenderCoverPage($pdf, $cat, $config);
 
         $layout = $config['layout'] ?? 'one_per_page';
+        $gridLayouts = ['two_per_page', 'four_per_page', 'grid'];
+        if (in_array($layout, $gridLayouts, true)) {
+            // Manual absolute-position grids cannot tolerate TCPDF's
+            // auto page-break — it inserts pages mid-cell and desyncs
+            // the slot math, causing images/text to land on the wrong
+            // page (looks like "1 image per page then a stray text page").
+            $pdf->SetAutoPageBreak(false, 0);
+        }
         switch ($layout) {
             case 'two_per_page':  _cpeRenderLayoutN($pdf, $products, $config, 2); break;
             case 'four_per_page': _cpeRenderLayoutN($pdf, $products, $config, 4); break;
             case 'grid':          _cpeRenderLayoutGrid($pdf, $products, $config); break;
             case 'architect':     foreach ($products as $p) _cpeRenderLayoutArchitect($pdf, $p, $config); break;
             default:               foreach ($products as $p) _cpeRenderLayoutOne($pdf, $p, $config); break;
+        }
+        if (in_array($layout, $gridLayouts, true)) {
+            $footerOn = !empty(array_filter($config['footer'] ?? []));
+            $pdf->SetAutoPageBreak(true, $footerOn ? 22 : 15); // restore for closing page
         }
 
         if (!empty($config['closing']['enabled'])) {
@@ -290,6 +302,18 @@ function _cpeProductPhotoFull(int $productId): ?string {
     if (!$row) return null;
     $resolved = resolvePhotoPath(PHOTOS_DIR, $row['filename']);
     return $resolved ? PHOTOS_DIR . '/' . $resolved : null;
+}
+
+// Truncate a string with ellipsis so it never exceeds $maxW mm at given font/size.
+function _cpeClampText(\TCPDF $pdf, string $text, float $maxW, string $font, string $style, float $size): string {
+    $pdf->SetFont($font, $style, $size);
+    if ($pdf->GetStringWidth($text) <= $maxW) return $text;
+    $ell = '…';
+    while (mb_strlen($text) > 1) {
+        $text = mb_substr($text, 0, -1);
+        if ($pdf->GetStringWidth($text . $ell) <= $maxW) return $text . $ell;
+    }
+    return $ell;
 }
 
 function _cpeFieldRows(array $p, array $fields): array {
@@ -435,11 +459,14 @@ function _cpeRenderLayoutOne(\TCPDF $pdf, array $p, array $config): void {
 }
 
 // ── Layout N: 2 or 4 products per page (shared grid-cell renderer) ─────
+// Fixed-height zones per cell: image zone (55%) + name zone (fixed 1 line)
+// + detail zone (fixed N lines, clamped) — guarantees no cell ever exceeds
+// its allotted cellH, so cells can never bleed into the one below.
 function _cpeRenderLayoutN(\TCPDF $pdf, array $products, array $config, int $perPage): void {
     $font = $config['_font_family'] ?? 'helvetica';
     $fields = $config['fields'] ?? [];
     $cols = $perPage === 2 ? 1 : 2;
-    $rowsPerPage = $perPage === 2 ? 2 : 2;
+    $rowsPerPage = 2;
     $pageW = $pdf->getPageWidth();
     $pageH = $pdf->getPageHeight();
     $mL = 15; $mT = $pdf->getMargins()['top']; $mB = $pdf->getMargins()['bottom'];
@@ -447,6 +474,21 @@ function _cpeRenderLayoutN(\TCPDF $pdf, array $products, array $config, int $per
     $usableH = $pageH - $mT - $mB;
     $cellW = $usableW / $cols;
     $cellH = $usableH / $rowsPerPage;
+    $pad = 8;
+    $innerW = $cellW - ($pad * 2);
+
+    $nameSize = $perPage === 2 ? 13 : 10;
+    $detailSize = $perPage === 2 ? 9 : 7.5;
+    $detailLineH = $perPage === 2 ? 5 : 4.2;
+    $maxDetailLines = $perPage === 2 ? 4 : 2;
+    $nameLineH = $perPage === 2 ? 7 : 5.5;
+
+    $imgH = $cellH * 0.48;
+    $nameZoneH = $nameLineH;
+    $detailZoneH = $maxDetailLines * $detailLineH;
+    // Guard: if computed zones exceed cell (very small custom page sizes), shrink image zone
+    $usedH = $imgH + $nameZoneH + $detailZoneH + ($pad * 2);
+    if ($usedH > $cellH) $imgH = max(20, $cellH - $nameZoneH - $detailZoneH - ($pad * 2));
 
     $i = 0;
     foreach ($products as $p) {
@@ -458,34 +500,42 @@ function _cpeRenderLayoutN(\TCPDF $pdf, array $products, array $config, int $per
         $pdf->SetDrawColor(...($config['_colors_rgb']['border'] ?? [225,225,225]));
         $pdf->Rect($x + 3, $y + 3, $cellW - 6, $cellH - 6, 'D');
 
-        $imgH = $cellH * 0.5;
         $full = _cpeProductPhotoFull($p['id']);
         if ($full && file_exists($full)) {
             $info = @getimagesize($full);
             if ($info) {
                 $ratio = $info[0]/max($info[1],1);
-                $imgW = min($cellW - 16, $imgH * $ratio);
+                $imgW = min($innerW, $imgH * $ratio);
                 $tmp = _cpeTempImage($full, $config);
                 if ($tmp) {
-                    try { $pdf->Image($tmp, $x + ($cellW-$imgW)/2, $y + 8, $imgW, $imgH, '', '', '', true, 150, 'C'); } catch (\Throwable $e) {}
+                    try { $pdf->Image($tmp, $x + ($cellW-$imgW)/2, $y + $pad, $imgW, $imgH, '', '', '', true, 150, 'C'); } catch (\Throwable $e) {}
                     @unlink($tmp);
                 }
             }
         }
 
-        $ty = $y + $imgH + 12;
-        $pdf->SetXY($x + 8, $ty);
-        $pdf->SetFont($font, 'B', $perPage === 2 ? 13 : 10);
-        $pdf->SetTextColor(...($config['_colors_rgb']['text'] ?? [20,20,20]));
-        $pdf->MultiCell($cellW - 16, 6, $p['name'] ?? '', 0, 'L');
-        $ty = $pdf->GetY() + 1;
+        $ty = $y + $pad + $imgH + 4;
 
+        // Name — clamp to single line, ellipsis if too long
+        $nameTxt = _cpeClampText($pdf, $p['name'] ?? '', $innerW, $font, 'B', $nameSize);
+        $pdf->SetXY($x + $pad, $ty);
+        $pdf->SetFont($font, 'B', $nameSize);
+        $pdf->SetTextColor(...($config['_colors_rgb']['text'] ?? [20,20,20]));
+        $pdf->Cell($innerW, $nameZoneH, $nameTxt, 0, 0, 'L');
+        $ty += $nameZoneH + 1;
+
+        // Detail lines — one field per line, clamped, capped at $maxDetailLines
         $rows = _cpeFieldRows($p, array_diff($fields, ['name']));
-        $pdf->SetFont($font, '', $perPage === 2 ? 9 : 7.5);
+        $pdf->SetFont($font, '', $detailSize);
         $pdf->SetTextColor(100,100,100);
-        $lineTxt = implode('  ·  ', array_map(fn($r) => $r[0].': '.$r[1], array_slice($rows, 0, $perPage===2?6:3)));
-        $pdf->SetXY($x + 8, $ty);
-        $pdf->MultiCell($cellW - 16, 5, $lineTxt, 0, 'L');
+        $shown = array_slice($rows, 0, $maxDetailLines);
+        foreach ($shown as $row2) {
+            $lineTxt = _cpeClampText($pdf, $row2[0] . ': ' . $row2[1], $innerW, $font, '', $detailSize);
+            $pdf->SetXY($x + $pad, $ty);
+            $pdf->Cell($innerW, $detailLineH, $lineTxt, 0, 0, 'L');
+            $ty += $detailLineH;
+            if ($ty > $y + $cellH - 4) break; // hard stop — never exceed cell bottom
+        }
 
         $i++;
     }
@@ -499,6 +549,7 @@ function _cpeRenderLayoutGrid(\TCPDF $pdf, array $products, array $config): void
     $mL = 15; $mT = $pdf->getMargins()['top']; $mB = $pdf->getMargins()['bottom'];
     $cellW = ($pageW - 30) / $cols;
     $cellH = ($pageH - $mT - $mB) / $rowsPerPage;
+    $innerW = $cellW - 6;
 
     $i = 0;
     foreach ($products as $p) {
@@ -507,7 +558,10 @@ function _cpeRenderLayoutGrid(\TCPDF $pdf, array $products, array $config): void
         $col = $slot % $cols; $row = intdiv($slot, $cols);
         $x = $mL + $col * $cellW; $y = $mT + $row * $cellH;
 
-        $imgSize = min($cellW, $cellH) - 22;
+        $nameH = 4; $lotH = 4;
+        $imgSize = min($cellW, $cellH - $nameH - $lotH - 12) - 14;
+        $imgSize = max(20, $imgSize);
+
         $full = _cpeProductPhotoFull($p['id']);
         if ($full && file_exists($full)) {
             $tmp = _cpeTempImage($full, $config);
@@ -516,14 +570,19 @@ function _cpeRenderLayoutGrid(\TCPDF $pdf, array $products, array $config): void
                 @unlink($tmp);
             }
         }
-        $pdf->SetXY($x + 2, $y + $imgSize + 8);
+
+        $nameTxt = _cpeClampText($pdf, $p['name'] ?? '', $innerW, $font, 'B', 8);
+        $pdf->SetXY($x + 3, $y + 4 + $imgSize + 3);
         $pdf->SetFont($font, 'B', 8);
         $pdf->SetTextColor(...($config['_colors_rgb']['text'] ?? [20,20,20]));
-        $pdf->MultiCell($cellW - 4, 4, $p['name'] ?? '', 0, 'C');
+        $pdf->Cell($innerW, $nameH, $nameTxt, 0, 0, 'C');
+
         if (!empty($p['quarry_number'])) {
+            $lotTxt = _cpeClampText($pdf, 'Lot ' . $p['quarry_number'], $innerW, $font, '', 7);
+            $pdf->SetXY($x + 3, $y + 4 + $imgSize + 3 + $nameH);
             $pdf->SetFont($font, '', 7);
             $pdf->SetTextColor(120,120,120);
-            $pdf->Cell($cellW - 4, 4, 'Lot ' . $p['quarry_number'], 0, 0, 'C');
+            $pdf->Cell($innerW, $lotH, $lotTxt, 0, 0, 'C');
         }
         $i++;
     }

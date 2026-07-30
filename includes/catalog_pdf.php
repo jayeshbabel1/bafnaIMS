@@ -136,7 +136,7 @@ function getCatalogPdfSettingsDefaults(): array {
         $decoded = json_decode($v, true);
         $out[$key] = (json_last_error() === JSON_ERROR_NONE && (is_array($decoded))) ? $decoded : $v;
     }
-    return array_merge(catalogPdfDefaultConfig(), $out);
+    return array_replace_recursive(catalogPdfDefaultConfig(), $out);
 }
 
 function saveCatalogPdfSettingsDefaults(array $config): void {
