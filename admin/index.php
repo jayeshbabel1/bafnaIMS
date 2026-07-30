@@ -159,6 +159,50 @@ if ($action === 'admin_delete_device') {
         header('Location: ' . $adminBase . '/index.php');
         exit;
     }
+  
+  if ($action === 'save_catalog_pdf_settings') {
+    requireAdminPermission('catalog.settings');
+    require_once __DIR__ . '/../includes/catalog_pdf.php';
+
+    $cfg = getCatalogPdfSettingsDefaults();
+    $cfg['layout'] = $_POST['layout'] ?? $cfg['layout'];
+    $cfg['fields'] = array_values((array)($_POST['fields'] ?? []));
+
+    $cfg['cover']['logo']       = isset($_POST['cover_logo']) ? 1 : 0;
+    $cfg['cover']['title']      = trim($_POST['cover_title'] ?? '');
+    $cfg['cover']['subtitle']   = trim($_POST['cover_subtitle'] ?? '');
+    $cfg['cover']['show_date']  = isset($_POST['cover_show_date']) ? 1 : 0;
+    $cfg['cover']['version']    = trim($_POST['cover_version'] ?? '');
+
+    $cfg['closing']['enabled']    = isset($_POST['closing_enabled']) ? 1 : 0;
+    $cfg['closing']['thank_you_text'] = trim($_POST['closing_text'] ?? '');
+    $cfg['closing']['website_qr'] = isset($_POST['closing_website_qr']) ? 1 : 0;
+    $cfg['closing']['gmap_qr']    = isset($_POST['closing_gmap_qr']) ? 1 : 0;
+
+    $cfg['watermark']['type']        = $_POST['watermark_type'] ?? 'none';
+    $cfg['watermark']['custom_text'] = trim($_POST['watermark_custom_text'] ?? '');
+    $cfg['watermark']['opacity']     = (int)($_POST['watermark_opacity'] ?? 15);
+    $cfg['watermark']['rotation']    = (int)($_POST['watermark_rotation'] ?? -45);
+
+    $cfg['quality']['level']         = $_POST['quality_level'] ?? 'medium';
+    $cfg['quality']['optimize_size'] = isset($_POST['quality_optimize']) ? 1 : 0;
+    $cfg['orientation'] = $_POST['orientation'] ?? 'portrait';
+    $cfg['page_size']   = $_POST['page_size'] ?? 'A4';
+    $cfg['font']        = $_POST['font'] ?? 'helvetica';
+
+    foreach (['primary','secondary','accent','background','text','button','border'] as $ck) {
+        if (isset($_POST['color_'.$ck])) $cfg['colors'][$ck] = $_POST['color_'.$ck];
+    }
+
+    $cfg['email_share']['default_subject'] = trim($_POST['email_subject'] ?? '');
+    $cfg['email_share']['default_message'] = trim($_POST['email_message'] ?? '');
+
+    saveCatalogPdfSettingsDefaults($cfg);
+    flash('toast', 'Catalog PDF settings saved.');
+    redirect('index.php?page=catalog_pdf_settings');
+}
+  
+  
   // ── CATALOG PDF: regenerate ─────────────────────────────────────────────────
 if ($action === 'catalog_pdf_regenerate') {
     requireAdmin();
@@ -192,7 +236,7 @@ if ($action === 'delete_catalog_template') {
     redirect('index.php?page=catalog_pdf_templates');
 }
 
-// ── CATALOG PDF: duplicate ───────────────────────────────────────────────────
+
 // ── CATALOG PDF: duplicate ───────────────────────────────────────────────────
 if ($action === 'catalog_pdf_duplicate') {
     requireAdmin();

@@ -141,13 +141,15 @@ function getCatalogPdfSettingsDefaults(): array {
 
 function saveCatalogPdfSettingsDefaults(array $config): void {
     ensureCatalogPdfTables();
-    $pairs = [];
+    $db = getDB();
+    $stmt = $db->prepare(
+        "INSERT INTO catalog_pdf_settings (`key`,`value`) VALUES (?,?)
+         ON DUPLICATE KEY UPDATE `value` = VALUES(`value`)"
+    );
     foreach ($config as $k => $v) {
-        $pairs['default_' . $k] = is_array($v) ? json_encode($v) : (string)$v;
+        $stmt->execute(['default_' . $k, is_array($v) ? json_encode($v) : (string)$v]);
     }
-    setSettings($pairs); // batched, one cache flush (existing helper)
 }
-
 // ── RBAC: auto-seed catalog.* permissions ──────────────────────────────────
 function ensureCatalogPdfPermissions(): void {
     static $done = false;

@@ -121,7 +121,7 @@ $existing  = $catalogId ? getCatalog($catalogId) : null;
 $categories = getCategoryNames();
 ?>
 <style>
-.cpw-steps{display:flex;gap:0;margin-bottom:22px;border-bottom:2px solid var(--admin-table-border,var(--border));overflow-x:auto;}
+.cpw-steps{display:flex;gap:0;margin-bottom:22px;border-bottom:2px solid var(--admin-table-border,var(--border));overflow-x:inherit;}
 .cpw-step{padding:10px 18px;font-size:13px;font-weight:600;color:var(--admin-text3,var(--text3));border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap;display:flex;align-items:center;gap:6px;}
 .cpw-step.active{color:var(--admin-accent,var(--accent));border-bottom-color:var(--admin-accent,var(--accent));}
 .cpw-step.done{color:var(--success,#3D8B6E);}
@@ -192,14 +192,15 @@ $categories = getCategoryNames();
 .cpw-review-item b{color:var(--admin-text3,var(--text3));font-weight:600;display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px;}
 #cpwGenProgress{display:none;text-align:center;padding:30px 0;}
 #cpwGenResult{display:none;text-align:center;padding:20px 0;}
+
 </style>
 
 <div class="cpw-steps" id="cpwSteps">
   <div class="cpw-step active" data-step="1"><span class="cpw-step-num">1</span> Select Products</div>
   <div class="cpw-step" data-step="2"><span class="cpw-step-num">2</span> Order</div>
-  <div class="cpw-step" data-step="3" style="opacity:.4;">3 &nbsp;Layout &amp; Fields</div>
-  <div class="cpw-step" data-step="4" style="opacity:.4;">4 &nbsp;Customize</div>
-  <div class="cpw-step" data-step="5" style="opacity:.4;">5 &nbsp;Generate</div>
+  <div class="cpw-step" data-step="3"><span class="cpw-step-num">3</span> Layout &amp; Fields</div>
+  <div class="cpw-step" data-step="4"><span class="cpw-step-num">4</span> Customize</div>
+  <div class="cpw-step" data-step="5"><span class="cpw-step-num">5</span> Generate</div>
 </div>
 
 <div class="admin-form-section" style="margin-bottom:14px;display:flex;gap:20px;flex-wrap:wrap;align-items:flex-end;">
@@ -295,7 +296,7 @@ $categories = getCategoryNames();
         'cutter_size'=>'Italian Size','origin'=>'Origin','finish'=>'Finish',
         'quantity_available'=>'Available Qty','quarry_number'=>'Quarry Number','description'=>'Description',
     ];
-    $checkedFields = $existing['config']['fields'] ?? catalogPdfDefaultConfig()['fields'];
+   $checkedFields = $existing['config']['fields'] ?? getCatalogPdfSettingsDefaults()['fields'];
     foreach ($allFields as $fkey => $flabel):
     ?>
     <label class="cpw-field-item">
@@ -308,7 +309,7 @@ $categories = getCategoryNames();
 
 <!-- ══ STEP 4: CUSTOMIZE ══ -->
 <div class="cpw-panel" id="cpwPanel4">
-  <?php $cfg = array_replace_recursive(catalogPdfDefaultConfig(), $existing['config'] ?? []); ?>
+  <?php $cfg = array_replace_recursive(getCatalogPdfSettingsDefaults(), $existing['config'] ?? []); ?>
   <div class="cpw-cust-tabs">
     <button type="button" class="cpw-cust-tab active" data-tab="cover">Cover Page</button>
     <button type="button" class="cpw-cust-tab" data-tab="closing">Closing Page</button>

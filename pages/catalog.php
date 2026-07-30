@@ -10,6 +10,7 @@ ensureProductViewTables();
 require_once BASE_PATH . '/includes/search_history.php';
 ensureSearchHistoryTable();
 
+
 $pageTitle = 'Catalog — ' . APP_NAME;
 $showNav   = true;
 $extraJS   = ['catalog.js'];
