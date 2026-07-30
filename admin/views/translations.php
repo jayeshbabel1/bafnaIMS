@@ -36,8 +36,9 @@ $langs = array_filter(SUPPORTED_LANGS, fn($l) => $l !== 'en'); // hi, gu, mr onl
 $db = getDB();
 $products = $db->query("SELECT id, name, description, category, subcategory, color_subcategory, finish, origin FROM products ORDER BY name ASC")->fetchAll();
 
+require_once BASE_PATH . '/includes/categories.php';
 $categoryEntities = [];
-foreach (CATEGORIES as $c) $categoryEntities[] = ['id' => 'cat_' . $c, 'label' => $c, 'group' => 'Stone Type'];
+foreach (getCategoryNames() as $c) $categoryEntities[] = ['id' => 'cat_' . $c, 'label' => $c, 'group' => 'Stone Type'];
 foreach (COLOR_SUBCATEGORIES as $c) $categoryEntities[] = ['id' => 'color_' . $c, 'label' => $c, 'group' => 'Color'];
 
 // UI strings — key => [English fallback, section]

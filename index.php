@@ -11,6 +11,8 @@ require_once __DIR__ . '/includes/license.php';
 require_once __DIR__ . '/includes/product_views.php';
 require_once __DIR__ . '/includes/device_auth.php';
 require_once __DIR__ . '/includes/translations.php';
+require_once __DIR__ . '/includes/catalog_pdf.php';
+ensureCatalogPdfPermissions();
 
 startSecureSession();
 

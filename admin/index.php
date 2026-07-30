@@ -44,6 +44,8 @@ require_once __DIR__ . '/../includes/product_views.php';
 require_once __DIR__ . '/../includes/watermark.php';
 require_once __DIR__ . '/../includes/categories.php';
 require_once __DIR__ . '/../includes/translations.php';
+require_once __DIR__ . '/../includes/catalog_pdf.php';
+ensureCatalogPdfPermissions();
 ensureCategoryPermissions();
 ensureWatermarkPermission();
 ensureProductViewPermission();
@@ -157,7 +159,60 @@ if ($action === 'admin_delete_device') {
         header('Location: ' . $adminBase . '/index.php');
         exit;
     }
-  
+  // ── CATALOG PDF: regenerate ─────────────────────────────────────────────────
+if ($action === 'catalog_pdf_regenerate') {
+    requireAdmin();
+    requireAdminPermission('catalog.regenerate');
+    require_once __DIR__ . '/../includes/catalog_pdf.php';
+    require_once __DIR__ . '/../includes/catalog_pdf_engine.php';
+    $cid = (int)($_POST['catalog_id'] ?? 0);
+    $result = generateCatalogPdf($cid);
+    flash($result['success'] ? 'toast' : 'error', $result['success'] ? 'Catalog PDF regenerated.' : ('Failed: ' . ($result['error'] ?? '')));
+    redirect('index.php?page=catalog_pdf_history');
+}
+
+// ── CATALOG PDF: delete ──────────────────────────────────────────────────────
+if ($action === 'catalog_pdf_delete') {
+    requireAdmin();
+    requireAdminPermission('catalog.delete');
+    require_once __DIR__ . '/../includes/catalog_pdf.php';
+    $cid = (int)($_POST['catalog_id'] ?? 0);
+    deleteCatalog($cid);
+    flash('toast', 'Catalog deleted.');
+    redirect('index.php?page=catalog_pdf_history');
+}
+
+  // ── CATALOG PDF: delete template ────────────────────────────────────────────
+if ($action === 'delete_catalog_template') {
+    requireAdmin();
+    requireAdminPermission('catalog.template.manage');
+    $tid = (int)($_POST['template_id'] ?? 0);
+    getDB()->prepare("DELETE FROM catalog_templates WHERE id=?")->execute([$tid]);
+    flash('toast', 'Template deleted.');
+    redirect('index.php?page=catalog_pdf_templates');
+}
+
+// ── CATALOG PDF: duplicate ───────────────────────────────────────────────────
+// ── CATALOG PDF: duplicate ───────────────────────────────────────────────────
+if ($action === 'catalog_pdf_duplicate') {
+    requireAdmin();
+    requireAdminPermission('catalog.create');
+    require_once __DIR__ . '/../includes/catalog_pdf.php';
+    $cid = (int)($_POST['catalog_id'] ?? 0);
+    $src = getCatalog($cid);
+    if ($src) {
+        $res = createCatalogDraft([
+            'name'        => $src['name'] . ' (Copy)',
+            'admin_id'    => $_SESSION['admin_id'] ?? null,
+            'product_ids' => $src['product_ids'],
+            'config'      => $src['config'],
+        ]);
+        flash('toast', 'Catalog duplicated as draft.');
+        redirect('index.php?page=catalog_pdf_wizard&id=' . $res['id']);
+    }
+    flash('error', 'Catalog not found.');
+    redirect('index.php?page=catalog_pdf_history');
+}
   // ── ROOM TEMPLATE: SAVE 
 if ($action === 'save_room_template') {
     requireAdmin();
@@ -975,6 +1030,39 @@ if (isset($_GET['wa_pdf']) && isAdmin()) {
     }
     handleWaPdfAjax();
 }
+
+//  Catalog PDF download endpoint 
+if (isset($_GET['catalog_download']) && isAdmin()) {
+    requireAdminPermission('catalog.download');
+    $cid = (int)($_GET['id'] ?? 0);
+    $cat = getCatalog($cid);
+    if (!$cat || empty($cat['pdf_path']) || !file_exists($cat['pdf_path'])) {
+        http_response_code(404);
+        echo 'Catalog PDF not found. Generate it first.';
+        exit;
+    }
+    if (!throttle('catalog_download', 20, 60)) {
+        http_response_code(429);
+        echo 'Too many requests. Please wait a moment.';
+        exit;
+    }
+
+    getDB()->prepare("INSERT INTO catalog_download_logs (catalog_id, channel, ip_address, success, created_at) VALUES (?,?,?,?,?)")
+           ->execute([$cid, 'download', $_SERVER['REMOTE_ADDR'] ?? '', 1, time()]);
+
+    $safeName = preg_replace('/[^A-Za-z0-9 _\-]/u', '', $cat['name']);
+    $safeName = trim(preg_replace('/\s+/', '_', $safeName)) ?: ('catalog_' . $cid);
+
+    header('Content-Type: application/pdf');
+    header('Content-Disposition: attachment; filename="' . $safeName . '.pdf"');
+    header('Content-Length: ' . filesize($cat['pdf_path']));
+    header('Cache-Control: no-cache, no-store, must-revalidate');
+    header('Pragma: no-cache');
+    header('Expires: 0');
+    readfile($cat['pdf_path']);
+    exit;
+}
+
 //  Direct PDF download endpoint 
 if (isset($_GET['pdf_download']) && isAdmin()) {
     requireAdminPermission('products.pdf');
@@ -2241,8 +2329,7 @@ function syncDnaReports(): array {
 
 $pages = ['dashboard','products','product_edit','colors','users','inquiries','sync',
               'notifications','logo','user_clients','admin_selections','smtp',
-              'admin_clients','admin_client_form','admin_client_selections',
-              'roles','admin_accounts','room_templates','license','product_view_settings','devices','product_categories','translations'];
+              'admin_clients','admin_client_form','admin_client_selections',             'roles','admin_accounts','room_templates','license','product_view_settings','devices','product_categories','translations','catalog_pdf_settings','catalog_pdf_history', 'catalog_pdf_wizard','catalog_pdf_templates'];
 
 // Unknown ?page= value in admin panel → 404 instead of silently falling
 // back to the dashboard.
@@ -2276,6 +2363,10 @@ $file = __DIR__ . '/views/' . $page . '.php';
         'devices'                => 'devices.view',
         'categories'			 => 'categories.view',
         'translations' => 'translations.manage',
+      'catalog_pdf_settings' => 'catalog.settings',
+      'catalog_pdf_history'  => 'catalog.history',
+        'catalog_pdf_wizard'   => 'catalog.create',
+      'catalog_pdf_templates'=> 'catalog.template.manage',
     ];
     if (isset($routePermissions[$page])) {
         requireAdminPermission($routePermissions[$page]);

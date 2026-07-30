@@ -21,16 +21,17 @@ function pvShortLabel(string $key, string $fallback): string {
 // ── Render one field's value for a product row (shared by all 3 views) ──────
 function pvAdminFieldHtml(array $p, string $key): string {
     switch ($key) {
-        case 'photo':
-            if ($p['primary_photo'] && file_exists(PHOTOS_DIR.'/'.$p['primary_photo'])) {
-                 $thumbSrc = '../' . getPhotoThumbUrl($p['primary_photo']);
-            }
-             if ($thumbSrc) {
-               return '<img src="'.h($thumbSrc).'" alt="'.h($p['name']).'" loading="lazy" decoding="async" width="100%" height="100%"/>';
-            }
-                       
-            $pal = json_decode($p['palette'] ?? '[]', true) ?: ['F2F0EC','D8CFC4','BFB0A0'];
-            return marbleSVG($pal, 60, 60, 'apv'.$p['id']);
+       case 'photo':
+    $thumbSrc = '';
+    if ($p['primary_photo'] && file_exists(PHOTOS_DIR.'/'.$p['primary_photo'])) {
+         $thumbSrc = '../' . getPhotoThumbUrl($p['primary_photo']);
+    }
+     if ($thumbSrc) {
+       return '<img src="'.h($thumbSrc).'" alt="'.h($p['name']).'" loading="lazy" decoding="async" width="100%" height="100%"/>';
+    }
+
+    $pal = json_decode($p['palette'] ?? '[]', true) ?: ['F2F0EC','D8CFC4','BFB0A0'];
+    return marbleSVG($pal, 60, 60, 'apv'.$p['id']);
         case 'name':
             return (adminCan('products.edit') || adminCan('products.view_details'))
         ? '<a href="index.php?page=product_edit&id='.$p['id'].'" style="color:var(--admin-text,var(--text));font-weight:600;">'.h($p['name']).'</a>'

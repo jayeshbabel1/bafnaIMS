@@ -43,25 +43,10 @@ if (!empty($_GET['ajax_admins'])) {
     ob_start();
     include __DIR__ . '/_admin_accounts_rows.php';
     $rows = ob_get_clean();
-
-    // Pagination
-    ob_start();
-    if ($totalPages > 1):
-        $range = 2; $s2 = max(1,$currentPage-$range); $e2 = min($totalPages,$currentPage+$range);
-    ?>
-    <div class="admin-pagination">
-      <button class="apag-btn <?= $currentPage<=1?'disabled':'' ?>" data-page="<?= $currentPage-1 ?>">&lsaquo;</button>
-      <?php if($s2>1): ?><button class="apag-btn" data-page="1">1</button><?php if($s2>2): ?><span class="apag-ellipsis">…</span><?php endif; endif; ?>
-      <?php for($i=$s2;$i<=$e2;$i++): ?><button class="apag-btn <?= $i===$currentPage?'active':'' ?>" data-page="<?= $i ?>"><?= $i ?></button><?php endfor; ?>
-      <?php if($e2<$totalPages): ?><?php if($e2<$totalPages-1): ?><span class="apag-ellipsis">…</span><?php endif; ?><button class="apag-btn" data-page="<?= $totalPages ?>"><?= $totalPages ?></button><?php endif; ?>
-      <button class="apag-btn <?= $currentPage>=$totalPages?'disabled':'' ?>" data-page="<?= $currentPage+1 ?>">&rsaquo;</button>
-    </div>
-    <?php endif;
-    $pag = ob_get_clean();
-
+    
     header('Content-Type: application/json');
-    echo json_encode(['rows' => $rows, 'pagination' => $pag, 'total' => $total]);
-    exit;
+   echo json_encode(['rows' => $rows, 'total' => $total, 'page' => $currentPage, 'pages' => $totalPages]);
+        exit;
 }
 
 $adminTitle = 'Admin Accounts';
@@ -156,7 +141,7 @@ $allRoles = getAllRoles();
 </div>
 <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px;flex-wrap:wrap;gap:8px;">
   <p class="admin-products-count" id="aaFooterCount"></p>
-  <div id="aaPagWrap"></div>
+  <div id="paginationWrap" class="admin-pagination"></div>
 </div>
 
 <!-- ═══ CREATE / EDIT MODAL ════════════════════════════════════════════════ -->
@@ -273,7 +258,7 @@ $allRoles = getAllRoles();
 <script>
 (function () {
   var tbody   = document.getElementById('aaTbody');
-  var pagWrap = document.getElementById('aaPagWrap');
+  
   var countEl = document.getElementById('aaCountEl');
   var footEl  = document.getElementById('aaFooterCount');
   var searchEl= document.getElementById('aaSearch');
@@ -282,6 +267,8 @@ $allRoles = getAllRoles();
 
   var state = { q: '', page: 1 };
   var timer = null;
+  var totalPages = 1;
+ var pager = null;
 
   function load() {
     if (loader) loader.style.display = 'flex';
@@ -293,7 +280,11 @@ $allRoles = getAllRoles();
       .then(function(r){ return r.json(); })
       .then(function(d){
         if (tbody)  { tbody.innerHTML = d.rows; tbody.style.opacity = '1'; }
-        if (pagWrap){ pagWrap.innerHTML = d.pagination || ''; bindPag(); }
+        totalPages = d.pages;
+       if (pager) {
+         pager.setWrapEl(document.getElementById('paginationWrap'));
+         pager.render(d.page, d.pages);
+       }
         var txt = d.total + ' admin account' + (d.total !== 1 ? 's' : '');
         if (countEl) countEl.textContent = txt;
         if (footEl)  footEl.textContent  = txt;
@@ -302,18 +293,7 @@ $allRoles = getAllRoles();
       .finally(function(){ if(loader) loader.style.display='none'; });
   }
 
-  function bindPag() {
-    if (!pagWrap) return;
-    pagWrap.querySelectorAll('.apag-btn').forEach(function(btn){
-      btn.addEventListener('click', function(){
-        if (btn.classList.contains('disabled')||btn.classList.contains('active')) return;
-        var pg = parseInt(btn.dataset.page,10);
-        if (!isNaN(pg)){ state.page=pg; load(); }
-      });
-    });
-  }
-
-  if (searchEl) {
+    if (searchEl) {
     searchEl.addEventListener('input', function(){
       var v = this.value.trim();
       if (clearBtn) clearBtn.style.display = v ? 'flex' : 'none';
@@ -329,8 +309,15 @@ $allRoles = getAllRoles();
     });
   }
 
-  load();
-  window._aaReload = load;
+  document.addEventListener('DOMContentLoaded', function () {
+   pager = initPagination({
+     wrapEl: document.getElementById('paginationWrap'),
+     btnClass: 'apag-btn',
+     onPage: function (page) { state.page = page; load(); }
+   });
+   load();
+ });
+ window._aaReload = load;
 })();
 
 // ── Modal helpers ────────────────────────────────────────────────────────────

@@ -34,6 +34,7 @@ define('ROOM_TEMPLATES_DIR', BASE_PATH . '/assets/uploads/room_templates');
 define('ROOM_PREVIEWS_DIR',  BASE_PATH . '/storage/room_previews');
 define('ROOM_TEMPLATES_URL', BASE_URL . '/assets/uploads/room_templates');
 define('ROOM_PREVIEWS_URL',  'storage/room_previews');
+define('CATALOG_PDF_DIR', BASE_PATH . '/storage/catalogs');
 
 define('ROOM_TYPES', [
     'floor'    => 'Floor',
@@ -69,7 +70,7 @@ define('ROLES', [
 define('EXPERIENCE_OPTIONS', ['0–2 years','3–5 years','6–10 years','10+ years']);
 
 //  Ensure upload directories exist 
-foreach ([PHOTOS_DIR, THUMBS_DIR, MEASUREMENT_DIR, DNA_DIR, EXCEL_DIR , VIDEOS_DIR] as $_dir) {
+foreach ([PHOTOS_DIR, THUMBS_DIR, MEASUREMENT_DIR, DNA_DIR, EXCEL_DIR , VIDEOS_DIR,CATALOG_PDF_DIR] as $_dir) {
     if (!is_dir($_dir)) @mkdir($_dir, 0755, true);
 }
 

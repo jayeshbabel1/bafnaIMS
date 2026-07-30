@@ -3,6 +3,7 @@
 </div><!-- .admin-shell -->
 <script src="../assets/js/app.js"></script>
 <script src="../assets/js/admin.js"></script>
+<script src="../assets/js/pagination.js"></script>
 <?php
 $currentAdminPage = $_GET['page'] ?? 'dashboard';
 if ($currentAdminPage === 'products'): ?>

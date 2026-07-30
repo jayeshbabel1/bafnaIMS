@@ -19,6 +19,7 @@
     });
   }
   function contactShadow(radius, opacity) {
+    radius = radius * 0.6;
     var c = document.createElement('canvas'); c.width = c.height = 128;
     var ctx = c.getContext('2d');
     var g = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
@@ -166,12 +167,12 @@
   }
 
   function addRug(group, x, z, radius, color) {
-    var rug = new THREE.Mesh(new THREE.CircleGeometry(radius, 48), mat(color, 1));
-   rug.material.polygonOffset = true;
-    rug.material.polygonOffsetFactor = -2;
-    rug.material.polygonOffsetUnits = -2;
-    rug.rotation.x = -Math.PI / 2; rug.position.set(x, 0.01, z); rug.receiveShadow = true;
-    rug.renderOrder = 1;
+    var rug = new THREE.Mesh(new THREE.CircleGeometry(radius * 0.55, 48), mat(color, 1));
+    rug.material.polygonOffset = true;
+    rug.material.polygonOffsetFactor = -3;
+    rug.material.polygonOffsetUnits = -3;
+    rug.rotation.x = -Math.PI / 2; rug.position.set(x, 0.012, z); rug.receiveShadow = true;
+    rug.renderOrder = 2;
     group.add(rug);
     return rug;
   }

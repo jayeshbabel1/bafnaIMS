@@ -16,7 +16,7 @@
  * @param string $toName  Recipient display name (optional)
  * @return array ['success'=>bool, 'error'=>string]
  */
-function sendMail(string $to, string $subject, string $html, string $text = '', string $toName = ''): array {
+function sendMail(string $to, string $subject, string $html, string $text = '', string $toName = '' ,array $attachments = []): array {
     $settings = getSmtpSettings();
 
     if ($text === '') {
@@ -24,10 +24,11 @@ function sendMail(string $to, string $subject, string $html, string $text = '', 
     }
 
     if ($settings['smtp_enabled']) {
-        return sendMailSmtp($to, $toName, $subject, $html, $text, $settings);
+        return sendMailSmtp($to, $toName, $subject, $html, $text, $settings, $attachments);
     }
 
-    return sendMailNative($to, $toName, $subject, $html, $text, $settings);
+    return sendMailNative($to, $toName, $subject, $html, $text, $settings); // native mail() attachment unsupported — logs warning below
+    if (!empty($attachments)) error_log('sendMail: attachments require SMTP; native mail() sent without attachment.');
 }
 
 /**
@@ -67,11 +68,11 @@ function getSmtpSettings(): array {
  * Send via SMTP using sockets (no PHPMailer dependency).
  * Supports TLS/STARTTLS via stream_socket_client.
  */
-function sendMailSmtp(string $to, string $toName, string $subject, string $html, string $text, array $s): array {
+function sendMailSmtp(string $to, string $toName, string $subject, string $html, string $text, array $s, array $attachments = []): array {
     // Try to use PHPMailer if available (composer dependency already installed)
     $autoload = BASE_PATH . '/vendor/autoload.php';
     if (file_exists($autoload)) {
-        return sendMailPhpMailer($to, $toName, $subject, $html, $text, $s);
+        return sendMailPhpMailer($to, $toName, $subject, $html, $text, $s, $attachments);
     }
 
     // Fallback to native if no library
@@ -81,7 +82,7 @@ function sendMailSmtp(string $to, string $toName, string $subject, string $html,
 /**
  * Send via PHPMailer (available via composer).
  */
-function sendMailPhpMailer(string $to, string $toName, string $subject, string $html, string $text, array $s): array {
+function sendMailPhpMailer(string $to, string $toName, string $subject, string $html, string $text, array $s, array $attachments = []): array {
     try {
         if (!class_exists('PHPMailer\PHPMailer\PHPMailer')) {
             require_once BASE_PATH . '/vendor/autoload.php';
@@ -129,6 +130,11 @@ function sendMailPhpMailer(string $to, string $toName, string $subject, string $
         $mail->isHTML(true);
         $mail->Body     = $html;
         $mail->AltBody  = $text;
+      foreach ($attachments as $path) {
+            if (is_string($path) && file_exists($path)) {
+                $mail->addAttachment($path);
+            }
+        }
         $mail->send();
         return ['success' => true, 'error' => ''];
     } catch (Throwable $e) {

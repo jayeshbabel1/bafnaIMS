@@ -254,6 +254,9 @@ if (adminCan('clients.view')) {
 if (adminCan('notifications.view')) {
     $navItems[] = ['page'=>'notifications', 'icon'=>'bell', 'label'=>'Notifications', 'badge'=>$_notifCount];
 }
+if (adminCan('catalog.create') || adminCan('catalog.history')) {
+    $navItems[] = ['page'=>'catalog_pdf_wizard', 'icon'=>'pdf', 'label'=>'Generate Catalog PDF'];
+}
 // Trusted Devices
 if (adminCan('devices.view')) {
     $navItems[] = ['page'=>'devices', 'icon'=>'lock', 'label'=>'Trusted Devices'];
@@ -301,7 +304,15 @@ if (adminCan('translations.manage')) {
 //if (adminCan('license.manage')) {
   //  $settingsSubItems[] = ['page'=>'license', 'label'=>'License & Activation'];
 //}
- 
+if (adminCan('catalog.settings')) {
+ $settingsSubItems[] = ['page'=>'catalog_pdf_settings','label'=>'Catalog PDF Settings'];
+}
+if (adminCan('catalog.history')) {
+    $settingsSubItems[] = ['page'=>'catalog_pdf_history', 'label'=>'Catalog PDF History'];
+}
+if (adminCan('catalog.template.manage')) {
+    $settingsSubItems[] = ['page'=>'catalog_pdf_templates', 'label'=>'Catalog PDF Templates'];
+}
 // Roles & Permissions sub-items
 $rolesSubItems = [];
 if (adminCan('roles.view')) {

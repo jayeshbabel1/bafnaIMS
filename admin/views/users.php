@@ -5,7 +5,7 @@ if (!empty($_GET['ajax_users'])) {
   requireAdminPermission('users.view');
     $db      = getDB();
     $search  = trim($_GET['q']   ?? '');
-    $perPage = 25;
+    $perPage = 10;
     $page    = max(1, (int)($_GET['p'] ?? 1));
     $offset  = ($page - 1) * $perPage;
 
@@ -16,7 +16,6 @@ if (!empty($_GET['ajax_users'])) {
         $like     = "%{$search}%";
         $params   = [$like, $like, $like, $like];
     }
-
     $total = (function() use ($db, $where, $params) {
         $s = $db->prepare("SELECT COUNT(*) FROM users $where");
         $s->execute($params);
@@ -116,26 +115,9 @@ if (!empty($_GET['ajax_users'])) {
     <?php endforeach; endif;
     $rows = ob_get_clean();
 
-    ob_start();
-    if ($totalPages > 1):
-        $range = 2; $s = max(1, $page - $range); $e = min($totalPages, $page + $range);
-    ?>
-    <div class="admin-pagination">
-      <button class="apag-btn <?= $page<=1?'disabled':'' ?>" data-page="<?= $page-1 ?>">&lsaquo;</button>
-      <?php if ($s>1): ?><button class="apag-btn" data-page="1">1</button><?php if ($s>2): ?><span class="apag-ellipsis">…</span><?php endif; endif; ?>
-      <?php for ($i=$s;$i<=$e;$i++): ?>
-      <button class="apag-btn <?= $i===$page?'active':'' ?>" data-page="<?= $i ?>"><?= $i ?></button>
-      <?php endfor; ?>
-      <?php if ($e<$totalPages): ?><?php if ($e<$totalPages-1): ?><span class="apag-ellipsis">…</span><?php endif; ?><button class="apag-btn" data-page="<?= $totalPages ?>"><?= $totalPages ?></button><?php endif; ?>
-      <button class="apag-btn <?= $page>=$totalPages?'disabled':'' ?>" data-page="<?= $page+1 ?>">&rsaquo;</button>
-    </div>
-    <?php endif;
-    $pag = ob_get_clean();
-
     header('Content-Type: application/json');
     echo json_encode([
         'rows'       => $rows,
-        'pagination' => $pag,
         'total'      => $total,
         'page'       => $page,
         'pages'      => $totalPages,
@@ -231,7 +213,7 @@ $db = getDB();
 
 <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px;flex-wrap:wrap;gap:10px;">
   <p class="admin-products-count" id="userFooterCount"></p>
-  <div id="usersPaginationWrap"></div>
+ <div id="paginationWrap" class="admin-pagination"></div>
 </div>
 
 <!-- ══════════════════════════════════════════════════════════════════════════
@@ -445,11 +427,10 @@ $db = getDB();
 </div>
 
 <script>
-// ── AJAX users loader (unchanged) ────────────────────────────────────────────
+// ── AJAX users loader ────────────────────────────────────────────
 (function () {
   'use strict';
   var tbody   = document.getElementById('usersTbody');
-  var pagWrap = document.getElementById('usersPaginationWrap');
   var countEl = document.getElementById('userFooterCount');
   var searchEl= document.getElementById('userSearch');
   var clearBtn= document.getElementById('userSearchClear');
@@ -457,6 +438,8 @@ $db = getDB();
 
   var state = { q: '', page: 1, per: 25 };
   var timer = null;
+  var totalPages = 1;
+  var pager = null;
 
   function load() {
     if (loader) loader.style.display = 'flex';
@@ -471,23 +454,16 @@ $db = getDB();
       .then(function(r){ return r.json(); })
       .then(function(d){
         if (tbody)  { tbody.innerHTML = d.rows; tbody.style.opacity = '1'; }
-        if (pagWrap){ pagWrap.innerHTML = d.pagination || ''; bindPag(); }
+        totalPages = d.pages;
+        if (pager) {
+          pager.setWrapEl(document.getElementById('paginationWrap'));
+          pager.render(d.page, d.pages);
+        }
         if (countEl){ countEl.textContent = d.total + ' users'; }
         document.getElementById('userCountEl').textContent = d.total + ' users';
       })
       .catch(function(){ if (tbody) tbody.style.opacity = '1'; })
       .finally(function(){ if (loader) loader.style.display = 'none'; });
-  }
-
-  function bindPag() {
-    if (!pagWrap) return;
-    pagWrap.querySelectorAll('.apag-btn').forEach(function(btn){
-      btn.addEventListener('click', function(){
-        if (btn.classList.contains('disabled') || btn.classList.contains('active')) return;
-        var pg = parseInt(btn.dataset.page, 10);
-        if (!isNaN(pg)) { state.page = pg; load(); }
-      });
-    });
   }
 
   if (searchEl) {
@@ -511,10 +487,17 @@ $db = getDB();
     });
   }
 
-  load();
+  document.addEventListener('DOMContentLoaded', function () {
+    pager = initPagination({
+      wrapEl: document.getElementById('paginationWrap'),
+      btnClass: 'apag-btn',
+      onPage: function (page) { state.page = page; load(); }
+    });
+    load();
+  });
 })();
 
-// ── Edit User Modal (unchanged) ──────────────────────────────────────────────
+// ── Edit User Modal ──────────────────────────────────────────────
 function openEditUser(id, name, email, phone, firm, city, role) {
   document.getElementById('editUserId').value    = id;
   document.getElementById('editUserName').value  = name;
@@ -532,7 +515,7 @@ function closeEditUser() {
   document.body.style.overflow = '';
 }
 
-// ── Delete User Modal (unchanged) ────────────────────────────────────────────
+// ── Delete User Modal ────────────────────────────────────────────
 function openDeleteModal(id, name) {
   document.getElementById('delUserId').value      = id;
   document.getElementById('delUserMsg').textContent =
@@ -561,19 +544,16 @@ document.addEventListener('keydown', function(e){
 });
 
 // ════════════════════════════════════════════════════════════════════════════
-// ▶ NEW: Create User Modal helpers
+// ▶ Create User Modal helpers
 // ════════════════════════════════════════════════════════════════════════════
 
 function openCreateUser() {
-  // Reset form fields
   var form = document.getElementById('createUserForm');
   if (form) form.reset();
 
-  // Reset password UI to auto-generate state
   document.getElementById('cuAutoGen').checked = true;
   toggleAutoPassword(true);
 
-  // Clear strength meter
   var s = document.getElementById('cuPwdStrength');
   if (s) s.removeAttribute('data-level');
 
@@ -587,7 +567,6 @@ function closeCreateUser() {
   document.body.style.overflow = '';
 }
 
-// Toggle between auto-generate and manual password entry
 function toggleAutoPassword(isAuto) {
   var wrap = document.getElementById('cuManualPwdWrap');
   var note = document.getElementById('cuAutoNote');
@@ -596,7 +575,6 @@ function toggleAutoPassword(isAuto) {
   wrap.style.display = isAuto ? 'none' : 'block';
   note.style.display = isAuto ? 'flex' : 'none';
 
-  // When switching to auto, clear and un-require the password field
   if (isAuto) {
     inp.value    = '';
     inp.required = false;
@@ -608,19 +586,16 @@ function toggleAutoPassword(isAuto) {
   }
 }
 
-// Show/hide password toggle
 function togglePwdVisibility(inputId, btn) {
   var inp = document.getElementById(inputId);
   if (!inp) return;
   var isText = inp.type === 'text';
   inp.type = isText ? 'password' : 'text';
-  // Swap icon (same SVGs as app.js pwd-toggle)
   btn.innerHTML = isText
     ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>'
     : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
 }
 
-// Password strength meter for manual entry
 document.getElementById('cuPassword').addEventListener('input', function() {
   var v = this.value;
   var level = 0;
@@ -632,25 +607,20 @@ document.getElementById('cuPassword').addEventListener('input', function() {
   if (s) s.dataset.level = v.length ? level : '';
 });
 
-// Submit button loading state + basic client-side guard
 document.getElementById('createUserForm').addEventListener('submit', function(e) {
   var autoGen  = document.getElementById('cuAutoGen').checked;
   var password = document.getElementById('cuPassword').value;
 
-  // If manual mode and password too short, block
   if (!autoGen && password.length > 0 && password.length < 8) {
     e.preventDefault();
     alert('Password must be at least 8 characters.');
     return;
   }
 
-  // If auto-generate, clear the password field before submit so PHP
-  // knows to auto-generate (empty = auto-generate in createUserByAdmin)
   if (autoGen) {
     document.getElementById('cuPassword').value = '';
   }
 
-  // Show loading state on button
   var btn = document.getElementById('cuSubmitBtn');
   btn.disabled   = true;
   btn.innerHTML  = '<?= icon('refresh',15) ?>&nbsp; Creating…';

@@ -237,8 +237,14 @@ function getCSSVariables(bool $isAdmin = false): string {
         $css .= "--admin-sidebar-gradient:linear-gradient(180deg,{$from},{$to});\n";
     }
 
+  $langFont = getLangFontFamily(currentLang());
+if ($langFont) {
+    $css .= "--font-body:{$fontFamily}, {$langFont}, sans-serif;\n";
+    $css .= "--font-display:{$fontFamily}, {$langFont}, sans-serif;\n";
+} else {
     $css .= "--font-body:{$fontFamily};\n";
     $css .= "--font-display:{$fontFamily};\n";
+}
     $css .= "}";
 
     return $css;

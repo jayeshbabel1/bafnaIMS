@@ -4,15 +4,60 @@
  * Fire 4: Grid / List / Table views, field visibility & order driven by
  * Settings → Product Views (user panel).
  */
-require_once BASE_PATH . '/includes/product_views.php';
 require_once BASE_PATH . '/includes/categories.php';
+require_once BASE_PATH . '/includes/product_views.php';
 ensureProductViewTables();
+require_once BASE_PATH . '/includes/search_history.php';
+ensureSearchHistoryTable();
 
 $pageTitle = 'Catalog — ' . APP_NAME;
 $showNav   = true;
 $extraJS   = ['catalog.js'];
 
-// ── Read GET params ─────────────────────────────────────────────────────────
+//  AJAX: search suggestions (recent history + product matches) 
+if (!empty($_GET['ajax_suggest'])) {
+    header('Content-Type: application/json');
+    $q   = trim($_GET['q'] ?? '');
+    $uid = (int)$_SESSION['user_id'];
+    if ($q === '') {
+        $recent   = getRecentSearches($uid, 8);
+        $products = [];
+    } else {
+        $recent   = getRecentSearchesFiltered($uid, $q, 5);
+        $products = getSearchProductSuggestions($q, 8);
+    }
+    echo json_encode(['recent' => $recent, 'products' => $products]);
+    exit;
+}
+
+//  AJAX: save a search query into the current user's history 
+if (!empty($_GET['ajax_search_save']) && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    header('Content-Type: application/json');
+    csrfVerify(true);
+    saveSearchQuery((int)$_SESSION['user_id'], $_POST['q'] ?? '');
+    echo json_encode(['success' => true]);
+    exit;
+}
+
+//  AJAX: delete one history item 
+if (!empty($_GET['ajax_search_delete']) && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    header('Content-Type: application/json');
+    csrfVerify(true);
+    deleteSearchHistoryItem((int)$_SESSION['user_id'], (int)($_POST['id'] ?? 0));
+    echo json_encode(['success' => true]);
+    exit;
+}
+
+//  AJAX: clear all history for current user 
+if (!empty($_GET['ajax_search_clear']) && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    header('Content-Type: application/json');
+    csrfVerify(true);
+    clearSearchHistory((int)$_SESSION['user_id']);
+    echo json_encode(['success' => true]);
+    exit;
+}
+
+//  Read GET params 
 $cat      = $_GET['cat']    ?? '';
 $color    = $_GET['color']  ?? '';
 $search   = trim($_GET['q'] ?? '');
@@ -33,7 +78,7 @@ $slMax = isset($_GET['sl_max']) && $_GET['sl_max'] !== '' ? (float)$_GET['sl_max
 $shMin = isset($_GET['sh_min']) && $_GET['sh_min'] !== '' ? (float)$_GET['sh_min'] : null;
 $shMax = isset($_GET['sh_max']) && $_GET['sh_max'] !== '' ? (float)$_GET['sh_max'] : null;
 
-// ── Build filters array ─────────────────────────────────────────────────────
+//  Build filters array 
 $filters = [];
 if ($cat)              $filters['category']          = $cat;
 if ($color)            $filters['color_subcategory'] = $color;
@@ -127,7 +172,7 @@ function getFeaturedProducts(int $limit = 8): array {
     return $st->fetchAll();
 }
 
-// ── Fire 4: user-panel field renderer (shared across grid/list/table) ──────
+//  Fire 4: user-panel field renderer (shared across grid/list/table) 
 function pvUserShortLabel(string $key, string $fallback): string {
     $short = [
         'photo' => '', 'quantity_available' => 'Available', 'color_subcategory' => 'Color',
@@ -156,10 +201,11 @@ function pvUserFieldHtml(array $p, string $key, array $pal): string {
                 return '<img src="'.h($thumbSrc).'" alt="'.h($p['name']).'" loading="lazy" decoding="async"/>';
             }
             return marbleSVG($pal, 200, 160, 'pv'.$p['id']);
-        case 'name':               return h($p['name']);
+        case 'name':        return h(tr('product', $p['id'], 'name', $p['name']));
+case 'category':    return h(tr('product', $p['id'], 'category', $p['category'] ?: '—'));
+case 'color_subcategory': return h(tr('product', $p['id'], 'color_subcategory', $p['color_subcategory'] ?: '—'));;
         case 'quarry_number':      return h($p['quarry_number'] ?: '—');
-        case 'category':           return h($p['category'] ?: '—');
-        case 'color_subcategory':  return h($p['color_subcategory'] ?: '—');
+       
         case 'thickness':          return h($p['thickness'] ?: '—');
         case 'sizes':              return h(formatDimension($p['sizes_l'] ?? '', $p['sizes_h'] ?? '') ?: '—');
         case 'cutter_size':        return h(formatDimension($p['cutter_size_l'] ?? '', $p['cutter_size_h'] ?? '') ?: '—');
@@ -175,7 +221,7 @@ function pvUserFieldHtml(array $p, string $key, array $pal): string {
     }
 }
 
-// ── Product grid / list / table HTML ────────────────────────────────────────
+//  Product grid / list / table HTML 
 function renderProductGrid(array $products, string $view = 'grid'): string {
     if (empty($products)) {
         return '<div class="empty-state">'.icon('search',28).'<p class="empty-title" style="margin-top:16px;">No products found</p><p class="empty-sub">Try adjusting your filters or search term.</p></div>';
@@ -307,7 +353,7 @@ $hasFilter   = $cat || $color || $search
 $defaultView   = in_array($_GET['view'] ?? '', PV_VIEWS, true) ? $_GET['view'] : getDefaultView('user');
 $catalogTheme  = getCatalogTheme();
 
-// ── Pagination HTML ─────────────────────────────────────────────────────────
+//  Pagination HTML 
 function renderPagination(int $cur, int $total): string {
     if ($total <= 1) return '';
     $h  = '<div class="pagination" id="paginationWrap">';
@@ -321,7 +367,7 @@ function renderPagination(int $cur, int $total): string {
     return $h;
 }
 
-// ── AJAX response ───────────────────────────────────────────────────────────
+//  AJAX response 
 if ($isAjax) {
     $view = in_array($_GET['view'] ?? '', PV_VIEWS, true) ? $_GET['view'] : $defaultView;
     $html = renderProductGrid($products, $view) . renderPagination($currentPage, $totalPages);
@@ -336,7 +382,42 @@ function fv($v): string { return $v !== null ? h((string)$v) : ''; }
 <?php include BASE_PATH . '/layouts/header.php'; ?>
 
 <style>
-/* ── Fire 4: Table view (catalog) ─────────────────────────────────────── */
+  /*  Search suggest / history dropdown  */
+.search-suggest-box {
+  display:none; position:absolute; left:0; right:0; top:calc(100% + 6px);
+  background:var(--white); border:1.5px solid var(--border); border-radius:var(--radius);
+  box-shadow:var(--shadow-lg); z-index:60; max-height:360px; overflow-y:auto;
+}
+.search-suggest-box.open { display:block; }
+.ss-section-label {
+  font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.5px;
+  color:var(--text4); padding:10px 14px 6px;
+}
+.ss-item {
+  display:flex; align-items:center; gap:10px; padding:9px 14px; cursor:pointer;
+  transition:background .12s;
+}
+.ss-item:hover { background:var(--gray-50); }
+.ss-item-icon { color:var(--text4); flex-shrink:0; display:flex; }
+.ss-item-text { flex:1; min-width:0; font-size:13px; color:var(--text2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ss-item-thumb { width:32px; height:32px; border-radius:6px; overflow:hidden; flex-shrink:0; background:var(--gray-100); }
+.ss-item-thumb img { width:100%; height:100%; object-fit:cover; }
+.ss-item-sub { font-size:11px; color:var(--text4); }
+.ss-item-remove {
+  flex-shrink:0; width:20px; height:20px; border-radius:50%; display:flex;
+  align-items:center; justify-content:center; color:var(--text4); cursor:pointer;
+}
+.ss-item-remove:hover { background:var(--gray-200); color:var(--text); }
+.ss-clear-history {
+  display:block; width:100%; text-align:center; padding:10px 14px; font-size:12px;
+  font-weight:600; color:var(--text3); border-top:1px solid var(--border);
+  cursor:pointer; background:none; border-left:none; border-right:none; border-bottom:none;
+}
+.ss-clear-history:hover { color:var(--danger); background:var(--gray-50); }
+.ss-empty { padding:18px 14px; text-align:center; font-size:12px; color:var(--text4); }
+
+  
+/*  Fire 4: Table view (catalog)  */
 .catalog-table-scroll { overflow-x:auto; background:var(--white); border:1px solid var(--border); border-radius:var(--radius-lg); }
 .catalog-table { width:100%; border-collapse:collapse; min-width:640px; }
 .catalog-table th { padding:10px 14px; text-align:left; font-size:11px; font-weight:700; color:var(--text4); text-transform:uppercase; letter-spacing:.4px; background:var(--gray-50); border-bottom:1px solid var(--border); white-space:nowrap; }
@@ -350,7 +431,7 @@ function fv($v): string { return $v !== null ? h((string)$v) : ''; }
 .view-toggle { display:flex; border:1.5px solid var(--border); border-radius:var(--radius); overflow:hidden; }
 .view-toggle .view-btn { width:34px; height:34px; }
 
-/* ── Catalog Themes (set via Settings → Product Views → User) ─────────── */
+/*  Catalog Themes (set via Settings → Product Views → User)  */
 [data-catalog-theme="minimal"] .product-card,
 [data-catalog-theme="minimal"] .list-card { border:none; box-shadow:none; background:transparent; }
 [data-catalog-theme="minimal"] .product-thumb,
@@ -489,7 +570,7 @@ function fv($v): string { return $v !== null ? h((string)$v) : ''; }
     <!-- ══════════════════ MAIN CONTENT ══════════════════════════════════ -->
     <div class="catalog-main">
 
-      <div class="catalog-search-wrap">
+     <div class="catalog-search-wrap" style="position:relative;">
         <span class="catalog-search-icon"><?= icon('search',16) ?></span>
         <input type="search" id="searchInput" class="catalog-search-input"
                placeholder="Search by name or lot number…"
@@ -497,6 +578,7 @@ function fv($v): string { return $v !== null ? h((string)$v) : ''; }
         <?php if ($search): ?>
         <span class="catalog-search-clear" id="searchClear"><?= icon('close',13) ?></span>
         <?php endif; ?>
+        <div id="searchSuggestBox" class="search-suggest-box"></div>
       </div>
 
       <div class="catalog-controls">
@@ -647,6 +729,7 @@ function fv($v): string { return $v !== null ? h((string)$v) : ''; }
 
 <script>
 window.CATALOG_DEFAULT_VIEW = <?= json_encode($defaultView) ?>;
+window.CSRF_TOKEN = <?= json_encode(csrfToken()) ?>;
 
 var _applied = {
   cat:      document.getElementById('catalogContent')?.dataset.cat      || '',

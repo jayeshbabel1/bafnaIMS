@@ -35,12 +35,9 @@ if (!empty($_GET['ajax'])) {
     $totalPages = max(1, (int)ceil($total / $perPage));
 
     ob_start();
+   $ajaxPagination = true;
     include __DIR__ . '/_admin_selection_rows.php';
-    $html = ob_get_clean();
-
-    header('Content-Type: application/json');
-    echo json_encode(['html' => $html, 'total' => $total, 'pages' => $totalPages, 'current' => $currentPage]);
-    exit;
+    $html = ob_get_clean(); 
 }
 
 // ── AJAX: product search for the "Add Product" picker ───────────────────────
@@ -156,7 +153,7 @@ $totalPages = max(1, (int)ceil($total / $perPage));
     <?php include __DIR__ . '/_admin_selection_rows.php'; ?>
   </div>
 </div>
-
+<div id="paginationWrap" class="admin-pagination" style="margin-top:14px;"></div>
 <!-- ══════════════════ ADD PRODUCT MODAL ══════════════════════════════════ -->
 <div id="acsAddProductModal">
   <div class="acs-modal-card">
@@ -278,7 +275,9 @@ $totalPages = max(1, (int)ceil($total / $perPage));
 
   var state = { q: <?= json_encode($search) ?>, page: <?= $currentPage ?> };
   var timer = null;
-
+  var totalPages = <?= (int)$totalPages ?>;
+ var pager = null;
+  
   function load(page, push) {
     state.page = page;
     if (loader) loader.style.display = 'flex';
@@ -291,17 +290,18 @@ $totalPages = max(1, (int)ceil($total / $perPage));
         content.innerHTML = d.html;
         if (countNum) countNum.textContent = d.total;
         bindButtons();
+      
+      totalPages = d.pages;
+       if (pager) {
+         pager.setWrapEl(document.getElementById('paginationWrap'));
+         pager.render(d.current, d.pages);
+       }
       })
       .finally(function () { if (loader) loader.style.display = 'none'; });
   }
 
   function bindButtons() {
-    content.querySelectorAll('.apag-btn').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        if (btn.classList.contains('disabled') || btn.classList.contains('active')) return;
-        load(parseInt(btn.dataset.page, 10));
-      });
-    });
+    
     content.querySelectorAll('.acs-edit-btn').forEach(function (btn) {
       btn.addEventListener('click', function () {
         document.getElementById('acsEditSelId').value    = btn.dataset.id;
@@ -483,6 +483,14 @@ $totalPages = max(1, (int)ceil($total / $perPage));
   });
 
   bindButtons();
+  document.addEventListener('DOMContentLoaded', function () {
+   pager = initPagination({
+     wrapEl: document.getElementById('paginationWrap'),
+     btnClass: 'apag-btn',
+     onPage: function (page) { load(page); }
+   });
+   pager.render(state.page, totalPages);
+ });
 })();
 </script>
 

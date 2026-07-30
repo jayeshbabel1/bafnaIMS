@@ -8,6 +8,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="<?= getFontEmbedUrl(false) ?>" rel="stylesheet"/>
+<?php $l = currentLang(); $lf = getLangFontEmbedUrl($l); ?>
+<?php if ($lf): ?><link href="<?= h($lf) ?>" rel="stylesheet"/><?php endif; ?>
 <style><?= getCSSVariables() ?></style>
 <link rel="stylesheet" href="assets/css/style.css"/>
 <?php if (!function_exists('renderWatermarkCSS')) 
@@ -75,22 +77,22 @@ $_trustedDeviceUser = isLoggedIn() ? getCurrentTrustedDevice('user') : null;
   <!-- Desktop nav links -->
   <nav class="navbar-nav">
     <a href="index.php?page=catalog" class="<?= $curPage==='catalog'?'active':'' ?>">
-      <?= icon('grid',15) ?> Catalog
+      <?= icon('grid',15) ?> <?= h(ui('nav_catalog','Catalog')) ?>
     </a>
     <a href="index.php?page=shortlist" class="<?= $curPage==='shortlist'?'active':'' ?>" style="position:relative;">
-      <?= icon('heart',15) ?> Shortlist
+      <?= icon('heart',15) ?> <?= h(ui('nav_shortlist','Shortlist')) ?>
       <?php if ($sc): ?><span class="navbar-badge"><?= $sc ?></span><?php endif; ?>
     </a>
     <a href="index.php?page=clients" class="<?= in_array($curPage,['clients','client_form','client_selections'])?'active':'' ?>" style="position:relative;">
-      <?= icon('users',15) ?> Clients
+      <?= icon('users',15) ?> <?= h(ui('nav_clients','Clients')) ?>
       <?php if ($clientCount): ?><span class="navbar-badge"><?= $clientCount ?></span><?php endif; ?>
     </a>
     <a href="index.php?page=notifications" class="<?= $curPage==='notifications'?'active':'' ?>" style="position:relative;">
-      <?= icon('bell',15) ?> Updates
+      <?= icon('bell',15) ?> <?= h(ui('nav_updates','Updates')) ?>
       <?php if ($notifCount): ?><span class="navbar-badge"><?= $notifCount ?></span><?php endif; ?>
     </a>
     <a href="index.php?page=support" class="<?= $curPage==='support'?'active':'' ?>">
-      <?= icon('info',15) ?> Support
+      <?= icon('info',15) ?> <?= h(ui('nav_support','Support')) ?>
     </a>
   </nav>
 
@@ -116,7 +118,7 @@ $_trustedDeviceUser = isLoggedIn() ? getCurrentTrustedDevice('user') : null;
   <input type="hidden" name="action" value="logout"/>
   <?= csrfField() ?>
   <button type="submit" class="navbar-signout">
-    <?= icon('logout',14) ?> Sign Out
+    <?= icon('logout',14) ?> <?= h(ui('btn_sign_out','Sign Out')) ?>
   </button>
 </form>
 <?php endif; ?>
@@ -153,24 +155,24 @@ $_trustedDeviceUser = isLoggedIn() ? getCurrentTrustedDevice('user') : null;
 <div class="mobile-menu" id="mobileMenu">
   <div class="mobile-menu-inner">
     <a href="index.php?page=catalog" class="<?= $curPage==='catalog'?'active':'' ?>" onclick="closeMobileMenu()">
-      <?= icon('grid',18) ?> Catalog
+      <?= icon('grid',18) ?> <?= h(ui('nav_catalog','Catalog')) ?>
     </a>
     <a href="index.php?page=shortlist" class="<?= $curPage==='shortlist'?'active':'' ?>" onclick="closeMobileMenu()" style="position:relative;">
-      <?= icon('heart',18) ?> Shortlist
+      <?= icon('heart',18) ?> <?= h(ui('nav_shortlist','Shortlist')) ?>
       <?php if ($sc): ?><span style="margin-left:auto;" class="badge badge-black"><?= $sc ?></span><?php endif; ?>
     </a>
     <a href="index.php?page=clients"
        class="<?= in_array($curPage,['clients','client_form','client_selections'])?'active':'' ?>"
        onclick="closeMobileMenu()">
-      <?= icon('users',18) ?> Clients
+      <?= icon('users',18) ?> <?= h(ui('nav_clients','Clients')) ?>
       <?php if ($clientCount): ?><span style="margin-left:auto;" class="badge badge-black"><?= $clientCount ?></span><?php endif; ?>
     </a>
     <a href="index.php?page=notifications" class="<?= $curPage==='notifications'?'active':'' ?>" onclick="closeMobileMenu()">
-      <?= icon('bell',18) ?> Notifications
+      <?= icon('bell',18) ?> <?= h(ui('nav_updates','Updates')) ?>
       <?php if ($notifCount): ?><span style="margin-left:auto;" class="badge badge-black"><?= $notifCount ?></span><?php endif; ?>
     </a>
     <a href="index.php?page=support" class="<?= $curPage==='support'?'active':'' ?>" onclick="closeMobileMenu()">
-      <?= icon('info',18) ?> Support
+      <?= icon('info',18) ?> <?= h(ui('nav_support','Support')) ?>
     </a>
     <a href="index.php?page=profile" class="<?= $curPage==='profile'?'active':'' ?>" onclick="closeMobileMenu()">
       <?= icon('user',18) ?> Profile
@@ -179,14 +181,14 @@ $_trustedDeviceUser = isLoggedIn() ? getCurrentTrustedDevice('user') : null;
   <div class="mobile-menu-footer">
     <?php if ($_trustedDeviceUser): ?>
 <button type="button" class="btn btn-danger btn-block" style="border-radius:12px;" onclick="openForceLogoutConfirm()">
-  <?= icon('logout',16) ?> Sign Out
+  <?= icon('logout',16) ?> <?= h(ui('btn_sign_out','Sign Out')) ?>
 </button>
 <?php else: ?>
 <form method="POST" action="index.php">
   <input type="hidden" name="action" value="logout"/>
   <?= csrfField() ?>
   <button type="submit" class="btn btn-danger btn-block" style="border-radius:12px;">
-    <?= icon('logout',16) ?> Sign Out
+    <?= icon('logout',16) ?> <?= h(ui('btn_sign_out','Sign Out')) ?>
   </button>
 </form>
 <?php endif; ?>

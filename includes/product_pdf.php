@@ -18,7 +18,7 @@ if (!file_exists($_htFile)) {
     file_put_contents($_htFile, "Options -Indexes\nAllow from all\n");
 }
 
-// ── Public entry point ────────────────────────────────────────────────────────
+// ── Public entry point 
 function generateProductPdf(int $productId): array
 {
     // 1. Fetch product
@@ -138,7 +138,7 @@ if (!is_writable(PDF_TEMP_DIR)) {
     }
 }
 
-// ── Resolve local logo path ───────────────────────────────────────────────────
+// ── Resolve local logo path 
 function _resolveLogoPath(): ?string
 {
     try {
@@ -151,7 +151,7 @@ function _resolveLogoPath(): ?string
     return null;
 }
 
-// ── Core PDF builder using TCPDF ──────────────────────────────────────────────
+// ── Core PDF builder using TCPDF 
 function _buildPdf(
     array   $p,
     ?string $photoPath,
@@ -172,7 +172,7 @@ if (!defined('K_PATH_FONTS')) {
         throw new \RuntimeException('TCPDF class not found. Run: composer require tecnickcom/tcpdf');
     }
 
-    // ── Page setup ────────────────────────────────────────────────────────────
+    // ── Page setup 
     $pdf = new \TCPDF('P', 'mm', 'A4', true, 'UTF-8', false);
     $pdf->SetCreator(APP_NAME);
     $pdf->SetAuthor(APP_NAME);
@@ -226,27 +226,27 @@ if (!defined('K_PATH_FONTS')) {
 
     $y += $logoH + 4;
 
-    // ── Divider ───────────────────────────────────────────────────────────────
+    // ── Divider 
     $pdf->SetDrawColor(...$black);
     $pdf->SetLineWidth(0.5);
     $pdf->Line($mL, $y, $mL + $contW, $y);
     $y += 6;
 
-    // ── Product Name ──────────────────────────────────────────────────────────
+    // ── Product Name 
     $pdf->SetXY($mL, $y);
     $pdf->SetFont('helvetica', 'B', 18);
     $pdf->SetTextColor(...$black);
     $pdf->MultiCell($contW, 9, $p['name'] ?? '', 0, 'C', false, 1);
     $y = $pdf->GetY() + 2;
 
-    // ── Quarry sub-header ─────────────────────────────────────────────────────
+    // ── Quarry sub-header 
     $pdf->SetXY($mL, $y);
     $pdf->SetFont('helvetica', '', 11);
     $pdf->SetTextColor(...$mid);
     $pdf->Cell($contW, 6, 'Quarry No: ' . ($p['quarry_number'] ?? '—'), 0, 1, 'C');
     $y = $pdf->GetY() + 4;
 
-    // ── Product Photo ─────────────────────────────────────────────────────────
+    // ── Product Photo 
     $imageRendered = false;
     error_log('PDF _buildPdf — photoPath received: ' . ($photoPath ?? 'NULL'));
     if ($photoPath) {
@@ -383,7 +383,7 @@ if (!defined('K_PATH_FONTS')) {
 
     $y = $pdf->GetY() + 8;
 
-    // ── Footer ────────────────────────────────────────────────────────────────
+    // ── Footer 
     $pdf->SetDrawColor(...$black);
     $pdf->SetLineWidth(0.4);
     $pdf->Line($mL, $y, $mL + $contW, $y);

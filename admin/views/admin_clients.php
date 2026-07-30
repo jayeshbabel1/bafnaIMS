@@ -100,7 +100,8 @@ $totalPages = max(1, (int)ceil($total / $perPage));
 
 <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px;flex-wrap:wrap;gap:10px;">
   <p class="admin-products-count" id="acFooterCount"><?= $total ?> client<?= $total !== 1 ? 's' : '' ?></p>
-  <div id="adminClientsPaginationWrap"></div>
+  <div id="adminClientsPaginationWrap" style="display:none;"></div>
+   <div id="paginationWrap"></div>
 </div>
 
 <!-- Delete confirm modal -->
@@ -128,7 +129,6 @@ $totalPages = max(1, (int)ceil($total / $perPage));
 <script>
 (function () {
   var tbody   = document.getElementById('adminClientsTbody');
-  var pagWrap = document.getElementById('adminClientsPaginationWrap');
   var countEl = document.getElementById('acFooterCount');
   var countEl2= document.getElementById('acCountEl');
   var searchEl= document.getElementById('acSearch');
@@ -137,6 +137,8 @@ $totalPages = max(1, (int)ceil($total / $perPage));
 
   var state = { q: '', page: <?= $currentPage ?> };
   var timer = null;
+  var totalPages = <?= (int)$totalPages ?>;
+  var pager = null;
 
   function load() {
     if (loader) loader.style.display = 'flex';
@@ -148,7 +150,11 @@ $totalPages = max(1, (int)ceil($total / $perPage));
       .then(function (r) { return r.json(); })
       .then(function (d) {
         if (tbody) { tbody.innerHTML = d.html; tbody.style.opacity = '1'; }
-        bindPagination(d.pages, d.current);
+        totalPages = d.pages;
+       if (pager) {
+         pager.setWrapEl(document.getElementById('paginationWrap'));
+         pager.render(d.current, d.pages);
+       }
         if (countEl)  countEl.textContent  = d.total + ' client' + (d.total !== 1 ? 's' : '');
         if (countEl2) countEl2.textContent = d.total + ' client' + (d.total !== 1 ? 's' : '');
         bindRowActions();
@@ -157,27 +163,7 @@ $totalPages = max(1, (int)ceil($total / $perPage));
       .finally(function () { if (loader) loader.style.display = 'none'; });
   }
 
-  function bindPagination(totalPages, current) {
-    if (!pagWrap) return;
-    if (totalPages <= 1) { pagWrap.innerHTML = ''; return; }
-    var range = 2, s = Math.max(1, current - range), e = Math.min(totalPages, current + range);
-    var html = '<div class="admin-pagination">';
-    html += '<button class="apag-btn' + (current<=1?' disabled':'') + '" data-page="' + (current-1) + '">&lsaquo;</button>';
-    if (s > 1) { html += '<button class="apag-btn" data-page="1">1</button>'; if (s>2) html += '<span class="apag-ellipsis">…</span>'; }
-    for (var i = s; i <= e; i++) html += '<button class="apag-btn' + (i===current?' active':'') + '" data-page="' + i + '">' + i + '</button>';
-    if (e < totalPages) { if (e < totalPages-1) html += '<span class="apag-ellipsis">…</span>'; html += '<button class="apag-btn" data-page="' + totalPages + '">' + totalPages + '</button>'; }
-    html += '<button class="apag-btn' + (current>=totalPages?' disabled':'') + '" data-page="' + (current+1) + '">&rsaquo;</button>';
-    html += '</div>';
-    pagWrap.innerHTML = html;
-    pagWrap.querySelectorAll('.apag-btn').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        if (btn.classList.contains('disabled') || btn.classList.contains('active')) return;
-        var pg = parseInt(btn.dataset.page, 10);
-        if (!isNaN(pg)) { state.page = pg; load(); }
-      });
-    });
-  }
-
+  
   function bindRowActions() {
     document.querySelectorAll('.ac-delete-btn').forEach(function (btn) {
       btn.addEventListener('click', function () {
@@ -214,6 +200,14 @@ $totalPages = max(1, (int)ceil($total / $perPage));
   });
 
   bindRowActions();
+  document.addEventListener('DOMContentLoaded', function () {
+   pager = initPagination({
+     wrapEl: document.getElementById('paginationWrap'),
+     btnClass: 'apag-btn',
+     onPage: function (page) { state.page = page; load(); }
+   });
+   pager.render(state.page, totalPages);
+ });
 })();
 </script>
 
