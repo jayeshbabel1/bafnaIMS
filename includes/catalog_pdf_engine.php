@@ -154,6 +154,12 @@ function generateCatalogPdf(int $catalogId): array {
         $layout = $config['layout'] ?? 'one_per_page';
         $gridLayouts = ['two_per_page', 'four_per_page', 'grid'];
         if (in_array($layout, $gridLayouts, true)) {
+            // Capture the real bottom margin BEFORE disabling auto-break —
+            // SetAutoPageBreak() resets TCPDF's internal bMargin to the
+            // value passed in, which corrupts getMargins()['bottom'] for
+            // any code that reads it afterward (our grid cell-height math).
+            $config['_footer_reserve'] = $footerOn ? 22 : 15;
+            $pdf->cpeConfig = $config;
             // Manual absolute-position grids cannot tolerate TCPDF's
             // auto page-break — it inserts pages mid-cell and desyncs
             // the slot math, causing images/text to land on the wrong
@@ -459,17 +465,21 @@ function _cpeRenderLayoutOne(\TCPDF $pdf, array $p, array $config): void {
 }
 
 // ── Layout N: 2 or 4 products per page (shared grid-cell renderer) ─────
-// Fixed-height zones per cell: image zone (55%) + name zone (fixed 1 line)
-// + detail zone (fixed N lines, clamped) — guarantees no cell ever exceeds
-// its allotted cellH, so cells can never bleed into the one below.
+// Fixed-height zones per cell: image zone + name zone (only if selected)
+// + detail zone (clamped lines, includes quarry number if selected) —
+// guarantees no cell ever exceeds its allotted cellH.
 function _cpeRenderLayoutN(\TCPDF $pdf, array $products, array $config, int $perPage): void {
     $font = $config['_font_family'] ?? 'helvetica';
     $fields = $config['fields'] ?? [];
+    $showName   = in_array('name', $fields, true);
+    $showQuarry = in_array('quarry_number', $fields, true);
+
     $cols = $perPage === 2 ? 1 : 2;
     $rowsPerPage = 2;
     $pageW = $pdf->getPageWidth();
     $pageH = $pdf->getPageHeight();
-    $mL = 15; $mT = $pdf->getMargins()['top']; $mB = $pdf->getMargins()['bottom'];
+    $mL = 15; $mT = $pdf->getMargins()['top'];
+    $mB = $config['_footer_reserve'] ?? 15; // fixed value — getMargins()['bottom'] is unreliable after SetAutoPageBreak(false,0)
     $usableW = $pageW - 30;
     $usableH = $pageH - $mT - $mB;
     $cellW = $usableW / $cols;
@@ -480,15 +490,14 @@ function _cpeRenderLayoutN(\TCPDF $pdf, array $products, array $config, int $per
     $nameSize = $perPage === 2 ? 13 : 10;
     $detailSize = $perPage === 2 ? 9 : 7.5;
     $detailLineH = $perPage === 2 ? 5 : 4.2;
-    $maxDetailLines = $perPage === 2 ? 4 : 2;
+    $maxDetailLines = $perPage === 2 ? 5 : 3;
     $nameLineH = $perPage === 2 ? 7 : 5.5;
 
-    $imgH = $cellH * 0.48;
-    $nameZoneH = $nameLineH;
+    $nameZoneH = $showName ? $nameLineH : 0;
     $detailZoneH = $maxDetailLines * $detailLineH;
-    // Guard: if computed zones exceed cell (very small custom page sizes), shrink image zone
+    $imgH = $cellH * 0.48;
     $usedH = $imgH + $nameZoneH + $detailZoneH + ($pad * 2);
-    if ($usedH > $cellH) $imgH = max(20, $cellH - $nameZoneH - $detailZoneH - ($pad * 2));
+    if ($usedH > $cellH) $imgH = max(18, $cellH - $nameZoneH - $detailZoneH - ($pad * 2));
 
     $i = 0;
     foreach ($products as $p) {
@@ -516,16 +525,21 @@ function _cpeRenderLayoutN(\TCPDF $pdf, array $products, array $config, int $per
 
         $ty = $y + $pad + $imgH + 4;
 
-        // Name — clamp to single line, ellipsis if too long
-        $nameTxt = _cpeClampText($pdf, $p['name'] ?? '', $innerW, $font, 'B', $nameSize);
-        $pdf->SetXY($x + $pad, $ty);
-        $pdf->SetFont($font, 'B', $nameSize);
-        $pdf->SetTextColor(...($config['_colors_rgb']['text'] ?? [20,20,20]));
-        $pdf->Cell($innerW, $nameZoneH, $nameTxt, 0, 0, 'L');
-        $ty += $nameZoneH + 1;
+        if ($showName) {
+            $nameTxt = _cpeClampText($pdf, $p['name'] ?? '', $innerW, $font, 'B', $nameSize);
+            $pdf->SetXY($x + $pad, $ty);
+            $pdf->SetFont($font, 'B', $nameSize);
+            $pdf->SetTextColor(...($config['_colors_rgb']['text'] ?? [20,20,20]));
+            $pdf->Cell($innerW, $nameZoneH, $nameTxt, 0, 0, 'L');
+            $ty += $nameZoneH + 1;
+        }
 
-        // Detail lines — one field per line, clamped, capped at $maxDetailLines
+        // Detail lines: quarry number first (if selected), then remaining checked fields
         $rows = _cpeFieldRows($p, array_diff($fields, ['name']));
+        if ($showQuarry && !empty($p['quarry_number'])) {
+            array_unshift($rows, ['Quarry No', (string)$p['quarry_number']]);
+        }
+
         $pdf->SetFont($font, '', $detailSize);
         $pdf->SetTextColor(100,100,100);
         $shown = array_slice($rows, 0, $maxDetailLines);
@@ -546,7 +560,8 @@ function _cpeRenderLayoutGrid(\TCPDF $pdf, array $products, array $config): void
     $font = $config['_font_family'] ?? 'helvetica';
     $cols = 3; $rowsPerPage = 4; $perPage = $cols * $rowsPerPage;
     $pageW = $pdf->getPageWidth(); $pageH = $pdf->getPageHeight();
-    $mL = 15; $mT = $pdf->getMargins()['top']; $mB = $pdf->getMargins()['bottom'];
+    $mL = 15; $mT = $pdf->getMargins()['top'];
+    $mB = $config['_footer_reserve'] ?? 15; // fixed value — getMargins()['bottom'] unreliable after SetAutoPageBreak(false,0)
     $cellW = ($pageW - 30) / $cols;
     $cellH = ($pageH - $mT - $mB) / $rowsPerPage;
     $innerW = $cellW - 6;
