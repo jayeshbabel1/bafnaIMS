@@ -8,8 +8,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="<?= getFontEmbedUrl(false) ?>" rel="stylesheet"/>
-<?php $l = currentLang(); $lf = getLangFontEmbedUrl($l); ?>
-<?php if ($lf): ?><link href="<?= h($lf) ?>" rel="stylesheet"/><?php endif; ?>
+<?php $_langFontUrl = getLangFontEmbedUrl(currentLang()); ?>
+<?php if ($_langFontUrl): ?>
+<link href="<?= h($_langFontUrl) ?>" rel="stylesheet"/>
+<?php endif; ?>
 <style><?= getCSSVariables() ?></style>
 <link rel="stylesheet" href="assets/css/style.css"/>
 <?php if (!function_exists('renderWatermarkCSS')) 

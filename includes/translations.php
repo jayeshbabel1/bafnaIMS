@@ -105,9 +105,9 @@ function ui(string $key, string $fallback = ''): string {
         ensureTranslationTables();
         $cache[$lang] = [];
         try {
-            $st = getDB()->prepare("SELECT field_key, value FROM translations WHERE entity_type='ui_string' AND lang=?");
-            $st->execute([$lang]);
-            foreach ($st->fetchAll() as $r) $cache[$lang][$r['field_key']] = $r['value'];
+           $st = getDB()->prepare("SELECT entity_id, value FROM translations WHERE entity_type='ui_string' AND lang=?");
+$st->execute([$lang]);
+foreach ($st->fetchAll() as $r) $cache[$lang][$r['entity_id']] = $r['value'];
         } catch (Throwable $e) {}
     }
     if (isset($cache[$lang][$key]) && $cache[$lang][$key] !== '') return $cache[$lang][$key];

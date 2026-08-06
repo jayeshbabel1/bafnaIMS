@@ -1,19 +1,22 @@
 <?php
-
+//ini_set('display_errors', 1);
+//ini_set('display_startup_errors', 1);
+//error_reporting(E_ALL);
 require_once __DIR__ . '/config/config.php';
 require_once __DIR__ . '/includes/db.php';
 require_once __DIR__ . '/includes/helpers.php';
 require_once __DIR__ . '/includes/auth.php';
+require_once __DIR__ . '/includes/translations.php';
 require_once __DIR__ . '/includes/notifications.php';
 require_once __DIR__ . '/includes/clients.php';
 require_once __DIR__ . '/includes/room_visualizer.php';
 require_once __DIR__ . '/includes/license.php';
 require_once __DIR__ . '/includes/product_views.php';
 require_once __DIR__ . '/includes/device_auth.php';
-require_once __DIR__ . '/includes/translations.php';
 require_once __DIR__ . '/includes/catalog_pdf.php';
+require_once __DIR__ . '/includes/selection_history.php';
 ensureCatalogPdfPermissions();
-
+ensureSelectionHistoryTable();
 startSecureSession();
 
 if (!isLoggedIn()) {

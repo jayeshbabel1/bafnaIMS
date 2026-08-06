@@ -49,3 +49,19 @@ $logFile = __DIR__ . '/../storage/logs/cron.log';
 if (is_dir(dirname($logFile)) || @mkdir(dirname($logFile), 0755, true)) {
     file_put_contents($logFile, implode(PHP_EOL, $log) . PHP_EOL, FILE_APPEND);
 }
+
+// cron/maintenance.php — add alongside the notifications cleanup
+require_once __DIR__ . '/../includes/catalog_pdf.php';
+$retentionDays = (int)(getCatalogPdfSettingsDefaults()['retention_days'] ?? 90);
+if ($retentionDays > 0) {
+    $cutoff = $now - ($retentionDays * 86400);
+    $stale = $db->prepare("SELECT id, pdf_path FROM catalogs WHERE status='done' AND updated_at < ? AND pdf_path IS NOT NULL");
+    $stale->execute([$cutoff]);
+    $purged = 0;
+    foreach ($stale->fetchAll() as $row) {
+        if ($row['pdf_path'] && file_exists($row['pdf_path'])) @unlink($row['pdf_path']);
+        $db->prepare("UPDATE catalogs SET pdf_path=NULL, status='draft' WHERE id=?")->execute([$row['id']]);
+        $purged++;
+    }
+    $log[] = "[".date('Y-m-d H:i:s')."] Purged $purged catalog PDF(s) older than $retentionDays days.";
+}

@@ -591,20 +591,14 @@ function downloadProductPdf(productId, productName) {
 </script>
 
 <?php if ($p): ?>
-<div id="rv3dModalA" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:9500;align-items:center;justify-content:center;padding:14px;">
-  <div style="background:#fff;border-radius:14px;max-width:680px;width:100%;overflow:hidden;">
+<div id="rv3dModalA" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9500;align-items:center;justify-content:center;padding:14px;">
+  <div style="background:#fff;border-radius:14px;max-width:820px;width:100%;overflow:hidden;">
     <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border);">
       <p style="font-weight:700;">3D Room Preview</p>
       <button onclick="close3DPreviewAdmin()" style="cursor:pointer;"><?= icon('close',18) ?></button>
     </div>
-    <div id="rv3dContainerA" style="width:100%;height:420px;background:#111;"></div>
-   <div style="display:flex;gap:6px;padding:12px 18px 0;flex-wrap:wrap;" id="rv3dRoomTabsA"></div>
-    <div style="display:flex;gap:8px;padding:12px 18px 14px;flex-wrap:wrap;align-items:center;">
-      <div id="rv3dSurfaceBtnsA" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
-      <a class="btn-admin-primary btn-admin-sm" style="margin-left:auto;" id="rv3dDownloadA" download="room-3d-preview.jpg" onclick="this.href=rv3d_snapshot_rv3dContainerA()">
-        <?= icon('download',13) ?> Save
-      </a>
-    </div>
+    <div id="rv3dContainerA" style="width:100%;height:460px;background:#111;position:relative;"></div>
+    <div id="rv3dControlsWrapA"></div>
   </div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
@@ -612,53 +606,29 @@ function downloadProductPdf(productId, productName) {
 <script src="../assets/js/room_visualizer_three.js"></script>
 <script>
 var rv3dInitedA = false;
-var RV3D_ROOMS_A = ['kitchen','hall','dining','drawing','bedroom'];
-
-function rv3dRenderSurfaceBtnsA() {
-  var wrap = document.getElementById('rv3dSurfaceBtnsA');
-  var keys = rv3d_getSurfaces_rv3dContainerA();
-  var labels = { floor:'Floor', wall:'Back Wall', sidewall:'Side Wall', counter:'Countertop' };
-  wrap.innerHTML = '';
-  keys.forEach(function (k) {
-    var b = document.createElement('button');
-    b.className = 'btn-admin-secondary btn-admin-sm';
-    b.textContent = labels[k] || k;
-    b.onclick = function () { rv3d_setSurface_rv3dContainerA(k); };
-    wrap.appendChild(b);
-  });
-}
-function rv3dRenderRoomTabsA(active) {
-  var wrap = document.getElementById('rv3dRoomTabsA');
-  wrap.innerHTML = '';
-  RV3D_ROOMS_A.forEach(function (r) {
-    var b = document.createElement('button');
-    b.type = 'button';
-    b.className = 'tag-pill' + (r === active ? ' active' : '');
-    b.textContent = rv3d_getRoomLabel(r);
-    b.onclick = function () {
-      rv3d_setRoom_rv3dContainerA(r);
-      rv3dRenderRoomTabsA(r);
-      rv3dRenderSurfaceBtnsA();
-    };
-    wrap.appendChild(b);
-  });
-}
-
 function open3DPreviewAdmin() {
   document.getElementById('rv3dModalA').style.display = 'flex';
   if (!rv3dInitedA) {
     var photoSrc = <?= json_encode((!empty($existingPhotos) && ($r = resolvePhotoPath(PHOTOS_DIR, $existingPhotos[0]['filename']))) ? '../assets/uploads/photos/'.$r : '') ?>;
+    var palette  = <?= json_encode($pal) ?>;
     if (photoSrc) {
-      RoomVisualizer3D('rv3dContainerA', { textureUrl: photoSrc, room: 'kitchen' });
+      window.RV3D_mount('rv3dContainerA', 'rv3dControlsWrapA', {
+        textureUrl: photoSrc,
+        room: 'kitchen',
+        palette: palette,
+        quality: 'medium',
+        thicknessMm: 35,
+        edgeProfile: 'straight',
+        allowIsland: true,
+      });
       rv3dInitedA = true;
-      rv3dRenderRoomTabsA('kitchen');
-      rv3dRenderSurfaceBtnsA();
     }
   }
 }
 function close3DPreviewAdmin() { document.getElementById('rv3dModalA').style.display = 'none'; }
 </script>
 <?php endif; ?>
+
  
 <?php include __DIR__ . '/_wa_share_modal.php'; ?>
 <?php include __DIR__ . '/../_layout_bottom.php'; ?>

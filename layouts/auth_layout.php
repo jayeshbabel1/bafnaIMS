@@ -8,6 +8,11 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="<?= getFontEmbedUrl(false) ?>" rel="stylesheet"/>
+<?php $_langFontUrl = getLangFontEmbedUrl(currentLang()); ?>
+<?php if ($_langFontUrl): ?>
+<link href="<?= h($_langFontUrl) ?>" rel="stylesheet"/>
+<?php endif; ?>
+  
 <style><?= getCSSVariables() ?></style>
 <link rel="stylesheet" href="assets/css/style.css"/>
   <link rel="stylesheet" href="assets/css/auth.css"/>

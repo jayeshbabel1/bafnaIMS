@@ -35,7 +35,11 @@ define('ROOM_PREVIEWS_DIR',  BASE_PATH . '/storage/room_previews');
 define('ROOM_TEMPLATES_URL', BASE_URL . '/assets/uploads/room_templates');
 define('ROOM_PREVIEWS_URL',  'storage/room_previews');
 define('CATALOG_PDF_DIR', BASE_PATH . '/storage/catalogs');
-
+define('ROOM_AREA_SUGGESTIONS', [
+    'Living Room','Drawing Room','Hall','Kitchen','Master Bedroom','Bedroom',
+    'Guest Room','Kids Room','Parents Room','Pooja Room','Staircase',
+    'Porch Area','Open Area',
+]);
 define('ROOM_TYPES', [
     'floor'    => 'Floor',
     'wall'     => 'Wall',

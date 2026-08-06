@@ -1,8 +1,8 @@
 <?php
 
-//ini_set('display_errors', 1);
-//ini_set('display_startup_errors', 1);
-//error_reporting(E_ALL);
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/helpers.php';
@@ -210,6 +210,8 @@ if ($action === 'catalog_pdf_regenerate') {
     require_once __DIR__ . '/../includes/catalog_pdf.php';
     require_once __DIR__ . '/../includes/catalog_pdf_engine.php';
     $cid = (int)($_POST['catalog_id'] ?? 0);
+  $cat = getCatalog($cid);
+if (!$cat || !catalogOwnedByCurrentAdmin($cat)) { flash('error','Catalog not be Regenerated.'); redirect('index.php?page=catalog_pdf_history'); }
     $result = generateCatalogPdf($cid);
     flash($result['success'] ? 'toast' : 'error', $result['success'] ? 'Catalog PDF regenerated.' : ('Failed: ' . ($result['error'] ?? '')));
     redirect('index.php?page=catalog_pdf_history');
@@ -221,6 +223,8 @@ if ($action === 'catalog_pdf_delete') {
     requireAdminPermission('catalog.delete');
     require_once __DIR__ . '/../includes/catalog_pdf.php';
     $cid = (int)($_POST['catalog_id'] ?? 0);
+  $cat = getCatalog($cid);
+if (!$cat || !catalogOwnedByCurrentAdmin($cat)) { flash('error','Catalog not found.'); redirect('index.php?page=catalog_pdf_history'); }
     deleteCatalog($cid);
     flash('toast', 'Catalog deleted.');
     redirect('index.php?page=catalog_pdf_history');
@@ -1163,6 +1167,9 @@ if (!isAdmin()) {
 // ════════════════════════════════════════════════════════════════════════════
 // Functions
 // ════════════════════════════════════════════════════════════════════════════
+function catalogOwnedByCurrentAdmin(array $cat): bool {
+    return isSuperAdmin() || (int)($cat['admin_id'] ?? 0) === (int)($_SESSION['admin_id'] ?? 0);
+}
 
 function saveProduct(array $data, array $files): void {
     $db  = getDB();
@@ -2399,6 +2406,7 @@ $file = __DIR__ . '/views/' . $page . '.php';
         'logo'                   => 'settings.logo',
         'colors'                 => 'settings.colors',
         'smtp'                   => 'settings.smtp',
+        'room_templates'         => 'settings.room_templates',
         'roles'                  => 'roles.view',
         'admin_accounts'         => 'admins.view',
         'inquiries'              => 'users.view',

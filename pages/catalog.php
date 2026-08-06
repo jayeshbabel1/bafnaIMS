@@ -380,8 +380,8 @@ if ($isAjax) {
 // Helper: input value fallback
 function fv($v): string { return $v !== null ? h((string)$v) : ''; }
 ?>
-<?php include BASE_PATH . '/layouts/header.php'; ?>
 
+<?php include BASE_PATH . '/layouts/header.php'; ?>
 <style>
   /*  Search suggest / history dropdown  */
 .search-suggest-box {

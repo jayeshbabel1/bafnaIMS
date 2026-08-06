@@ -4,6 +4,8 @@
  * Client & Selection management helpers
  */
 
+require_once __DIR__ . '/selection_history.php';
+
 // ── Validation ────────────────────────────────────────────────────────────────
 function validateMobile(string $mobile): bool {
     $clean = preg_replace('/[\s\-\(\)\.]+/', '', $mobile);
@@ -99,10 +101,17 @@ function updateClient(int $id, int $userId, array $data): array {
     return ['success' => true];
 }
 
+// Deleting a client also removes its selection-history rows (the "Delete
+// Rule": once a client — and therefore all of its selections — is
+// permanently gone, orphaned history serves no purpose and is cascaded).
 function deleteClient(int $id, int $userId): bool {
     $st = getDB()->prepare("DELETE FROM clients WHERE id=? AND user_id=?");
     $st->execute([$id, $userId]);
-    return $st->rowCount() > 0;
+    $deleted = $st->rowCount() > 0;
+    if ($deleted) {
+        deleteSelectionHistoryForClient($id);
+    }
+    return $deleted;
 }
 
 function clientCount(int $userId): int {
@@ -185,12 +194,29 @@ function createSelection(int $clientId, int $userId, array $data): array {
     $dup->execute([$clientId, $pid, $userId]);
     if ($dup->fetch()) return ['success' => false, 'error' => 'This product is already added to this client.'];
 
-    $db = getDB();
-    $db->prepare("INSERT INTO client_selections (client_id, user_id, product_id, selection_area, quantity_required, extra_notes, created_at, updated_at)
-                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
-       ->execute([$clientId, $userId, $pid, $area, $qty, $notes, time(), time()]);
+    $prodSt = getDB()->prepare("SELECT id, name, quarry_number FROM products WHERE id=?");
+    $prodSt->execute([$pid]);
+    $product = $prodSt->fetch();
+    if (!$product) return ['success' => false, 'error' => 'Product not found.'];
 
-    return ['success' => true, 'id' => (int)$db->lastInsertId()];
+    $db = getDB();
+    $db->beginTransaction();
+    try {
+        $db->prepare("INSERT INTO client_selections (client_id, user_id, product_id, selection_area, quantity_required, extra_notes, created_at, updated_at)
+                      VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+           ->execute([$clientId, $userId, $pid, $area, $qty, $notes, time(), time()]);
+        $selId = (int)$db->lastInsertId();
+
+        $actor = ['type' => 'user', 'id' => $userId, 'name' => currentUser()['name'] ?? 'User'];
+        logSelectionHistory($selId, $clientId, $product, 'added', $actor);
+
+        $db->commit();
+    } catch (Throwable $e) {
+        $db->rollBack();
+        return ['success' => false, 'error' => 'Could not save selection: ' . $e->getMessage()];
+    }
+
+    return ['success' => true, 'id' => $selId];
 }
 
 /**
@@ -209,16 +235,58 @@ function updateSelection(int $id, int $userId, array $data): array {
     $qty   = (float)($data['quantity_required'] ?? 0);
     $notes = trim($data['extra_notes']        ?? '');
 
-    getDB()->prepare("UPDATE client_selections SET selection_area=?, quantity_required=?, extra_notes=?, updated_at=? WHERE id=? AND user_id=?")
+    $old = getSelection($id, $userId);
+    if (!$old) return ['success' => false, 'error' => 'Selection not found.'];
+
+    $db = getDB();
+    $db->beginTransaction();
+    try {
+        $db->prepare("UPDATE client_selections SET selection_area=?, quantity_required=?, extra_notes=?, updated_at=? WHERE id=? AND user_id=?")
            ->execute([$area, $qty, $notes, time(), $id, $userId]);
+
+        $new     = ['selection_area' => $area, 'quantity_required' => $qty, 'extra_notes' => $notes];
+        $changes = diffSelectionFields($old, $new);
+        if (!empty($changes)) {
+            $actor = ['type' => 'user', 'id' => $userId, 'name' => currentUser()['name'] ?? 'User'];
+            logSelectionHistory((int)$old['id'], (int)$old['client_id'], [
+                'id' => $old['product_id'], 'name' => $old['product_name'], 'quarry_number' => $old['quarry_number'],
+            ], 'edited', $actor, $changes);
+        }
+
+        $db->commit();
+    } catch (Throwable $e) {
+        $db->rollBack();
+        return ['success' => false, 'error' => 'Could not update selection: ' . $e->getMessage()];
+    }
 
     return ['success' => true];
 }
 
 function deleteSelection(int $id, int $userId): bool {
-    $st = getDB()->prepare("DELETE FROM client_selections WHERE id=? AND user_id=?");
-    $st->execute([$id, $userId]);
-    return $st->rowCount() > 0;
+    $old = getSelection($id, $userId);
+    if (!$old) return false;
+
+    $db = getDB();
+    $db->beginTransaction();
+    try {
+        $st = $db->prepare("DELETE FROM client_selections WHERE id=? AND user_id=?");
+        $st->execute([$id, $userId]);
+        $deleted = $st->rowCount() > 0;
+
+        if ($deleted) {
+            $actor = ['type' => 'user', 'id' => $userId, 'name' => currentUser()['name'] ?? 'User'];
+            logSelectionHistory($id, (int)$old['client_id'], [
+                'id' => $old['product_id'], 'name' => $old['product_name'], 'quarry_number' => $old['quarry_number'],
+            ], 'deleted', $actor);
+        }
+
+        $db->commit();
+    } catch (Throwable $e) {
+        $db->rollBack();
+        return false;
+    }
+
+    return $deleted;
 }
 
 function adminGetClients(int $userId, array $opts = []): array {
@@ -408,13 +476,17 @@ function adminUpdateClient(int $clientId, int $userId, array $data): array {
     return ['success' => true];
 }
  
-// ── Admin: delete a client (any owner) — cascades selections ────────────────
+// ── Admin: delete a client (any owner) — cascades selections + their history ─
 function adminDeleteClient(int $clientId): bool {
     $db = getDB();
     $db->prepare("DELETE FROM client_selections WHERE client_id=?")->execute([$clientId]);
     $st = $db->prepare("DELETE FROM clients WHERE id=?");
     $st->execute([$clientId]);
-    return $st->rowCount() > 0;
+    $deleted = $st->rowCount() > 0;
+    if ($deleted) {
+        deleteSelectionHistoryForClient($clientId);
+    }
+    return $deleted;
 }
  
 // ── Admin: create a selection for a client (any owner) ──────────────────────
@@ -428,9 +500,10 @@ function adminCreateSelectionForClient(int $clientId, int $productId, array $dat
     $client = adminGetClientWithOwner($clientId);
     if (!$client) return ['success' => false, 'error' => 'Client not found.'];
  
-    $pchk = getDB()->prepare("SELECT id FROM products WHERE id=?");
+    $pchk = getDB()->prepare("SELECT id, name, quarry_number FROM products WHERE id=?");
     $pchk->execute([$productId]);
-    if (!$pchk->fetch()) return ['success' => false, 'error' => 'Product not found.'];
+    $product = $pchk->fetch();
+    if (!$product) return ['success' => false, 'error' => 'Product not found.'];
  
     $dup = getDB()->prepare("SELECT id FROM client_selections WHERE client_id=? AND product_id=?");
     $dup->execute([$clientId, $productId]);
@@ -441,11 +514,23 @@ function adminCreateSelectionForClient(int $clientId, int $productId, array $dat
     $notes = trim($data['extra_notes']          ?? '');
  
     $db = getDB();
-    $db->prepare("INSERT INTO client_selections (client_id, user_id, product_id, selection_area, quantity_required, extra_notes, created_at, updated_at)
-                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
-       ->execute([$clientId, $client['user_id'], $productId, $area, $qty, $notes, time(), time()]);
+    $db->beginTransaction();
+    try {
+        $db->prepare("INSERT INTO client_selections (client_id, user_id, product_id, selection_area, quantity_required, extra_notes, created_at, updated_at)
+                      VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+           ->execute([$clientId, $client['user_id'], $productId, $area, $qty, $notes, time(), time()]);
+        $selId = (int)$db->lastInsertId();
+
+        $actor = ['type' => 'admin', 'id' => $_SESSION['admin_id'] ?? null, 'name' => $_SESSION['admin_name'] ?? 'Admin'];
+        logSelectionHistory($selId, $clientId, $product, 'added', $actor);
+
+        $db->commit();
+    } catch (Throwable $e) {
+        $db->rollBack();
+        return ['success' => false, 'error' => 'Could not save selection: ' . $e->getMessage()];
+    }
  
-    return ['success' => true, 'id' => (int)$db->lastInsertId()];
+    return ['success' => true, 'id' => $selId];
 }
  
 // ── Admin: update a selection (any owner) ────────────────────────────────────
@@ -453,18 +538,68 @@ function adminUpdateSelection(int $selectionId, array $data): array {
     $area  = trim($data['selection_area']      ?? '');
     $qty   = (float)($data['quantity_required'] ?? 0);
     $notes = trim($data['extra_notes']          ?? '');
- 
-    getDB()->prepare("UPDATE client_selections SET selection_area=?, quantity_required=?, extra_notes=?, updated_at=? WHERE id=?")
+
+    $oldSt = getDB()->prepare("SELECT cs.*, p.name AS product_name, p.quarry_number
+                                FROM client_selections cs JOIN products p ON p.id = cs.product_id
+                                WHERE cs.id=?");
+    $oldSt->execute([$selectionId]);
+    $old = $oldSt->fetch();
+    if (!$old) return ['success' => false, 'error' => 'Selection not found.'];
+
+    $db = getDB();
+    $db->beginTransaction();
+    try {
+        $db->prepare("UPDATE client_selections SET selection_area=?, quantity_required=?, extra_notes=?, updated_at=? WHERE id=?")
            ->execute([$area, $qty, $notes, time(), $selectionId]);
+
+        $new     = ['selection_area' => $area, 'quantity_required' => $qty, 'extra_notes' => $notes];
+        $changes = diffSelectionFields($old, $new);
+        if (!empty($changes)) {
+            $actor = ['type' => 'admin', 'id' => $_SESSION['admin_id'] ?? null, 'name' => $_SESSION['admin_name'] ?? 'Admin'];
+            logSelectionHistory($selectionId, (int)$old['client_id'], [
+                'id' => $old['product_id'], 'name' => $old['product_name'], 'quarry_number' => $old['quarry_number'],
+            ], 'edited', $actor, $changes);
+        }
+
+        $db->commit();
+    } catch (Throwable $e) {
+        $db->rollBack();
+        return ['success' => false, 'error' => 'Could not update selection: ' . $e->getMessage()];
+    }
  
     return ['success' => true];
 }
  
 // ── Admin: delete a selection (any owner) ────────────────────────────────────
 function adminDeleteSelection(int $selectionId): bool {
-    $st = getDB()->prepare("DELETE FROM client_selections WHERE id=?");
-    $st->execute([$selectionId]);
-    return $st->rowCount() > 0;
+    $oldSt = getDB()->prepare("SELECT cs.*, p.name AS product_name, p.quarry_number
+                                FROM client_selections cs JOIN products p ON p.id = cs.product_id
+                                WHERE cs.id=?");
+    $oldSt->execute([$selectionId]);
+    $old = $oldSt->fetch();
+    if (!$old) return false;
+
+    $db = getDB();
+    $db->beginTransaction();
+    try {
+        $st = $db->prepare("DELETE FROM client_selections WHERE id=?");
+        $st->execute([$selectionId]);
+        $deleted = $st->rowCount() > 0;
+
+        if ($deleted) {
+            $actor = ['type' => 'admin', 'id' => $_SESSION['admin_id'] ?? null, 'name' => $_SESSION['admin_name'] ?? 'Admin'];
+            logSelectionHistory($selectionId, (int)$old['client_id'], [
+                'id' => $old['product_id'], 'name' => $old['product_name'], 'quarry_number' => $old['quarry_number'],
+            ], 'deleted', $actor);
+        }
+
+        $db->commit();
+    } catch (Throwable $e) {
+        $db->rollBack();
+        return false;
+    }
+ 
+    return $deleted;
 }
  
 // ── Admin: lightweight product search for the "Add Product" picker ─────────

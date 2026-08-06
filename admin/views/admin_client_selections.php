@@ -13,10 +13,29 @@ if (!$clientId) redirect('index.php?page=admin_clients');
 $client = adminGetClientWithOwner($clientId);
 if (!$client) { flash('error', 'Client not found.'); redirect('index.php?page=admin_clients'); }
 
-if (!empty($_GET['ajax']) || !empty($_GET['ajax_product_search'])) {
+if (!empty($_GET['ajax']) || !empty($_GET['ajax_product_search']) || !empty($_GET['ajax_history'])) {
     requireAdminPermissionJson('clients.view');
 } else {
     requireAdminPermission('clients.view');
+}
+
+// ── AJAX: selection history (lazy-loaded via popup — never prefetched) ─────
+if (!empty($_GET['ajax_history'])) {
+    require_once BASE_PATH . '/includes/selection_history.php';
+    header('Content-Type: application/json');
+    $hPerPage = 15;
+    $hPage    = max(1, (int)($_GET['p'] ?? 1));
+    $hResult  = getSelectionHistory($clientId, ['limit' => $hPerPage, 'offset' => ($hPage - 1) * $hPerPage]);
+    $hTotal   = $hResult['total'];
+    $hPages   = max(1, (int)ceil($hTotal / $hPerPage));
+    echo json_encode([
+        'success' => true,
+        'rows'    => $hResult['rows'],
+        'total'   => $hTotal,
+        'pages'   => $hPages,
+        'current' => min($hPage, $hPages),
+    ]);
+    exit;
 }
 
 // ── AJAX: selection rows (search + pagination) ──────────────────────────────
@@ -65,6 +84,8 @@ $total      = $result['total'];
 $totalPages = max(1, (int)ceil($total / $perPage));
 ?>
 
+<link rel="stylesheet" href="../assets/css/selection_history.css"/>
+
 <style>
 .acs-client-card { display:flex; flex-wrap:wrap; gap:16px; align-items:flex-start; }
 .acs-toolbar { display:flex; gap:10px; align-items:center; margin-bottom:16px; flex-wrap:wrap; }
@@ -93,6 +114,7 @@ $totalPages = max(1, (int)ceil($total / $perPage));
 <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
   <a href="index.php?page=admin_clients" class="btn-admin-secondary btn-admin-sm"><?= icon('back', 14) ?> Back to Clients</a>
   <a href="index.php?page=admin_client_form&id=<?= $clientId ?>" class="btn-admin-secondary btn-admin-sm"><?= icon('edit', 13) ?> Edit Client</a>
+  <button type="button" id="acsHistoryBtn" class="btn-admin-secondary btn-admin-sm"><?= icon('file', 13) ?> History</button>
 </div>
 
 <!-- Client info card -->
@@ -186,7 +208,7 @@ $totalPages = max(1, (int)ceil($total / $perPage));
           <div class="acf-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
             <div>
               <label class="admin-label">Area / Room</label>
-              <input type="text" name="selection_area" class="admin-input" placeholder="e.g. Living Room"/>
+                 <input type="text" name="selection_area" class="admin-input" placeholder="e.g. Living Room" list="roomAreaSuggestions" Autocomplete="off"/>
             </div>
             <div>
               <label class="admin-label">Qty Required (sqft)</label>
@@ -208,6 +230,7 @@ $totalPages = max(1, (int)ceil($total / $perPage));
 
     </div>
   </div>
+  <?= roomAreaDatalist() ?>
 </div>
 
 <!-- ══════════════════ EDIT SELECTION MODAL ═══════════════════════════════ -->
@@ -225,7 +248,7 @@ $totalPages = max(1, (int)ceil($total / $perPage));
         <?= csrfField() ?>
         <div style="margin-bottom:14px;">
           <label class="admin-label">Selection Area / Room</label>
-          <input type="text" name="selection_area" id="acsEditSelArea" class="admin-input" placeholder="e.g. Master Bedroom"/>
+           <input type="text" name="selection_area" id="acsEditSelArea" class="admin-input" placeholder="e.g. Master Bedroom" list="roomAreaSuggestions" autocomplete="off"/>
         </div>
         <div style="margin-bottom:14px;">
           <label class="admin-label">Quantity Required (sqft)</label>
@@ -242,6 +265,7 @@ $totalPages = max(1, (int)ceil($total / $perPage));
       </form>
     </div>
   </div>
+   
 </div>
 
 <!-- Delete confirm modal -->
@@ -328,6 +352,11 @@ $totalPages = max(1, (int)ceil($total / $perPage));
       timer = setTimeout(function () { state.q = v; load(1); }, 300);
     });
   }
+
+  // ── History button ──────────────────────────────────────────────────────
+  document.getElementById('acsHistoryBtn')?.addEventListener('click', function () {
+    openSelectionHistory(clientId, 'index.php?page=admin_client_selections');
+  });
 
   // ── Edit modal close ───────────────────────────────────────────────────
   document.getElementById('acsEditSelClose')?.addEventListener('click', function () {
@@ -493,5 +522,7 @@ $totalPages = max(1, (int)ceil($total / $perPage));
  });
 })();
 </script>
+
+<script src="../assets/js/selection_history.js"></script>
 
 <?php include __DIR__ . '/../_layout_bottom.php'; ?>

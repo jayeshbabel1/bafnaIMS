@@ -2,9 +2,6 @@
 /**
  * pages/client_selections.php — View & manage product selections for a client
  */
-$pageTitle = 'Selections — ' . APP_NAME;
-$showNav   = true;
-
 require_once BASE_PATH . '/includes/clients.php';
 
 $clientId = (int)($_GET['client_id'] ?? 0);
@@ -13,7 +10,29 @@ if (!$clientId) redirect('index.php?page=clients');
 $client = getClient($clientId, $_SESSION['user_id']);
 if (!$client) { flash('error', 'Client not found.'); redirect('index.php?page=clients'); }
 
+// ── AJAX: selection history (lazy-loaded via popup — never prefetched) ─────
+if (!empty($_GET['ajax_history'])) {
+    require_once BASE_PATH . '/includes/selection_history.php';
+    header('Content-Type: application/json');
+    $hPerPage = 15;
+    $hPage    = max(1, (int)($_GET['p'] ?? 1));
+    $hResult  = getSelectionHistory($clientId, ['limit' => $hPerPage, 'offset' => ($hPage - 1) * $hPerPage]);
+    $hTotal   = $hResult['total'];
+    $hPages   = max(1, (int)ceil($hTotal / $hPerPage));
+    echo json_encode([
+        'success' => true,
+        'rows'    => $hResult['rows'],
+        'total'   => $hTotal,
+        'pages'   => $hPages,
+        'current' => min($hPage, $hPages),
+    ]);
+    exit;
+}
+
 $pageTitle = h($client['client_name']) . ' — Selections';
+$showNav   = true;
+$extraCSS  = ['selection_history.css'];
+$extraJS   = ['selection_history.js'];
 
 $perPage     = 10;
 $currentPage = max(1, (int)($_GET['p'] ?? 1));
@@ -51,6 +70,10 @@ if ($isAjax) {
         <?= h($client['client_name']) ?>
       </h1>
     </div>
+    <button type="button" class="btn btn-secondary btn-sm"
+            onclick="openSelectionHistory(<?= $clientId ?>, 'index.php?page=client_selections')">
+      <?= icon('file', 13) ?>&nbsp;History
+    </button>
     <a href="index.php?page=client_form&id=<?= $clientId ?>"
        class="btn btn-secondary btn-sm"><?= icon('edit', 13) ?>&nbsp;Edit</a>
   </div>
@@ -128,7 +151,7 @@ if ($isAjax) {
         <?= csrfField() ?>
         <div class="input-group">
           <label class="input-label">Selection Area / Room</label>
-          <input type="text" name="selection_area" id="editSelArea" class="input-field" placeholder="e.g. Master Bedroom"/>
+          <input type="text" name="selection_area" id="editSelArea" class="input-field" placeholder="e.g. Master Bedroom" list="roomAreaSuggestions" autocomplete="off"/>
         </div>
         <div class="input-group">
           <label class="input-label">Quantity Required (sqft)</label>
@@ -145,6 +168,7 @@ if ($isAjax) {
       </form>
     </div>
   </div>
+  <?= roomAreaDatalist() ?>
 </div>
 
 <script>

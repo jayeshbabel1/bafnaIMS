@@ -458,6 +458,15 @@ function generateThumbnail(string $fullPath, int $maxW = 400, int $maxH = 400): 
     $dstW  = max(1, (int)round($srcW * $ratio));
     $dstH  = max(1, (int)round($srcH * $ratio));
 
+     // ── Read EXIF orientation (JPEG only — PNG/WEBP don't carry this tag) ──
+   $exifOrientation = 1;
+   if ($type === IMAGETYPE_JPEG && function_exists('exif_read_data')) {
+       $exif = @exif_read_data($fullPath);
+       if ($exif && !empty($exif['Orientation'])) {
+           $exifOrientation = (int)$exif['Orientation'];
+       }
+   }
+  
     switch ($type) {
         case IMAGETYPE_JPEG: $src = @imagecreatefromjpeg($fullPath); break;
         case IMAGETYPE_PNG:  $src = @imagecreatefrompng($fullPath);  break;
@@ -465,6 +474,29 @@ function generateThumbnail(string $fullPath, int $maxW = 400, int $maxH = 400): 
         default: return false;
     }
     if (!$src) return false;
+
+    // ── Apply EXIF rotation/flip BEFORE computing thumb dimensions ─────────
+   // Orientation values 5-8 swap width/height, so $srcW/$srcH must be
+   // corrected too or the resize ratio + canvas will be wrong.
+   if ($exifOrientation !== 1) {
+       switch ($exifOrientation) {
+           case 2: imageflip($src, IMG_FLIP_HORIZONTAL); break;
+           case 3: $src = imagerotate($src, 180, 0); break;
+           case 4: imageflip($src, IMG_FLIP_VERTICAL); break;
+           case 5: $src = imagerotate($src, -90, 0); imageflip($src, IMG_FLIP_HORIZONTAL); break;
+           case 6: $src = imagerotate($src, -90, 0); break;
+           case 7: $src = imagerotate($src, 90, 0); imageflip($src, IMG_FLIP_HORIZONTAL); break;
+           case 8: $src = imagerotate($src, 90, 0); break;
+       }
+       if (in_array($exifOrientation, [5, 6, 7, 8], true)) {
+           [$srcW, $srcH] = [$srcH, $srcW];
+       }
+   }
+ 
+  
+   $ratio = min($maxW / $srcW, $maxH / $srcH, 1); // never upscale
+    $dstW  = max(1, (int)round($srcW * $ratio));
+    $dstH  = max(1, (int)round($srcH * $ratio));
 
     $dst = imagecreatetruecolor($dstW, $dstH);
     if ($type === IMAGETYPE_PNG || $type === IMAGETYPE_WEBP) {
@@ -499,9 +531,11 @@ function getPhotoThumbUrl(string $relativePath): string {
 
     $thumbFull = THUMBS_DIR . '/' . $resolvedOrig;
     if (file_exists($thumbFull)) {
-        return 'assets/uploads/_thumb/' . $resolvedOrig;
+       return 'assets/uploads/_thumb/' . $resolvedOrig . '?v=' . filemtime($thumbFull);
     }
-    return 'assets/uploads/photos/' . $resolvedOrig;
+
+   $origFull = PHOTOS_DIR . '/' . $resolvedOrig;
+   return 'assets/uploads/photos/' . $resolvedOrig . '?v=' . (file_exists($origFull) ? filemtime($origFull) : time());
 }
 
 
@@ -598,3 +632,15 @@ function normalizePhotoFilename(string $filename): string {
     // Doesn't match the naming convention — leave stem alone, just fix extension casing
     return "{$stem}.{$ext}";
 }
+
+// ── Room/Area suggestion datalist (used by selection_area inputs) ─────────
+function roomAreaDatalist(): string {
+    $opts = '';
+    foreach (ROOM_AREA_SUGGESTIONS as $v) {
+        $opts .= '<option value="' . h($v) . '">';
+    }
+    return '<datalist id="roomAreaSuggestions">' . $opts . '</datalist>';
+}
+
+
+

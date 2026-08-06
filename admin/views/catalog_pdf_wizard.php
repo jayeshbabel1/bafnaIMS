@@ -16,10 +16,12 @@ if (!empty($_GET['ajax_pdf_products'])) {
     $where  = "WHERE 1=1"; $params = [];
     if ($q !== '')   { $where .= " AND (p.name LIKE ? OR p.quarry_number LIKE ?)"; $params[]="%{$q}%"; $params[]="%{$q}%"; }
     if ($cat !== '') { $where .= " AND p.category=?"; $params[] = $cat; }
-    $st = $db->prepare("SELECT p.id,p.name,p.quarry_number,p.category,p.color_subcategory,p.thickness,
+ $st = $db->prepare("SELECT p.id,p.name,p.quarry_number,p.category,p.color_subcategory,p.thickness,
                         p.quantity_available,p.palette,
+                        EXISTS(SELECT 1 FROM product_photos pp WHERE pp.product_id=p.id) AS has_photo,
                         (SELECT filename FROM product_photos WHERE product_id=p.id ORDER BY sort_order LIMIT 1) AS primary_photo
-                        FROM products p $where ORDER BY p.name ASC LIMIT 200");
+                        FROM products p $where
+                        ORDER BY  has_photo DESC,p.created_at DESC, p.id DESC LIMIT 200");
     $st->execute($params);
     header('Content-Type: application/json');
     echo json_encode(['products' => $st->fetchAll()]);
@@ -90,15 +92,19 @@ if (!empty($_POST) && ($_POST['action'] ?? '') === 'save_catalog_draft') {
     if (!is_array($customize)) $customize = [];
 
     if ($catalogId) {
-        $row = getCatalog($catalogId);
-        $config = $row['config'] ?? getCatalogPdfSettingsDefaults();
-        if ($layout !== '') $config['layout'] = $layout;
-        if (!empty($fields)) $config['fields'] = $fields;
-        if (!empty($customize)) $config = array_replace_recursive($config, $customize);
-        getDB()->prepare("UPDATE catalogs SET name=?, product_ids_json=?, config_json=?, updated_at=? WHERE id=?")
-               ->execute([$name, json_encode($productIds), json_encode($config), time(), $catalogId]);
-        echo json_encode(['success' => true, 'id' => $catalogId]);
-    } else {
+    $row = getCatalog($catalogId);
+    if (!$row) {
+        echo json_encode(['success' => false, 'error' => 'This catalog no longer exists. Refresh and start again.']);
+        exit;
+    }
+    $config = $row['config'];
+    if ($layout !== '') $config['layout'] = $layout;
+    if (!empty($fields)) $config['fields'] = $fields;
+    if (!empty($customize)) $config = array_replace_recursive($config, $customize);
+    $upd = getDB()->prepare("UPDATE catalogs SET name=?, product_ids_json=?, config_json=?, updated_at=? WHERE id=?");
+    $upd->execute([$name, json_encode($productIds), json_encode($config), time(), $catalogId]);
+    echo json_encode(['success' => $upd->rowCount() >= 0, 'id' => $catalogId]);
+} else {
         $config = getCatalogPdfSettingsDefaults();
         if ($layout !== '') $config['layout'] = $layout;
         if (!empty($fields)) $config['fields'] = $fields;
@@ -504,7 +510,8 @@ $categories = getCategoryNames();
   var selected    = new Set(existingIds.map(Number));
   var order       = existingIds.map(Number); // manual order array of ids
   var currentStep = 1;
-
+  var dragEl      = null;
+  var pdfGenerated = <?= json_encode((bool)($existing && ($existing['status'] ?? '') === 'done')) ?>;
   function esc(s){ var d=document.createElement('div'); d.textContent=String(s==null?'':s); return d.innerHTML; }
 
   var selectedLayout = <?= json_encode($existing['config']['layout'] ?? 'one_per_page') ?>;
@@ -535,11 +542,23 @@ document.getElementById('cpwBackBtn').addEventListener('click', function(){ if(c
   document.getElementById('cpwNextBtn').textContent = 'Next: Order →';
 
   // hide Next button entirely on step 5 (Generate button takes over)
-  var _origGoStep = goStep;
-  goStep = function(n) {
-    _origGoStep(n);
-    document.getElementById('cpwNextBtn').style.display = (n===5) ? 'none' : '';
-  };
+ // hide Next button entirely on step 5 (Generate button takes over)
+var _origGoStep = goStep;
+goStep = function(n) {
+  _origGoStep(n);
+  document.getElementById('cpwNextBtn').style.display = (n===5) ? 'none' : '';
+  if (n === 5) resetStep5UI();
+};
+
+function resetStep5UI() {
+  document.getElementById('cpwGenIdle').style.display = 'block';
+  document.getElementById('cpwGenProgress').style.display = 'none';
+  document.getElementById('cpwGenResult').style.display = 'none';
+  document.getElementById('cpwGenError').style.display = 'none';
+  document.getElementById('cpwGenerateBtn').innerHTML = pdfGenerated
+    ? '<?= icon("refresh",16) ?> Regenerate PDF'
+    : '<?= icon("check",16) ?> Generate PDF';
+}
 
   // ── Customize tab switching ──────────────────────────────────────────
   document.querySelectorAll('.cpw-cust-tab').forEach(function(tab){
@@ -645,7 +664,6 @@ document.getElementById('cpwBackBtn').addEventListener('click', function(){ if(c
     }).join('');
   }
 
-  // ── Save full config on draft save (extends earlier saveDraft body) ──
   var _origSaveDraft = saveDraft;
   saveDraft = function(cb) {
     var body = new URLSearchParams();
@@ -657,10 +675,18 @@ document.getElementById('cpwBackBtn').addEventListener('click', function(){ if(c
     body.set('fields', JSON.stringify(getCheckedFields()));
     body.set('customize', JSON.stringify(collectCustomizeConfig()));
     body.set('csrf_token', csrfToken);
-    fetch('index.php?page=catalog_pdf_wizard', { method:'POST', body: body, headers:{'X-Requested-With':'XMLHttpRequest'} })
-      .then(function(r){ return r.json(); })
-      .then(function(d){ if(d.success){ catalogId = d.id; } if(cb) cb(d); })
-      .catch(function(e){ alert('Save failed: '+e.message); });
+fetch('index.php?page=catalog_pdf_wizard', { method:'POST', body: body, headers:{'X-Requested-With':'XMLHttpRequest'} })
+  .then(function(r){ return r.json(); })
+  .then(function(d){
+    if (d.success) {
+      catalogId = d.id;
+      var url = new URL(window.location.href);
+      url.searchParams.set('id', catalogId);
+      history.replaceState({}, '', url); 
+    }
+    if (cb) cb(d);
+  })
+  .catch(function(e){ alert('Save failed: '+e.message); });
   };
 
   // ── Generate PDF (step 5) ─────────────────────────────────────────────
@@ -668,7 +694,7 @@ document.getElementById('cpwBackBtn').addEventListener('click', function(){ if(c
   document.getElementById('cpwRetryBtn')?.addEventListener('click', function(){ runGenerate(); });
 
   function runGenerate() {
-    document.getElementById('cpwGenIdle').style.display = 'none';
+     document.getElementById('cpwGenIdle').style.display = 'none';
     document.getElementById('cpwGenResult').style.display = 'none';
     document.getElementById('cpwGenError').style.display = 'none';
     document.getElementById('cpwGenProgress').style.display = 'block';
@@ -691,10 +717,11 @@ document.getElementById('cpwBackBtn').addEventListener('click', function(){ if(c
           clearInterval(stageTimer);
           document.getElementById('cpwGenProgress').style.display = 'none';
           if (d.success) {
-            document.getElementById('cpwGenResult').style.display = 'block';
-            document.getElementById('cpwGenMeta').textContent = d.pages + ' pages · ' + (d.size/1048576).toFixed(1) + ' MB';
-            document.getElementById('cpwDownloadBtn').href = 'index.php?catalog_download=1&id=' + catalogId;
-          } else {
+  pdfGenerated = true;
+  document.getElementById('cpwGenResult').style.display = 'block';
+  document.getElementById('cpwGenMeta').textContent = d.pages + ' pages · ' + (d.size/1048576).toFixed(1) + ' MB';
+  document.getElementById('cpwDownloadBtn').href = 'index.php?catalog_download=1&id=' + catalogId;
+} else {
             document.getElementById('cpwGenError').style.display = 'block';
             document.getElementById('cpwGenErrorMsg').textContent = d.error || 'Unknown error.';
           }
@@ -821,18 +848,26 @@ document.getElementById('cpwBackBtn').addEventListener('click', function(){ if(c
     bindOrderRowEvents();
   }
 
-  function bindOrderRowEvents() {
-    var list = document.getElementById('cpwOrderList');
-    var dragEl = null;
+ function bindOrderRowEvents() {
+  var list = document.getElementById('cpwOrderList');
 
-    list.querySelectorAll('.cpw-order-item').forEach(function(item){
-      item.addEventListener('dragstart', function(){ dragEl = item; item.classList.add('dragging'); });
-      item.addEventListener('dragend', function(){ item.classList.remove('dragging'); syncOrderFromDOM(); });
-      item.querySelector('.cpw-move-up').addEventListener('click', function(){ moveItem(parseInt(item.dataset.id,10), -1); });
-      item.querySelector('.cpw-move-down').addEventListener('click', function(){ moveItem(parseInt(item.dataset.id,10), 1); });
+  list.querySelectorAll('.cpw-order-item').forEach(function(item){
+    item.addEventListener('dragstart', function(){ dragEl = item; item.classList.add('dragging'); });
+    item.addEventListener('dragend', function(){
+      item.classList.remove('dragging');
+      list.querySelectorAll('.drag-over').forEach(function(el){ el.classList.remove('drag-over'); });
+      dragEl = null;
+      syncOrderFromDOM();
     });
+    item.querySelector('.cpw-move-up').addEventListener('click', function(){ moveItem(parseInt(item.dataset.id,10), -1); });
+    item.querySelector('.cpw-move-down').addEventListener('click', function(){ moveItem(parseInt(item.dataset.id,10), 1); });
+  });
+
+  if (!list.dataset.dragoverBound) {
+    list.dataset.dragoverBound = '1';
     list.addEventListener('dragover', function(e){
       e.preventDefault();
+      if (!dragEl) return;
       var target = e.target.closest('.cpw-order-item');
       if (!target || target===dragEl) return;
       var rect = target.getBoundingClientRect();
@@ -842,7 +877,8 @@ document.getElementById('cpwBackBtn').addEventListener('click', function(){ if(c
       if (before) list.insertBefore(dragEl, target); else list.insertBefore(dragEl, target.nextSibling);
     });
   }
-
+}
+  
   function syncOrderFromDOM() {
     var list = document.getElementById('cpwOrderList');
     order = Array.from(list.querySelectorAll('.cpw-order-item')).map(function(el){ return parseInt(el.dataset.id,10); });

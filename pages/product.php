@@ -28,16 +28,16 @@ $sizesDisplay  = $p['sizes_display'] ?? '';
 $hasClients    = clientCount($_SESSION['user_id']) > 0;
 
 $specs = [
-    'Stone Type'     => $p['category'],
-    'Subcategory'    => $p['subcategory'],
-    'Colour'         => $p['color_subcategory'],
-    'Quarry No.'     => $p['quarry_number'],
+     'Stone Type'     => tr('product',$id,'category',$p['category']),
+    'Subcategory'    => tr('product',$id,'subcategory',$p['subcategory']),
+    'Colour'         => tr('product',$id,'color_subcategory',$p['color_subcategory']),
+    'Quarry No.'     => $p['quarry_number'], // no translate
     'Total Pieces'   => $p['pieces'] ? $p['pieces'].' slabs' : '',
-    'Thickness'      => $p['thickness'],
+    'Thickness'      => $p['thickness'], // no translate (measurement)
     'Useable Size'   => $sizesDisplay,
     'Italian Size'   => $cutterDisplay,
-    'Origin'         => $p['origin'],
-    'Finish'         => $p['finish'],
+    'Origin'         => tr('product',$id,'origin',$p['origin']),
+    'Finish'         => tr('product',$id,'finish',$p['finish']),
 ];
 ?>
 <?php include BASE_PATH . '/layouts/header.php'; ?>
@@ -129,10 +129,10 @@ $specs = [
     </div>
 
     <div class="gold-bar"></div>
-    <h1 class="detail-title"><?= h($p['name']) ?></h1>
+    <h1 class="detail-title"><?= h(tr('product', $id, 'name', $p['name'])) ?></h1>
     <p class="detail-quarry">Quarry No. <?= h($p['quarry_number']) ?><?= $p['origin'] ? ' · '.h($p['origin']) : '' ?></p>
     <?php if ($p['description']): ?>
-    <p class="detail-desc"><?= h($p['description']) ?></p>
+    <p class="detail-desc"><?= h(tr('product', $id, 'description', $p['description'])) ?></p>
     <?php endif; ?>
 
     <!-- Quantities -->
@@ -286,20 +286,14 @@ $vidShareMsg = rawurlencode(($p['name'] ?? '').' — Video: '.$vidShareUrl);
 </div>
 
 <!-- 3D Preview Modal -->
-<div id="rv3dModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:9500;align-items:center;justify-content:center;padding:14px;">
-  <div style="background:var(--white);border-radius:var(--radius-xl);max-width:680px;width:100%;overflow:hidden;">
+<div id="rv3dModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9500;align-items:center;justify-content:center;padding:14px;">
+  <div style="background:var(--white);border-radius:var(--radius-xl);max-width:820px;width:100%;overflow:hidden;">
     <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border);">
       <p style="font-weight:700;">3D Room Preview</p>
       <button onclick="close3DPreview()" style="cursor:pointer;"><?= icon('close',18) ?></button>
     </div>
-    <div id="rv3dContainer" style="width:100%;height:420px;background:#111;"></div>
-    <div style="display:flex;gap:6px;padding:12px 18px 0;flex-wrap:wrap;" id="rv3dRoomTabs"></div>
-    <div style="display:flex;gap:8px;padding:12px 18px 14px;flex-wrap:wrap;align-items:center;">
-      <div id="rv3dSurfaceBtns" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
-      <a class="btn btn-primary btn-sm" style="margin-left:auto;" id="rv3dDownload" download="room-3d-preview.jpg" onclick="this.href=rv3d_snapshot_rv3dContainer()">
-        <?= icon('download',13) ?>&nbsp;Save Snapshot
-      </a>
-    </div>
+    <div id="rv3dContainer" style="width:100%;height:460px;background:#111;position:relative;"></div>
+    <div id="rv3dControlsWrap"></div>
   </div>
 </div>
 
@@ -308,47 +302,22 @@ $vidShareMsg = rawurlencode(($p['name'] ?? '').' — Video: '.$vidShareUrl);
 <script src="assets/js/room_visualizer_three.js"></script>
 <script>
 var rv3dInited = false;
-var RV3D_ROOMS = ['kitchen','hall','dining','drawing','bedroom'];
-
-function rv3dRenderSurfaceBtns() {
-  var wrap = document.getElementById('rv3dSurfaceBtns');
-  var keys = rv3d_getSurfaces_rv3dContainer();
-  var labels = { floor:'Floor', wall:'Back Wall', sidewall:'Side Wall', counter:'Countertop' };
-  wrap.innerHTML = '';
-  keys.forEach(function (k, i) {
-    var b = document.createElement('button');
-    b.className = 'btn btn-secondary btn-sm';
-    b.textContent = labels[k] || k;
-    b.onclick = function () { rv3d_setSurface_rv3dContainer(k); };
-    wrap.appendChild(b);
-  });
-}
-function rv3dRenderRoomTabs(active) {
-  var wrap = document.getElementById('rv3dRoomTabs');
-  wrap.innerHTML = '';
-  RV3D_ROOMS.forEach(function (r) {
-    var b = document.createElement('button');
-    b.type = 'button';
-    b.className = 'filter-chip' + (r === active ? ' active' : '');
-    b.textContent = rv3d_getRoomLabel(r);
-    b.onclick = function () {
-      rv3d_setRoom_rv3dContainer(r);
-      rv3dRenderRoomTabs(r);
-      rv3dRenderSurfaceBtns();
-    };
-    wrap.appendChild(b);
-  });
-}
-
 function open3DPreview() {
   document.getElementById('rv3dModal').style.display = 'flex';
   if (!rv3dInited) {
     var photoSrc = <?= json_encode(($photos[0] ?? null) && file_exists(PHOTOS_DIR.'/'.$photos[0]['filename']) ? 'assets/uploads/photos/'.$photos[0]['filename'] : '') ?>;
+    var palette  = <?= json_encode($pal) ?>;
     if (photoSrc) {
-      RoomVisualizer3D('rv3dContainer', { textureUrl: photoSrc, room: 'kitchen' });
+      window.RV3D_mount('rv3dContainer', 'rv3dControlsWrap', {
+        textureUrl: photoSrc,
+        room: 'kitchen',
+        palette: palette,
+        quality: 'Low',
+        thicknessMm: 35,
+        edgeProfile: 'straight',
+        allowIsland: true,
+      });
       rv3dInited = true;
-      rv3dRenderRoomTabs('kitchen');
-      rv3dRenderSurfaceBtns();
     }
   }
 }
@@ -409,7 +378,9 @@ window.GALLERY_IMAGES = <?= json_encode($galleryImages) ?>;
       <div class="share-icon"><?= icon('copy',20) ?></div><span id="copyLinkLabel">Copy Link</span>
     </button>
   </div>
+  <?= roomAreaDatalist() ?>
 </div>
+
 
 <!-- ════════════════════════════════════════════════════════════════════════
      ADD TO SELECTION MODAL
@@ -491,8 +462,8 @@ window.GALLERY_IMAGES = <?= json_encode($galleryImages) ?>;
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
           <div class="input-group">
             <label class="input-label">Area / Room</label>
-            <input type="text" name="selection_area" class="input-field"
-                   placeholder="e.g. Living Room"/>
+           <input type="text" name="selection_area" class="input-field"
+       placeholder="e.g. Living Room" list="roomAreaSuggestions" autocomplete="off"/>
           </div>
           <div class="input-group">
             <label class="input-label">Qty Required (sqft)</label>

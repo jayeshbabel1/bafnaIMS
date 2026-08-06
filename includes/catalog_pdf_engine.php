@@ -1,6 +1,6 @@
 <?php
 
-define('BASE_PATH', dirname(__DIR__));
+//define('BASE_PATH', dirname(__DIR__));
 // Must be defined before ANY code (including class ... extends \TCPDF
 // declarations, which resolve at file-load time, not call time) can
 // trigger TCPDF's autoconfig, or PDF generation breaks with
@@ -18,8 +18,9 @@ if (!defined('K_PATH_FONTS')) {
 class CatalogTCPDF extends \TCPDF {
     public array $cpeConfig = [];
     public array $cpeCatalog = [];
-
+    
     public function Header() {
+     
         $h = $this->cpeConfig['header'] ?? [];
         if (empty($h['logo']) && empty($h['catalog_name']) && empty($h['page_title'])) return;
 
@@ -45,6 +46,7 @@ class CatalogTCPDF extends \TCPDF {
     }
 
     public function Footer() {
+     
         $f = $this->cpeConfig['footer'] ?? [];
         $pos = $this->cpeConfig['page_number_position'] ?? 'bottom_center';
         $pageW = $this->getPageWidth();
@@ -87,6 +89,7 @@ class CatalogTCPDF extends \TCPDF {
 
 // ── Main entry 
 function generateCatalogPdf(int $catalogId): array {
+   
     $cat = getCatalog($catalogId);
     if (!$cat) return ['success' => false, 'error' => 'Catalog not found.'];
 
@@ -123,6 +126,7 @@ function generateCatalogPdf(int $catalogId): array {
         $pdf = new CatalogTCPDF($orientation, 'mm', $format, true, 'UTF-8', false);
         $pdf->cpeConfig  = $config;
         $pdf->cpeCatalog = $cat;
+        $GLOBALS['_cpeTempFiles'] = []; 
         $pdf->SetCreator(APP_NAME);
         $pdf->SetTitle($cat['name']);
 
@@ -147,9 +151,11 @@ function generateCatalogPdf(int $catalogId): array {
         $colorsRgb = [];
         foreach (($config['colors'] ?? []) as $k => $hex) $colorsRgb[$k] = _cpeHexToRgb($hex);
         $config['_colors_rgb'] = $colorsRgb;
-        $pdf->cpeConfig = $config;
-
-        _cpeRenderCoverPage($pdf, $cat, $config);
+        $config['_suppress_hf'] = true; 
+       $pdf->cpeConfig = $config;
+		_cpeRenderCoverPage($pdf, $cat, $config);
+		$config['_suppress_hf'] = false;
+      $pdf->cpeConfig = $config;
 
         $layout = $config['layout'] ?? 'one_per_page';
         $gridLayouts = ['two_per_page', 'four_per_page', 'grid'];
@@ -179,29 +185,40 @@ function generateCatalogPdf(int $catalogId): array {
         }
 
         if (!empty($config['closing']['enabled'])) {
-            _cpeRenderClosingPage($pdf, $config);
-        }
+    $config['_suppress_hf'] = true; $pdf->cpeConfig = $config;
+    _cpeRenderClosingPage($pdf, $config);
+}
 
         // ── Watermark — applied to ALL pages after content built ─────────
         _cpeApplyWatermarkToAllPages($pdf, $config);
 
         $safeName = preg_replace('/[^A-Za-z0-9 _\-]/u', '', $cat['name']);
-        $safeName = trim(preg_replace('/\s+/', '_', $safeName)) ?: ('catalog_' . $catalogId);
-        $filename = $safeName . '_' . time() . '.pdf';
-        $path     = CATALOG_PDF_DIR . '/' . $filename;
+    $safeName = trim(preg_replace('/\s+/', '_', $safeName)) ?: ('catalog_' . $catalogId);
+    $filename = $safeName . '_' . time() . '.pdf';
+    $path     = CATALOG_PDF_DIR . '/' . $filename;
 
-        $pdfString = $pdf->Output('', 'S');
-        if (empty($pdfString)) return ['success' => false, 'error' => 'TCPDF returned empty output.'];
-        file_put_contents($path, $pdfString);
+    $pdfString = $pdf->Output('', 'S');
+    foreach (($GLOBALS['_cpeTempFiles'] ?? []) as $tf) { @unlink($tf); }
+    unset($GLOBALS['_cpeTempFiles']);
+    if (empty($pdfString)) return ['success' => false, 'error' => 'TCPDF returned empty output.'];
+    file_put_contents($path, $pdfString);
 
-        $pages = $pdf->getNumPages();
-        $size  = filesize($path);
+    // NEW: remove the previous rendered PDF now that the new one wrote successfully
+    if (!empty($cat['pdf_path']) && $cat['pdf_path'] !== $path && file_exists($cat['pdf_path'])) {
+        @unlink($cat['pdf_path']);
+    }
 
-        $db->prepare("UPDATE catalogs SET status='done', pdf_path=?, pages=?, size_bytes=?, updated_at=? WHERE id=?")
-           ->execute([$path, $pages, $size, time(), $catalogId]);
+    $pages = $pdf->getNumPages();
+    $size  = filesize($path);
 
-        return ['success' => true, 'path' => $path, 'filename' => $filename, 'pages' => $pages, 'size' => $size];
-    } catch (\Throwable $e) {
+    $db->prepare("UPDATE catalogs SET status='done', pdf_path=?, pages=?, size_bytes=?, updated_at=? WHERE id=?")
+       ->execute([$path, $pages, $size, time(), $catalogId]);
+
+    return ['success' => true, 'path' => $path, 'filename' => $filename, 'pages' => $pages, 'size' => $size];
+} catch (\Throwable $e) { 
+      foreach (($GLOBALS['_cpeTempFiles'] ?? []) as $tf) { @unlink($tf); }
+    unset($GLOBALS['_cpeTempFiles']);
+   
         error_log('generateCatalogPdf: ' . $e->getMessage());
         $db->prepare("UPDATE catalogs SET status='failed', updated_at=? WHERE id=?")->execute([time(), $catalogId]);
         return ['success' => false, 'error' => $e->getMessage()];
@@ -210,6 +227,10 @@ function generateCatalogPdf(int $catalogId): array {
 
 // ── Helpers ─────────────────────────────────────────────────────────────
 
+function _cpeRegisterTemp(?string $path): ?string {
+    if ($path) $GLOBALS['_cpeTempFiles'][] = $path;
+    return $path;
+}
 // Resolves the site logo to a TCPDF-safe temp path, converting WEBP → PNG
 // (preserves transparency, unlike JPEG) and copying to sys_get_temp_dir()
 // so tc-lib-pdf-image doesn't reject it as outside its allowed read paths.
@@ -222,18 +243,22 @@ function _cpeResolveLogoImage(): ?array {
     $info = @getimagesize($fullPath);
     if (!$info) return null;
 
-    $tmp = sys_get_temp_dir() . '/cpe_logo_' . uniqid() . '.png';
+    // Always normalize to PNG so the declared TCPDF type is always correct,
+    // regardless of the source format (jpeg/png/webp).
+  $tmp = sys_get_temp_dir() . '/cpe_logo_' . uniqid('', true) . '_' . random_int(1000,9999) . '.png';
 
-    if ($info[2] === IMAGETYPE_WEBP) {
-        if (!function_exists('imagecreatefromwebp')) return null;
-        $gd = @imagecreatefromwebp($fullPath);
-        if (!$gd) return null;
-        imagesavealpha($gd, true);
-        imagepng($gd, $tmp);
-        imagedestroy($gd);
-    } else {
-        copy($fullPath, $tmp);
-    }
+    $gd = match ($info[2]) {
+        IMAGETYPE_WEBP => function_exists('imagecreatefromwebp') ? @imagecreatefromwebp($fullPath) : false,
+        IMAGETYPE_JPEG => @imagecreatefromjpeg($fullPath),
+        IMAGETYPE_PNG  => @imagecreatefrompng($fullPath),
+        default        => false,
+    };
+    if (!$gd) return null;
+
+    imagealphablending($gd, false);
+    imagesavealpha($gd, true);
+    imagepng($gd, $tmp);
+    imagedestroy($gd);
 
     if (!file_exists($tmp)) return null;
     return ['path' => $tmp, 'type' => 'PNG'];
@@ -268,37 +293,56 @@ function _cpeQualityImageParams(array $config): array {
     };
 }
 
-// Copies+optionally downsamples an image to /tmp for TCPDF (path restriction workaround)
+
+// AFTER
 function _cpeTempImage(string $fullPath, array $config): ?string {
     $q = _cpeQualityImageParams($config);
     $ext = strtolower(pathinfo($fullPath, PATHINFO_EXTENSION));
-    $tmp = sys_get_temp_dir() . '/cpe_' . uniqid() . '.' . ($ext === 'webp' ? 'jpg' : $ext);
+    $tmp = sys_get_temp_dir() . '/cpe_' . uniqid('', true) . '_' . random_int(1000,9999) . '.' . ($ext === 'webp' ? 'jpg' : $ext);
 
     if (empty($config['quality']['optimize_size'])) {
-        copy($fullPath, $tmp);
-        return $tmp;
+        if (!copy($fullPath, $tmp)) {
+            error_log("catalog_pdf: copy failed for $fullPath");
+            return null;
+        }
+        return _cpeRegisterTemp($tmp);
     }
-    // Optimize: resize to a sane max dimension based on quality level
+
     $maxDim = match ($q['dpi']) { 72 => 900, 150 => 1400, 300 => 2200, default => 1100 };
     $info = @getimagesize($fullPath);
-    if (!$info) { copy($fullPath, $tmp); return $tmp; }
+    if (!$info) {
+        if (!copy($fullPath, $tmp)) { error_log("catalog_pdf: copy fallback failed for $fullPath"); return null; }
+        return _cpeRegisterTemp($tmp);
+    }
     [$w, $h, $type] = $info;
-    if (max($w,$h) <= $maxDim) { copy($fullPath, $tmp); return $tmp; }
+    if (max($w,$h) <= $maxDim) {
+        if (!copy($fullPath, $tmp)) { error_log("catalog_pdf: copy fallback failed for $fullPath"); return null; }
+        return _cpeRegisterTemp($tmp);
+    }
 
     $ratio = $maxDim / max($w,$h);
-    $nw = (int)($w * $ratio); $nh = (int)($h * $ratio);
+    $nw = max(1,(int)($w * $ratio)); $nh = max(1,(int)($h * $ratio));
     $src = match ($type) {
         IMAGETYPE_JPEG => @imagecreatefromjpeg($fullPath),
         IMAGETYPE_PNG  => @imagecreatefrompng($fullPath),
         IMAGETYPE_WEBP => function_exists('imagecreatefromwebp') ? @imagecreatefromwebp($fullPath) : false,
         default        => false,
     };
-    if (!$src) { copy($fullPath, $tmp); return $tmp; }
+    if (!$src) {
+        error_log("catalog_pdf: imagecreatefrom* failed for $fullPath (type=$type)");
+        if (!copy($fullPath, $tmp)) return null;
+        return _cpeRegisterTemp($tmp);
+    }
     $dst = imagecreatetruecolor($nw, $nh);
+    $tmpJpg = sys_get_temp_dir() . '/cpe_' . uniqid('', true) . '_' . random_int(1000,9999) . '.jpg';
     imagecopyresampled($dst, $src, 0,0,0,0, $nw,$nh,$w,$h);
-    imagejpeg($dst, $tmp, $q['jpq']);
+    $ok = imagejpeg($dst, $tmpJpg, $q['jpq']);
     imagedestroy($src); imagedestroy($dst);
-    return $tmp;
+    if (!$ok || !file_exists($tmpJpg)) {
+        error_log("catalog_pdf: imagejpeg write failed for $fullPath -> $tmpJpg");
+        return null;
+    }
+    return _cpeRegisterTemp($tmpJpg);
 }
 
 function _cpeProductPhotoFull(int $productId): ?string {
@@ -392,7 +436,7 @@ function _cpeRenderCoverPage(\TCPDF $pdf, array $cat, array $config): void {
     if (!empty($cover['contact_details'])) {
         $phone = getSetting('company_support_phone', '');
         $email = getSetting('company_email', '');
-        $line  = trim(implode('  ·  ', array_filter([$phone ? "Tel: $phone" : '', $email])));
+        $line  = trim(implode('  ·  ', array_filter([$phone ? "Mobile No.: $phone" : '', $email])));
         if ($line) $pdf->Cell($pageW - 30, 6, $line, 0, 1, 'C');
     }
     if (!empty($cover['footer_text'])) {
@@ -424,7 +468,7 @@ function _cpeRenderLayoutOne(\TCPDF $pdf, array $p, array $config): void {
             if ($tmp) {
                 try { $pdf->Image($tmp, $imgX, $y, $imgW, $imgH, '', '', '', true, 150, 'C'); $rendered = true; }
                 catch (\Throwable $e) {}
-                @unlink($tmp);
+              
             }
             if ($rendered) $y += $imgH + 8;
         }
@@ -490,14 +534,13 @@ function _cpeRenderLayoutN(\TCPDF $pdf, array $products, array $config, int $per
     $nameSize = $perPage === 2 ? 13 : 10;
     $detailSize = $perPage === 2 ? 9 : 7.5;
     $detailLineH = $perPage === 2 ? 5 : 4.2;
-    $maxDetailLines = $perPage === 2 ? 5 : 3;
     $nameLineH = $perPage === 2 ? 7 : 5.5;
 
     $nameZoneH = $showName ? $nameLineH : 0;
+    $baseImgH = $cellH * 0.58; // shrink image a bit to leave room for more field lines
+    $availForDetail = $cellH - $baseImgH - $nameZoneH - ($pad * 2);
+    $maxDetailLines = max(1, (int)floor($availForDetail / $detailLineH));
     $detailZoneH = $maxDetailLines * $detailLineH;
-    $imgH = $cellH * 0.48;
-    $usedH = $imgH + $nameZoneH + $detailZoneH + ($pad * 2);
-    if ($usedH > $cellH) $imgH = max(18, $cellH - $nameZoneH - $detailZoneH - ($pad * 2));
 
     $i = 0;
     foreach ($products as $p) {
@@ -510,20 +553,37 @@ function _cpeRenderLayoutN(\TCPDF $pdf, array $products, array $config, int $per
         $pdf->Rect($x + 3, $y + 3, $cellW - 6, $cellH - 6, 'D');
 
         $full = _cpeProductPhotoFull($p['id']);
-        if ($full && file_exists($full)) {
-            $info = @getimagesize($full);
-            if ($info) {
-                $ratio = $info[0]/max($info[1],1);
-                $imgW = min($innerW, $imgH * $ratio);
-                $tmp = _cpeTempImage($full, $config);
-                if ($tmp) {
-                    try { $pdf->Image($tmp, $x + ($cellW-$imgW)/2, $y + $pad, $imgW, $imgH, '', '', '', true, 150, 'C'); } catch (\Throwable $e) {}
-                    @unlink($tmp);
-                }
+$imgH = $baseImgH; // reset every product — never carry over shrink from prior card
+$drawX = null; $drawY = null; // reset draw markers too (see text-position fix below)
+if ($full && file_exists($full)) {
+    $info = @getimagesize($full);
+    if ($info) {
+        $ratio = $info[0]/max($info[1],1);
+        $imgW = $imgH * $ratio;
+        if ($imgW > $innerW) {
+            $imgW = $innerW;
+            $imgH = $imgW / $ratio;
+        }
+        $imgW = max(1, min($imgW, $innerW));
+        $imgH = max(1, min($imgH, $cellH - $nameZoneH - $detailZoneH - ($pad*2)));
+
+        $tmp = _cpeTempImage($full, $config);
+               // Replace the draw line to use local clamped vars explicitly
+$drawX = $x + ($cellW - $imgW) / 2;
+$drawY = $y + $pad;
+if ($tmp) {
+    try {
+        $pdf->Image($tmp, $drawX, $drawY, $imgW, $imgH, '', '', '', true, 150, '');
+    } catch (\Throwable $e) {
+      //  error_log('catalog_pdf LayoutN Image() failed for product '.($p['id']??'?').': '.$e->getMessage());
+    }
+} else {
+    //error_log('catalog_pdf LayoutN: no temp image for product '.($p['id']??'?').' file='.$full);
+}
             }
         }
 
-        $ty = $y + $pad + $imgH + 4;
+       $ty = ($drawY !== null) ? ($drawY + $imgH + 4) : ($y + $pad + $baseImgH + 4);
 
         if ($showName) {
             $nameTxt = _cpeClampText($pdf, $p['name'] ?? '', $innerW, $font, 'B', $nameSize);
@@ -565,24 +625,31 @@ function _cpeRenderLayoutGrid(\TCPDF $pdf, array $products, array $config): void
     $cellW = ($pageW - 30) / $cols;
     $cellH = ($pageH - $mT - $mB) / $rowsPerPage;
     $innerW = $cellW - 6;
-
+   
     $i = 0;
     foreach ($products as $p) {
         $slot = $i % $perPage;
         if ($slot === 0) $pdf->AddPage();
         $col = $slot % $cols; $row = intdiv($slot, $cols);
         $x = $mL + $col * $cellW; $y = $mT + $row * $cellH;
-
+        $showName   = in_array('name', $fields = $config['fields'] ?? [], true);
+        $showQuarry = in_array('quarry_number', $fields, true);
         $nameH = 4; $lotH = 4;
         $imgSize = min($cellW, $cellH - $nameH - $lotH - 12) - 14;
         $imgSize = max(20, $imgSize);
 
         $full = _cpeProductPhotoFull($p['id']);
         if ($full && file_exists($full)) {
-            $tmp = _cpeTempImage($full, $config);
+             $tmp = _cpeTempImage($full, $config);
             if ($tmp) {
-                try { $pdf->Image($tmp, $x + (($cellW-$imgSize)/2), $y + 4, $imgSize, $imgSize, '', '', '', true, 150, 'C'); } catch (\Throwable $e) {}
-                @unlink($tmp);
+                try {
+                    $pdf->Image($tmp, $x + (($cellW-$imgSize)/2), $y + 4, $imgSize, $imgSize, '', '', '', true, 150, '');
+                } catch (\Throwable $e) {
+                    error_log('catalog_pdf Grid Image() failed for product '.($p['id']??'?').': '.$e->getMessage());
+                }
+                
+            } else {
+                error_log('catalog_pdf Grid: no temp image for product '.($p['id']??'?').' file='.$full);
             }
         }
 
@@ -611,7 +678,14 @@ function _cpeRenderLayoutArchitect(\TCPDF $pdf, array $p, array $config): void {
     $mL = 15; $contW = $pageW - 30;
     $full = _cpeProductPhotoFull($p['id']);
     $y = $pdf->GetY();
-
+    // _cpeRenderLayoutArchitect()
+$fields = $config['fields'] ?? [];
+if (in_array('name', $fields, true)) { $pdf->Cell($contW, 7, $p['name'] ?? '', 0, 1, 'C'); }
+$metaParts = [];
+if (in_array('quarry_number', $fields, true)) $metaParts[] = $p['quarry_number'] ?? '';
+if (in_array('category', $fields, true))      $metaParts[] = $p['category'] ?? '';
+$meta = trim(implode('   ', array_filter($metaParts)));
+if ($meta !== '') { $pdf->SetFont($font,'',9); $pdf->Cell($contW, 5, $meta, 0, 1, 'C'); }
     if ($full && file_exists($full)) {
         $info = @getimagesize($full);
         if ($info) {
@@ -622,8 +696,7 @@ function _cpeRenderLayoutArchitect(\TCPDF $pdf, array $p, array $config): void {
             $tmp = _cpeTempImage($full, $config);
             if ($tmp) {
                 try { $pdf->Image($tmp, $mL + ($contW-$imgW)/2, $y, $imgW, $imgH, '', '', '', true, 150, 'C'); } catch (\Throwable $e) {}
-                @unlink($tmp);
-            }
+                  }
             $y += $imgH + 10;
         }
     }
@@ -658,8 +731,8 @@ function _cpeRenderClosingPage(\TCPDF $pdf, array $config): void {
         $addr  = getSetting('company_address', '');
         $phone = getSetting('company_support_phone', '');
         $email = getSetting('company_email', '');
-        foreach (array_filter([$addr, $phone ? "Tel: $phone" : '', $email]) as $line) {
-            $pdf->Cell($pageW - 30, 7, $line, 0, 1, 'C');
+        foreach (array_filter([$addr, $phone ? "Mobile: $phone" : '', $email ? "Email us at: $email" : '']) as $line) {
+            $pdf->Cell($pageW - 30, 12, $line, 0, 1, 'C');
         }
         $y = $pdf->GetY() + 6;
     }

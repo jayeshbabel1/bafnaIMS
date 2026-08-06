@@ -294,7 +294,9 @@ if (adminCan('settings.product_views')) {
 if (adminCan('settings.smtp')) {
     $settingsSubItems[] = ['page'=>'smtp',           'label'=>'Mail Settings'];
 }
-    $settingsSubItems[] = ['page'=>'room_templates',           'label'=>'Room Templates'];
+    if (adminCan('settings.room_templates')) {
+$settingsSubItems[] = ['page'=>'room_templates',           'label'=>'Room Templates'];
+    }
 if (adminCan('categories.view')) {
     $settingsSubItems[] = ['page'=>'product_categories', 'label'=>'Product Categories'];
 }
