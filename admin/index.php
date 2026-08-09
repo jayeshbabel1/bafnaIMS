@@ -56,9 +56,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
 
   
-   $_jsonOnlyActions = ['admin_add_selection','admin_update_selection','admin_delete_selection','test_smtp'];
+   $_jsonOnlyActions = ['admin_add_selection','admin_update_selection','admin_delete_selection','test_smtp',
+                         'generate_client_catalog_pdf','email_client_catalog_pdf'];
     csrfVerify(in_array($action, $_jsonOnlyActions, true));
-    csrfVerify(); 
+    csrfVerify();
   
    if ($action === 'admin_login') {
         if (loginAdmin($_POST['username'] ?? '', $_POST['password'] ?? '')) {
@@ -306,6 +307,102 @@ if ($action === 'save_room_template') {
     redirect('index.php?page=room_templates');
 }
 
+  // ── CLIENT SELECTION → GENERATE CATALOG PDF (AJAX) ──────────────────────────
+// Reuses generateClientSelectionCatalog() (includes/catalog_pdf.php), which
+// in turn reuses createCatalogDraft() + generateCatalogPdf() — no duplicated
+// PDF logic. Products are pulled fresh from the client's live selection.
+if ($action === 'generate_client_catalog_pdf') {
+    header('Content-Type: application/json');
+    requireAdmin();
+    requireAdminPermissionJson('clients.view');
+    if (!adminCan('catalog.create')) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'error' => 'Access denied.', 'required' => 'catalog.create']);
+        exit;
+    }
+    require_once __DIR__ . '/../includes/catalog_pdf.php';
+    $clientId = (int)($_POST['client_id'] ?? 0);
+    if (!$clientId) {
+        echo json_encode(['success' => false, 'error' => 'Invalid client.']);
+        exit;
+    }
+    if (!throttle('client_catalog_gen', 10, 60)) {
+        echo json_encode(['success' => false, 'error' => 'Too many requests. Please wait a moment.']);
+        exit;
+    }
+    try {
+        $result = generateClientSelectionCatalog($clientId, $_SESSION['admin_id'] ?? null);
+    } catch (Throwable $e) {
+        error_log('generate_client_catalog_pdf: ' . $e->getMessage());
+        $result = ['success' => false, 'error' => 'Unexpected error while generating the catalog.'];
+    }
+    echo json_encode($result);
+    exit;
+}
+
+// ── CLIENT SELECTION → EMAIL CATALOG PDF (AJAX) ─────────────────────────────
+// Reuses sendCatalogPdfEmail() (includes/catalog_pdf.php / includes/mailer.php).
+if ($action === 'email_client_catalog_pdf') {
+    header('Content-Type: application/json');
+    requireAdmin();
+    requireAdminPermissionJson('catalog.share');
+    if (!adminCan('clients.view')) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'error' => 'Access denied.', 'required' => 'clients.view']);
+        exit;
+    }
+    if (!throttle('client_catalog_email', 10, 60)) {
+        echo json_encode(['success' => false, 'error' => 'Too many requests. Please wait a moment.']);
+        exit;
+    }
+    require_once __DIR__ . '/../includes/catalog_pdf.php';
+
+    $catalogId = (int)($_POST['catalog_id'] ?? 0);
+    $toRaw     = trim($_POST['to']  ?? '');
+    $ccRaw     = trim($_POST['cc']  ?? '');
+    $bccRaw    = trim($_POST['bcc'] ?? '');
+    $subject   = trim($_POST['subject'] ?? '') ?: 'Your Product Selection Catalog';
+    $message   = trim($_POST['message'] ?? '') ?: "Hi,\n\nPlease find attached your product selection catalog.\n\nRegards";
+
+    if (!$catalogId) {
+        echo json_encode(['success' => false, 'error' => 'Invalid catalog.']);
+        exit;
+    }
+
+    $toList = array_values(array_filter(array_map('trim', explode(',', $toRaw))));
+    if (empty($toList)) {
+        echo json_encode(['success' => false, 'error' => 'No recipient email provided.']);
+        exit;
+    }
+
+    // Validate every To / CC / BCC address up front — reject the whole
+    // request on the first bad address rather than partially sending.
+    $allAddrs = array_merge(
+        $toList,
+        array_filter(array_map('trim', explode(',', $ccRaw))),
+        array_filter(array_map('trim', explode(',', $bccRaw)))
+    );
+    foreach ($allAddrs as $addr) {
+        if (!filter_var($addr, FILTER_VALIDATE_EMAIL)) {
+            echo json_encode(['success' => false, 'error' => "Invalid email address: {$addr}"]);
+            exit;
+        }
+    }
+
+    $errors = [];
+    foreach ($toList as $to) {
+        try {
+            $r = sendCatalogPdfEmail($catalogId, $to, $subject, $message, $ccRaw, $bccRaw);
+            if (!$r['success']) $errors[] = "{$to}: " . ($r['error'] ?? 'send failed');
+        } catch (Throwable $e) {
+            error_log('email_client_catalog_pdf: ' . $e->getMessage());
+            $errors[] = "{$to}: unexpected error";
+        }
+    }
+    echo json_encode(['success' => empty($errors), 'error' => implode('; ', $errors)]);
+    exit;
+}
+  
 // ── ROOM TEMPLATE: TOGGLE 
 if ($action === 'toggle_room_template') {
     requireAdmin();

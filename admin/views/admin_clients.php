@@ -7,7 +7,7 @@
 // ── AJAX handler (search + pagination) ──────────────────────────────────────
 if (!empty($_GET['ajax_clients'])) {
     $search      = trim($_GET['q'] ?? '');
-    $perPage     = 10;
+    $perPage     = 15;
     $currentPage = max(1, (int)($_GET['p'] ?? 1));
 
     $result = adminListAllClients([
@@ -33,7 +33,7 @@ requireAdminPermission('clients.view');
 include __DIR__ . '/../_layout_top.php';
 require_once BASE_PATH . '/includes/clients.php';
 
-$perPage     = 10;
+$perPage     = 15;
 $currentPage = max(1, (int)($_GET['p'] ?? 1));
 $search      = trim($_GET['q'] ?? '');
 
@@ -100,8 +100,8 @@ $totalPages = max(1, (int)ceil($total / $perPage));
 
 <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px;flex-wrap:wrap;gap:10px;">
   <p class="admin-products-count" id="acFooterCount"><?= $total ?> client<?= $total !== 1 ? 's' : '' ?></p>
-  <div id="adminClientsPaginationWrap" style="display:none;"></div>
-   <div id="paginationWrap"></div>
+ <div id="adminClientsPaginationWrap" style="display:none;"></div>
+  <div id="paginationWrap" class="admin-pagination"></div>
 </div>
 
 <!-- Delete confirm modal -->

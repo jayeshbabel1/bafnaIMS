@@ -234,16 +234,95 @@ function deleteCatalog(int $id): bool {
     return $st->rowCount() > 0;
 }
 
-// ── Email share (extends sendMail with attachment support) ────────────────
-function sendCatalogPdfEmail(int $catalogId, string $to, string $subject, string $message): array {
+// ── Email share (extends sendMail with attachment + cc/bcc support) ────────
+function sendCatalogPdfEmail(int $catalogId, string $to, string $subject, string $message, string $cc = '', string $bcc = ''): array {
     $cat = getCatalog($catalogId);
     if (!$cat || empty($cat['pdf_path']) || !file_exists($cat['pdf_path'])) {
         return ['success' => false, 'error' => 'PDF not generated yet.'];
     }
     require_once BASE_PATH . '/includes/mailer.php';
     $html = nl2br(h($message));
-    $result = sendMail($to, $subject, $html, $message, '', [$cat['pdf_path']]); // 6th param = attachments (see mailer.php patch below)
+    $result = sendMail($to, $subject, $html, $message, '', [$cat['pdf_path']], $cc, $bcc);
+
+    // Log full recipient list (to/cc/bcc) for audit — to_address column keeps
+    // the primary "to" for quick scanning; full detail goes in the ip_address
+    // column's sibling via a compact suffix so no schema change is needed.
+    $addrLog = $to . (($cc !== '') ? ' | cc:' . $cc : '') . (($bcc !== '') ? ' | bcc:' . $bcc : '');
     getDB()->prepare("INSERT INTO catalog_download_logs (catalog_id, channel, to_address, ip_address, success, created_at) VALUES (?,?,?,?,?,?)")
-           ->execute([$catalogId, 'email', $to, $_SERVER['REMOTE_ADDR'] ?? '', $result['success'] ? 1 : 0, time()]);
+           ->execute([$catalogId, 'email', mb_substr($addrLog, 0, 255), $_SERVER['REMOTE_ADDR'] ?? '', $result['success'] ? 1 : 0, time()]);
+
+    error_log(sprintf(
+        'sendCatalogPdfEmail: catalog #%d to=%s cc=%s bcc=%s success=%s%s',
+        $catalogId, $to, $cc ?: '-', $bcc ?: '-', $result['success'] ? 'yes' : 'no',
+        $result['success'] ? '' : ' error=' . ($result['error'] ?? 'unknown')
+    ));
+
     return $result;
+}
+
+// ── Client Selection → Catalog PDF ──────────────────────────────────────────
+// Builds and generates a catalog PDF containing exactly the products in one
+// client's selection list. Reuses createCatalogDraft() + generateCatalogPdf()
+// — no new tables, no duplicated PDF logic. The originating client is tagged
+// inside config_json (config['_source']) so it can be surfaced later without
+// a schema change.
+function generateClientSelectionCatalog(int $clientId, ?int $adminId = null): array {
+    require_once BASE_PATH . '/includes/clients.php';
+    require_once BASE_PATH . '/includes/catalog_pdf_engine.php';
+
+    $client = adminGetClientWithOwner($clientId);
+    if (!$client) {
+        return ['success' => false, 'error' => 'Client not found.'];
+    }
+
+    // Fetch ALL selections for this client — uncapped, ignoring the UI's
+    // 10-per-page limit. Reuses the existing paginated helper with a high
+    // limit rather than duplicating its query.
+    $result = adminGetSelections($clientId, ['limit' => 100000, 'offset' => 0]);
+    $rows = $result['rows'] ?? [];
+    if (empty($rows)) {
+        return ['success' => false, 'error' => 'This client has no products in their selection.'];
+    }
+
+    $productIds = array_values(array_unique(array_map(fn($r) => (int)$r['product_id'], $rows)));
+
+    $config = getCatalogPdfSettingsDefaults();
+    $config['layout']            = 'one_per_page';
+    $config['closing']['enabled'] = 1;
+    // header/footer/page-numbers/cover already default to enabled in
+    // catalogPdfDefaultConfig() — left untouched so admin branding settings
+    // (Settings → Catalog PDF Settings) are always respected.
+    $config['_source'] = ['type' => 'client_selection', 'client_id' => $clientId];
+
+    $draft = createCatalogDraft([
+        'name'        => $client['client_name'] . ' — Selections — ' . date('d M Y'),
+        'admin_id'    => $adminId,
+        'product_ids' => $productIds,
+        'config'      => $config,
+    ]);
+    if (empty($draft['success'])) {
+        return ['success' => false, 'error' => 'Could not create catalog draft.'];
+    }
+
+    $catalogId = (int)$draft['id'];
+    $genResult = generateCatalogPdf($catalogId);
+
+    error_log(sprintf(
+        'generateClientSelectionCatalog: client #%d (%s) -> catalog #%d, %d product(s), success=%s%s',
+        $clientId, $client['client_name'], $catalogId, count($productIds),
+        !empty($genResult['success']) ? 'yes' : 'no',
+        empty($genResult['success']) ? ' error=' . ($genResult['error'] ?? 'unknown') : ''
+    ));
+
+    if (empty($genResult['success'])) {
+        return ['success' => false, 'error' => $genResult['error'] ?? 'PDF generation failed.', 'catalog_id' => $catalogId];
+    }
+
+    return [
+        'success'    => true,
+        'catalog_id' => $catalogId,
+        'pages'      => $genResult['pages'],
+        'size'       => $genResult['size'],
+        'client_name'=> $client['client_name'],
+    ];
 }

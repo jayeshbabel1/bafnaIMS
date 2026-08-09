@@ -6,17 +6,7 @@
  * ─────────────────────────────────────────────────────────────────────────
  */
 
-/**
- * Send an email.
- *
- * @param string $to      Recipient email
- * @param string $subject Subject line
- * @param string $html    HTML body
- * @param string $text    Plain-text fallback (auto-generated if empty)
- * @param string $toName  Recipient display name (optional)
- * @return array ['success'=>bool, 'error'=>string]
- */
-function sendMail(string $to, string $subject, string $html, string $text = '', string $toName = '' ,array $attachments = []): array {
+function sendMail(string $to, string $subject, string $html, string $text = '', string $toName = '', array $attachments = [], string $cc = '', string $bcc = ''): array {
     $settings = getSmtpSettings();
 
     if ($text === '') {
@@ -24,11 +14,12 @@ function sendMail(string $to, string $subject, string $html, string $text = '', 
     }
 
     if ($settings['smtp_enabled']) {
-        return sendMailSmtp($to, $toName, $subject, $html, $text, $settings, $attachments);
+        return sendMailSmtp($to, $toName, $subject, $html, $text, $settings, $attachments, $cc, $bcc);
     }
 
-    return sendMailNative($to, $toName, $subject, $html, $text, $settings); // native mail() attachment unsupported — logs warning below
     if (!empty($attachments)) error_log('sendMail: attachments require SMTP; native mail() sent without attachment.');
+    if ($cc !== '' || $bcc !== '') error_log('sendMail: CC/BCC require SMTP; native mail() sent without CC/BCC.');
+    return sendMailNative($to, $toName, $subject, $html, $text, $settings);
 }
 
 /**
@@ -64,15 +55,11 @@ function getSmtpSettings(): array {
     return $cache;
 }
 
-/**
- * Send via SMTP using sockets (no PHPMailer dependency).
- * Supports TLS/STARTTLS via stream_socket_client.
- */
-function sendMailSmtp(string $to, string $toName, string $subject, string $html, string $text, array $s, array $attachments = []): array {
+function sendMailSmtp(string $to, string $toName, string $subject, string $html, string $text, array $s, array $attachments = [], string $cc = '', string $bcc = ''): array {
     // Try to use PHPMailer if available (composer dependency already installed)
     $autoload = BASE_PATH . '/vendor/autoload.php';
     if (file_exists($autoload)) {
-        return sendMailPhpMailer($to, $toName, $subject, $html, $text, $s, $attachments);
+        return sendMailPhpMailer($to, $toName, $subject, $html, $text, $s, $attachments, $cc, $bcc);
     }
 
     // Fallback to native if no library
@@ -82,7 +69,7 @@ function sendMailSmtp(string $to, string $toName, string $subject, string $html,
 /**
  * Send via PHPMailer (available via composer).
  */
-function sendMailPhpMailer(string $to, string $toName, string $subject, string $html, string $text, array $s, array $attachments = []): array {
+function sendMailPhpMailer(string $to, string $toName, string $subject, string $html, string $text, array $s, array $attachments = [], string $cc = '', string $bcc = ''): array {
     try {
         if (!class_exists('PHPMailer\PHPMailer\PHPMailer')) {
             require_once BASE_PATH . '/vendor/autoload.php';
@@ -96,9 +83,6 @@ function sendMailPhpMailer(string $to, string $toName, string $subject, string $
         $mail->SMTPAuth   = !empty($s['smtp_username']);
         $mail->Username   = $s['smtp_username'];
         $mail->Password   = $s['smtp_password'];
-
-        // Capture PHPMailer's real debug trail so failures aren't just
-        // "Could not connect to SMTP host." with no actionable detail.
         $debugLog = [];
         $mail->SMTPDebug   = 2; // client + server messages
         $mail->Debugoutput = function ($str) use (&$debugLog) { $debugLog[] = trim($str); };
@@ -124,8 +108,19 @@ function sendMailPhpMailer(string $to, string $toName, string $subject, string $
             $mail->SMTPAutoTLS = false; // admin explicitly chose "None" — don't opportunistically upgrade
         }
         $mail->CharSet    = 'UTF-8';
-        $mail->setFrom($s['smtp_from_email'], $s['smtp_from_name']);
+       $mail->setFrom($s['smtp_from_email'], $s['smtp_from_name']);
         $mail->addAddress($to, $toName ?: $to);
+
+        // CC / BCC — accept comma-separated lists, validate each address,
+        // silently skip invalid ones (caller is responsible for surfacing
+        // validation errors to the user before calling sendMail()).
+        foreach (array_filter(array_map('trim', explode(',', $cc))) as $ccAddr) {
+            if (filter_var($ccAddr, FILTER_VALIDATE_EMAIL)) $mail->addCC($ccAddr);
+        }
+        foreach (array_filter(array_map('trim', explode(',', $bcc))) as $bccAddr) {
+            if (filter_var($bccAddr, FILTER_VALIDATE_EMAIL)) $mail->addBCC($bccAddr);
+        }
+
         $mail->Subject  = $subject;
         $mail->isHTML(true);
         $mail->Body     = $html;

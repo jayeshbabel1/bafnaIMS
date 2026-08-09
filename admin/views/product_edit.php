@@ -592,13 +592,15 @@ function downloadProductPdf(productId, productName) {
 
 <?php if ($p): ?>
 <div id="rv3dModalA" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9500;align-items:center;justify-content:center;padding:14px;">
-  <div style="background:#fff;border-radius:14px;max-width:820px;width:100%;overflow:hidden;">
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border);">
+  <div style="background:#fff;border-radius:14px;max-width:1080px;width:100%;max-height:92vh;overflow:hidden;display:flex;flex-direction:column;">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border);flex-shrink:0;position:relative;z-index:2;background:#fff;">
       <p style="font-weight:700;">3D Room Preview</p>
-      <button onclick="close3DPreviewAdmin()" style="cursor:pointer;"><?= icon('close',18) ?></button>
+      <button onclick="close3DPreviewAdmin()" style="cursor:pointer;flex-shrink:0;color:var(--text);"><?= icon('close',18) ?></button>
     </div>
-    <div id="rv3dContainerA" style="width:100%;height:460px;background:#111;position:relative;"></div>
-    <div id="rv3dControlsWrapA"></div>
+    <div class="rv3d-modal-body">
+      <div id="rv3dContainerA"></div>
+      <div id="rv3dControlsWrapA"></div>
+    </div>
   </div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>

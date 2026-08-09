@@ -287,13 +287,15 @@ $vidShareMsg = rawurlencode(($p['name'] ?? '').' — Video: '.$vidShareUrl);
 
 <!-- 3D Preview Modal -->
 <div id="rv3dModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9500;align-items:center;justify-content:center;padding:14px;">
-  <div style="background:var(--white);border-radius:var(--radius-xl);max-width:820px;width:100%;overflow:hidden;">
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border);">
+  <div style="background:var(--white);border-radius:var(--radius-xl);max-width:1080px;width:100%;max-height:92vh;overflow:hidden;display:flex;flex-direction:column;">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border);flex-shrink:0;position:relative;z-index:2;background:var(--white);">
       <p style="font-weight:700;">3D Room Preview</p>
-      <button onclick="close3DPreview()" style="cursor:pointer;"><?= icon('close',18) ?></button>
+      <button onclick="close3DPreview()" style="cursor:pointer;flex-shrink:0;color:var(--text);"><?= icon('close',18) ?></button>
     </div>
-    <div id="rv3dContainer" style="width:100%;height:460px;background:#111;position:relative;"></div>
-    <div id="rv3dControlsWrap"></div>
+    <div class="rv3d-modal-body">
+      <div id="rv3dContainer"></div>
+      <div id="rv3dControlsWrap"></div>
+    </div>
   </div>
 </div>
 
