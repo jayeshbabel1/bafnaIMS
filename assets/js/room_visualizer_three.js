@@ -1,9 +1,76 @@
+/**
+ * assets/js/room_visualizer_three.js
+ * ─────────────────────────────────────────────────────────────────────────
+ * 3D Room Visualizer — engine v4. Full audit merge: 28 confirmed bugs fixed,
+ * 4 realism features added (A–D). See CHANGELOG below — kept terse since
+ * the list is long; each fix also has an inline comment at its code site.
+ *
+ * PUBLIC API (all v2/v3 entry points unchanged; additions marked NEW):
+ *   window.RoomVisualizer3D(containerId, opts)
+ *   window.RV3D_mount(containerId, controlsWrapId, opts)
+ *   window.RV3D_ROOM_LABELS / window.RV3D_ROOM_DIMS
+ *   window['rv3d_setRoom_'+id](roomKey)
+ *   window['rv3d_setSurface_'+id](surfaceKey) / ['rv3d_getSurfaces_'+id]()
+ *   window['rv3d_getScene_'+id]()
+ *   window['rv3d_getRoomLabel'](key) / ['rv3d_getSurfaceLabel'](key)
+ *   window['rv3d_setQuality_'+id](level)
+ *   window['rv3d_toggleDayNight_'+id]() / ['rv3d_toggleBeforeAfter_'+id]()
+ *   window['rv3d_toggleAutoRotate_'+id]() / ['rv3d_resetCamera_'+id]()
+ *   window['rv3d_zoom_'+id](steps) / ['rv3d_fullscreen_'+id]()
+ *   window['rv3d_setThickness_'+id](mm) / ['rv3d_setEdgeProfile_'+id](p)
+ *   window['rv3d_setSlabRotation_'+id](deg) / ['rv3d_setIsland_'+id](bool)
+ *   window['rv3d_setPalette_'+id](paletteHexArr)          ← NEW (feature B)
+ *   window['rv3d_supportsCountertopControls_'+id]()
+ *   window['rv3d_snapshot_'+id]() / ['rv3d_highResSnapshot_'+id](scale)
+ *   window['rv3d_destroy_'+id]()
+ *
+ * CHANGELOG (bug numbers match the audit thread):
+ *  1  Env/IBL contribution graduated per quality tier via per-material
+ *     envMapIntensity (three@0.128.0 has no scene.environmentIntensity).
+ *  2  Kitchen backsplash orphaned-material fix.
+ *  3  CabinetRun sink/stove appliances now shift with the countertop when
+ *     thickness changes instead of staying at their build-time offset.
+ *  4  Dead ExtrudeGeometry allocation removed from the dining table.
+ *  5  Pendant light material ternary (always-true dead branch) simplified.
+ *  6  Instance teardown: destroy() stops the render loop, removes resize/
+ *     fullscreen listeners, disposes MaterialManager/GeometryCache/renderer.
+ *  7  windowGlow light now room-aware: positioned per the room's actual
+ *     window, switched off entirely in windowless rooms.
+ *  8  Multi-pendant rooms no longer sum to N× the light energy of
+ *     single-pendant rooms — scaled by 1/count.
+ *  9  buildProceduralEnvironment()'s scratch geometry/materials disposed.
+ * 10  RoomShell walls/trim/window/door + large inline furniture routed
+ *     through GeometryCache (previously leaked on every room switch).
+ * 11  Wall/sidewall surface-picker fixed in bathroom/hall/living_room.
+ * 12  ensureUv2 added to backsplash plane.
+ * 13  Floor material now has its own reset branch in applyTexture().
+ * 14  Island toggle rebuilds whichever room is actually open.
+ * 15  Kitchen pendant repositioned over the counter run.
+ * 16  Living room sofa/coffee table/rug regrouped against the window wall.
+ * 17  Living room wall art repositioned flush against the back wall.
+ * 18  Bedroom rug repositioned to the foot of the bed.
+ * 19  ROOM_ORDER now includes 'hall' and 'dining'.
+ * 20  Hall console's contact-shadow decal reuses the console's real transform.
+ * 21  Canvas now CSS-percentage sized, tracks its real container box.
+ * 22  Staircase baluster height constant per step (was growing unboundedly).
+ * 23  Staircase handrail rebuilt with consistent basis + correct slope sign.
+ * 24  Kitchen backsplash Y-position accounts for slab thickness, tracked live.
+ * 25  (superseded by #27) initial mirror env-intensity floor.
+ * 26  MaterialManager.tinted() — re-tints a cached material on every call.
+ * 27  Mirror-like env-intensity floor generalized via metalness/roughness.
+ * 28  Countertop disposes its geometry on room switch, not just slider edits.
+ *
+ * FEATURES:
+ *  A  Room interior (cabinet doors/frames, sofa/bench fabric, dining
+ *     chairs, bed frame) tints from the loaded slab's own palette.
+ *  B  rv3d_setPalette_<id>(hexArr) — re-tint the room live, no remount.
+ *  C  Contact shadows added under the kitchen island and reception bench.
+ *  D  Kitchen under-cabinet task light.
+ * ─────────────────────────────────────────────────────────────────────────
+ */
 (function () {
   'use strict';
 
-  // ═══════════════════════════════════════════════════════════════════════
-  // Registries
-  // ═══════════════════════════════════════════════════════════════════════
   var ROOM_LABELS = {
     kitchen: 'Kitchen', bathroom: 'Bathroom', living_room: 'Living Room',
     bedroom: 'Bedroom', staircase: 'Staircase', reception: 'Reception',
@@ -14,7 +81,8 @@
     counter: 'Countertop', backsplash: 'Backsplash',
     desk: 'Reception Desk', tread: 'Stair Treads', vanity: 'Vanity Top',
   };
-  var ROOM_ORDER = ['kitchen', 'bathroom', 'living_room', 'bedroom', 'staircase', 'reception'];
+  // FIX #19: 'hall'/'dining' had full builders but no sidebar tab.
+  var ROOM_ORDER = ['kitchen', 'bathroom', 'living_room', 'bedroom', 'dining', 'hall', 'staircase', 'reception'];
 
   var QUALITY = {
     low:    { shadowMap: 512,  pixelRatio: 1.0, envRes: 32,  texSize: 256, aa: false },
@@ -23,10 +91,13 @@
     ultra:  { shadowMap: 4096, pixelRatio: 2.0, envRes: 256, texSize: 768, aa: true },
   };
 
- 
+  // FIX #1: per-tier IBL contribution, applied per-material via envMapIntensity.
   var ENV_INTENSITY = { low: 0, medium: 0.35, high: 0.6, ultra: 0.85 };
 
-    function hexToRgb01(hex) {
+  // ═══════════════════════════════════════════════════════════════════════
+  // Color science
+  // ═══════════════════════════════════════════════════════════════════════
+  function hexToRgb01(hex) {
     hex = String(hex || 'F2F0EC').replace('#', '');
     if (hex.length === 3) hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
     var n = parseInt(hex, 16); if (isNaN(n)) n = 0xF2F0EC;
@@ -45,6 +116,12 @@
     }
     return { h: h, s: s, l: l };
   }
+  // FEATURE A helper — blend a hex color toward white by `amt` (0..1).
+  function lightenHex(hex, amt) {
+    var c = new THREE.Color(hex);
+    c.lerp(new THREE.Color(0xffffff), Math.max(0, Math.min(1, amt)));
+    return c.getHex();
+  }
   function pickRoomPalette(paletteHexArr) {
     var base = (paletteHexArr && paletteHexArr[0]) ? paletteHexArr[0] : 'F2F0EC';
     var c = hexToRgb01(base);
@@ -57,18 +134,31 @@
     else if (L >= 0.32 && L < 0.66 && warmHue) { wall = '#F5EEDA'; floorBase = '#EAE1CB'; }
     else if (L >= 0.66) { wall = '#DAD5CB'; floorBase = '#EDE9E1'; }
     else { wall = '#EDE8DD'; floorBase = '#E4DFD2'; }
-    return { wall: wall, ceiling: '#FAF8F4', floorBase: floorBase };
+    // FEATURE A: cabinet (painted millwork) + fabric (soft furnishing).
+    var cabinet = S < 0.07 ? '#EDE7D9' : (warmHue ? '#F1E8D6' : '#E8ECE7');
+    var fabric  = S < 0.07 ? '#7C8079' : (warmHue ? '#8A7A5F' : '#5F6F5B');
+    return { wall: wall, ceiling: '#FAF8F4', floorBase: floorBase, cabinet: cabinet, fabric: fabric };
   }
 
   // ═══════════════════════════════════════════════════════════════════════
-  // Material Manager — every material used anywhere is created at most once
-  // per viewer instance and looked up by key thereafter.
+  // Material Manager
   // ═══════════════════════════════════════════════════════════════════════
   function createMaterialManager() {
     var cache = {};
     return {
       standard: function (key, color, rough, metal) {
         if (!cache[key]) cache[key] = new THREE.MeshStandardMaterial({ color: color, roughness: rough != null ? rough : 0.8, metalness: metal || 0 });
+        return cache[key];
+      },
+      // FIX #26: re-applies `color` on every call instead of only at first
+      // creation. Required for feature A/B — a plain cache would silently
+      // ignore a new slab's cabinetColor/fabricColor after the first build.
+      tinted: function (key, color, rough, metal) {
+        if (!cache[key]) {
+          cache[key] = new THREE.MeshStandardMaterial({ color: color, roughness: rough != null ? rough : 0.8, metalness: metal || 0 });
+        } else {
+          cache[key].color.set(color);
+        }
         return cache[key];
       },
       physical: function (key, params) {
@@ -79,10 +169,6 @@
         if (!cache[key]) cache[key] = new THREE.MeshBasicMaterial(params);
         return cache[key];
       },
-      // One shared, texturable PBR material per surface key (floor/counter/
-      // vanity/desk/tread/backsplash/wall/sidewall…). All meshes tagged with
-      // the same surface key point at the SAME material object, so applying/
-      // removing the slab texture is a single assignment, not a per-mesh loop.
       surface: function (key) {
         var ck = 'surface:' + key;
         if (!cache[ck]) {
@@ -95,8 +181,6 @@
         return cache[ck];
       },
       get: function (key, factory) { if (!cache[key]) cache[key] = factory(); return cache[key]; },
-      // Exposes every cached material so the viewer can walk them (used by
-      // applyEnvIntensity()) without needing a separate registry.
       all: function () { return cache; },
       dispose: function () {
         Object.keys(cache).forEach(function (k) { if (cache[k].dispose) cache[k].dispose(); });
@@ -122,12 +206,6 @@
     }
   }
 
-  // Recenters a group's CURRENT children around their own bounding box
-  // (X/Z centered, Y bottom-anchored) by wrapping them in an inner group and
-  // offsetting that inner group — never the individual meshes. This is the
-  // single mechanism composite builders use instead of hand-picked
-  // translation constants; callers of a builder only ever set `.position`
-  // and `.rotation.y` on the group it returns.
   function centerBottom(group) {
     var box = new THREE.Box3().setFromObject(group);
     if (!isFinite(box.min.x) || group.children.length === 0) return group;
@@ -141,10 +219,7 @@
   }
 
   // ═══════════════════════════════════════════════════════════════════════
-  // Layout Engine — every position in every room is derived from these
-  // methods; nothing downstream hand-writes `-d/2 + 0.3` style constants,
-  // except explicitly freestanding furniture (documented at atOffset below),
-  // which is an art-directed composition choice, not derivable geometry.
+  // Layout Engine
   // ═══════════════════════════════════════════════════════════════════════
   function createLayoutEngine(dims) {
     var width = dims.width, height = dims.height, depth = dims.depth;
@@ -152,33 +227,20 @@
 
     return {
       width: width, height: height, depth: depth, wallThickness: wt,
-
       innerBackZ: function () { return -depth / 2; },
       innerSideX: function () { return -width / 2; },
-
       wallBoxes: function () {
         return {
           back: { size: [width, height, wt], position: [0, height / 2, -depth / 2 - wt / 2] },
           side: { size: [wt, height, depth], position: [-width / 2 - wt / 2, height / 2, 0] },
         };
       },
-
-      // centerX = world X of the placed object's own centerline.
       alongBackWall: function (objDepth, centerX) {
-        return {
-          position: new THREE.Vector3(centerX, 0, -depth / 2 + wt + objDepth / 2),
-          rotationY: Math.PI,
-        };
+        return { position: new THREE.Vector3(centerX, 0, -depth / 2 + wt + objDepth / 2), rotationY: Math.PI };
       },
-      // centerZ = world Z of the placed object's own centerline.
       alongSideWall: function (objDepth, centerZ) {
-        return {
-          position: new THREE.Vector3(-width / 2 + wt + objDepth / 2, 0, centerZ),
-          rotationY: -Math.PI / 2,
-        };
+        return { position: new THREE.Vector3(-width / 2 + wt + objDepth / 2, 0, centerZ), rotationY: -Math.PI / 2 };
       },
-      // L-shaped run: A hugs the back wall starting at the corner, B hugs
-      // the side wall starting where A's footprint ends.
       lShape: function (runDepth, runALen, runBLen) {
         var a = this.alongBackWall(runDepth, -width / 2 + wt + runALen / 2);
         var b = this.alongSideWall(runDepth, -depth / 2 + wt + runDepth + runBLen / 2);
@@ -187,13 +249,7 @@
           runB: { position: b.position, rotationY: b.rotationY, length: runBLen, depth: runDepth },
         };
       },
-      // Freestanding furniture — no wall attachment, arbitrary facing.
-      // Positions here are room-composition art direction, not geometry
-      // derived from dimensions; deliberately excluded from the "no magic
-      // numbers" rule since there is no formula for "where a sofa looks right".
-      atOffset: function (x, z, rotationY) {
-        return { position: new THREE.Vector3(x, 0, z), rotationY: rotationY || 0 };
-      },
+      atOffset: function (x, z, rotationY) { return { position: new THREE.Vector3(x, 0, z), rotationY: rotationY || 0 }; },
       roomCenter: function () { return new THREE.Vector3(0, 0, 0); },
     };
   }
@@ -204,15 +260,6 @@
     return group;
   }
 
-  // ═══════════════════════════════════════════════════════════════════════
-  // Countertop geometry factory — real extruded cross-section, so thickness
-  // and edge profile are actual geometry, not a texture trick. Local frame:
-  // X = length (centered), Y = 0 at slab BOTTOM rising to +thickness at the
-  // TOP surface, Z = depth with the wall-attached edge at +depth/2 and the
-  // profiled front edge at -depth/2 (matches the LayoutEngine convention
-  // above, since CabinetRun/Island/etc. reuse the same "+Z = attachment
-  // face" rule for whatever they're built into).
-  // ═══════════════════════════════════════════════════════════════════════
   function buildCountertopGeometry(length, depth, thickness, edgeProfile) {
     var t = Math.max(0.015, thickness || 0.035);
     var e = Math.min(t * 0.8, 0.02);
@@ -239,8 +286,8 @@
     shape.lineTo(0, 0);
 
     var geo = new THREE.ExtrudeGeometry(shape, { depth: length, bevelEnabled: false, curveSegments: 12 });
-    geo.rotateY(Math.PI / 2);                    // rawZ(length)->X, rawX(depth)->-Z
-    geo.translate(-length / 2, 0, depth / 2);     // center length; wall-side edge -> Z=+depth/2
+    geo.rotateY(Math.PI / 2);
+    geo.translate(-length / 2, 0, depth / 2);
 
     var pos = geo.attributes.position, uv = new Float32Array(pos.count * 2);
     for (var i = 0; i < pos.count; i++) {
@@ -253,9 +300,7 @@
   }
 
   // ═══════════════════════════════════════════════════════════════════════
-  // Small decorative builders — already routed through GeometryCache/
-  // MaterialManager correctly in v2, unchanged here except pendantLights
-  // material-assignment fix (#5).
+  // Small decorative builders
   // ═══════════════════════════════════════════════════════════════════════
   var Builders = {};
   Builders.decor = {};
@@ -337,11 +382,8 @@
     return centerBottom(g);
   };
 
-  // FIX #5: previous ternary (`mm.standard(...).clone ? mm.get(...) : null`)
-  // was always truthy (every material has a .clone method), so it silently
-  // cached a throwaway 'pendant-shade' material and then discarded it,
-  // assigning the mesh 'pendant-shade-mat' from the always-true branch
-  // instead. Replaced with one real material lookup.
+  // FIX #5: previous ternary was always truthy, silently caching a throwaway
+  // material and discarding it. Simplified to one real material lookup.
   Builders.decor.pendantLight = function (mm, gc, roomH) {
     var g = new THREE.Group();
     var cord = new THREE.Mesh(gc.get('pendant-cord', function () { return new THREE.CylinderGeometry(0.007, 0.007, 0.5, 6); }), mm.standard('pendant-cord', 0x1a1a1a, 0.5));
@@ -386,16 +428,9 @@
 
   // ═══════════════════════════════════════════════════════════════════════
   // RoomShell — floor / ceiling / walls / trim / window / door.
-  // FIX #10/#11: walls, trim, window, and door geometry now route through
-  // GeometryCache instead of allocating raw geometry on every room build
-  // (previously leaked on every room switch, since scene.remove() does not
-  // dispose children). FIX #11: back/side wall materials now use the shared
-  // mm.surface('wall') / mm.surface('sidewall') materials directly instead
-  // of a separate mm.standard('wall:'+color) material, so the surface
-  // pickers "Wall"/"Side Wall" selection actually affects these meshes in
-  // every room that exposes them (bathroom/hall/living_room/drawing).
-  // FIX #12: ensureUv2 added to both wall geometries so aoMap sampling works
-  // when a wall surface is textured.
+  // FIX #10/#11: geometry cached; wall/sidewall materials use mm.surface()
+  // directly. FIX #12: ensureUv2 on both walls. FIX #8: pendant energy
+  // scaled by 1/count.
   // ═══════════════════════════════════════════════════════════════════════
   Builders.RoomShell = function (mm, gc, layout, opts) {
     opts = opts || {};
@@ -506,12 +541,7 @@
       });
     }
     if (opts.pendantAt) {
-      // FIX #8: multi-pendant rooms (reception has 3) previously summed to
-      // N times the light energy of a single-pendant room at the same
-      // quality tier. Scale each pendants PointLight by 1/count so total
-      // energy stays comparable across rooms; single-pendant rooms are
-      // unaffected (scale = 1).
-      var pendantScale = 1 / Math.max(1, opts.pendantAt.length);
+      var pendantScale = 1 / Math.max(1, opts.pendantAt.length); // FIX #8
       opts.pendantAt.forEach(function (p) {
         var pendant = Builders.decor.pendantLight(mm, gc, h);
         pendant.traverse(function (o) { if (o.isPointLight) o.intensity *= pendantScale; });
@@ -522,11 +552,13 @@
 
     return { group: group, floor: floor, wall: backWall, sidewall: sideWall };
   };
-
   // ═══════════════════════════════════════════════════════════════════════
-  // Countertop — standalone factory reused by every cabinet-bearing builder.
-  // Returns the mesh plus an `update()` closure so thickness/edge-profile
-  // controls can rebuild geometry in place without touching the material.
+  // Countertop — the actual slab mesh. FIX #28: dispose() added — this
+  // geometry is intentionally NOT GeometryCache-shared (it's mutated live by
+  // the thickness/edge-profile sliders via update(), which already disposes
+  // the OLD geometry on every slider edit) but nothing previously disposed
+  // it when the whole room was discarded on a room switch. Every owner below
+  // (CabinetRun/Island/Vanity/ReceptionDesk/Staircase) now cascades this.
   // ═══════════════════════════════════════════════════════════════════════
   Builders.Countertop = function (mm, opts) {
     var length = opts.length, depth = opts.depth;
@@ -541,20 +573,19 @@
         mesh.geometry.dispose();
         mesh.geometry = newGeo;
       },
+      dispose: function () { mesh.geometry.dispose(); }, // FIX #28
     };
   };
 
   // ═══════════════════════════════════════════════════════════════════════
-  // Appliances — always attached as children of a Countertop mesh, so their
-  // own local coordinates are relative to the countertops local frame
-  // (topY = countertop thickness = the finished top surface).
+  // Appliances — always attached as children of a Countertop mesh.
   // ═══════════════════════════════════════════════════════════════════════
   Builders.appliances = {
     faucet: function (mm, gc, opts) {
       var localX = opts.offsetX || 0, depth = opts.depth || 0.6, topY = opts.topY || 0.035;
       var g = new THREE.Group();
       var faucetMat = mm.standard('faucet-metal', 0xB9BEC4, 0.2, 0.95);
-      var fz = -depth * 0.32; // toward the front (profiled) edge
+      var fz = -depth * 0.32;
       var base = new THREE.Mesh(gc.get('faucet-base', function () { return new THREE.CylinderGeometry(0.014, 0.016, 0.05, 12); }), faucetMat);
       base.position.set(localX, topY + 0.025, fz); g.add(base);
       var riser = new THREE.Mesh(gc.get('faucet-riser', function () { return new THREE.CylinderGeometry(0.011, 0.011, 0.22, 10); }), faucetMat);
@@ -573,7 +604,7 @@
       var rim = new THREE.Mesh(gc.get('sink-rim', function () { return new THREE.BoxGeometry(0.54, 0.015, depth * 0.6); }), mm.standard('sink-rim', 0xD7DADD, 0.25, 0.9));
       rim.position.set(localX, topY + 0.005, 0); g.add(rim);
       g.add(Builders.appliances.faucet(mm, gc, { offsetX: localX, depth: depth, topY: topY }));
-      return g; // NOT bounding-box centered — positions are meaningful relative to the parent countertops own local frame.
+      return g;
     },
     stove: function (mm, gc, opts) {
       var localX = opts.offsetX || 0, depth = opts.depth || 0.6, cabinetHeight = opts.cabinetHeight || 0.85, topY = opts.thicknessM || 0.035;
@@ -588,8 +619,6 @@
         ring.position.set(localX + o[0], topY + 0.014, o[1] * (depth / 0.6));
         g.add(ring);
       });
-      // Oven body hangs down from the countertops bottom (local Y=0),
-      // occupying the cabinet volume below.
       var oven = new THREE.Mesh(gc.get('stove-oven:' + cabinetHeight.toFixed(2) + ':' + depth.toFixed(2), function () { return new THREE.BoxGeometry(0.58, cabinetHeight - 0.05, depth - 0.02); }), mm.standard('stove-oven', 0xCCCCCC, 0.35, 0.7));
       oven.position.set(localX, -cabinetHeight / 2, 0); g.add(oven);
       var win = new THREE.Mesh(gc.get('stove-window:' + cabinetHeight.toFixed(2), function () { return new THREE.BoxGeometry(0.44, cabinetHeight * 0.4, 0.02); }), mm.standard('stove-window', 0x161616, 0.2, 0.4));
@@ -601,23 +630,21 @@
   };
 
   // ═══════════════════════════════════════════════════════════════════════
-  // CabinetRun — a run of base cabinets that owns its own Countertop (added
-  // as a scenegraph child) and, in turn, any requested appliances (added as
-  // children of that countertop). Never receives the slab material itself.
-  // FIX #3: appliance groups are now tracked so updateCountertop() can shift
-  // them by the same delta as the countertop when thickness changes —
-  // previously the sink/stove stayed at their build-time Y offset and
-  // visually detached from the slab when the thickness slider was used.
+  // CabinetRun — FIX #3: appliance groups tracked, shifted by the same
+  // delta as the countertop on a thickness edit. FIX #28: dispose() cascades
+  // to the countertop. FEATURE A: door/frame color driven by
+  // opts.cabinetColor via mm.tinted() instead of a fixed hex.
   // ═══════════════════════════════════════════════════════════════════════
   Builders.CabinetRun = function (mm, gc, opts) {
     var length = opts.length, height = opts.height || 0.85, depth = opts.depth || 0.62;
     var doorsPerMeter = opts.doorsPerMeter != null ? opts.doorsPerMeter : 1.3;
     var drawerRows = opts.drawerRows || 0;
+    var cabinetColor = opts.cabinetColor || 0xEDE7D9;
     var group = new THREE.Group();
 
-    var doorMat = mm.standard('cabinet-door', 0xF4F1EA, 0.55);
-    var frameMat = mm.standard('cabinet-frame', 0xEDE7D9, 0.6);
-    var handleMat = mm.standard('cabinet-handle', 0x2a2420, 0.35, 0.65);
+    var doorMat = mm.tinted('cabinet-door', lightenHex(cabinetColor, 0.12), 0.55);   // FEATURE A
+    var frameMat = mm.tinted('cabinet-frame', cabinetColor, 0.6);                     // FEATURE A
+    var handleMat = mm.standard('cabinet-handle', 0x2a2420, 0.35, 0.65); // hardware stays neutral regardless of slab
 
     var carcass = new THREE.Mesh(gc.get('carcass:' + length.toFixed(2) + ':' + height.toFixed(2) + ':' + depth.toFixed(2), function () { return new THREE.BoxGeometry(length, height, depth); }), frameMat);
     carcass.position.y = height / 2; carcass.castShadow = carcass.receiveShadow = true;
@@ -625,7 +652,7 @@
 
     var doorCount = Math.max(1, Math.round(length * doorsPerMeter));
     var doorW = (length / doorCount) - 0.01;
-    var frontZ = -depth / 2 - 0.011; // local -Z = front, matches the countertops "profiled/front" edge
+    var frontZ = -depth / 2 - 0.011;
 
     for (var i = 0; i < doorCount; i++) {
       var cx = -length / 2 + doorW / 2 + 0.005 + i * (length / doorCount);
@@ -651,8 +678,8 @@
     }
 
     var countertop = null;
-    var applianceGroups = [];               // FIX #3
-    var curThickness = opts.countertop ? opts.countertop.thicknessM : 0.035; // FIX #3
+    var applianceGroups = [];
+    var curThickness = opts.countertop ? opts.countertop.thicknessM : 0.035;
 
     if (opts.countertop) {
       var co = opts.countertop;
@@ -663,15 +690,15 @@
         thicknessM: co.thicknessM, edgeProfile: co.edgeProfile, surfaceKey: co.surfaceKey || 'counter',
       });
       countertop.mesh.position.y = height;
-      group.add(countertop.mesh); // countertop is a CHILD of the cabinet run
+      group.add(countertop.mesh);
 
       (opts.appliances || []).forEach(function (a) {
         var applianceGroup = null;
         if (a.type === 'sink') applianceGroup = Builders.appliances.sink(mm, gc, { offsetX: a.offsetX || 0, depth: depth, thicknessM: co.thicknessM });
         else if (a.type === 'stove') applianceGroup = Builders.appliances.stove(mm, gc, { offsetX: a.offsetX || 0, depth: depth, cabinetHeight: height, thicknessM: co.thicknessM });
         if (applianceGroup) {
-          countertop.mesh.add(applianceGroup); // appliances are CHILDREN of the countertop
-          applianceGroups.push(applianceGroup); // FIX #3
+          countertop.mesh.add(applianceGroup);
+          applianceGroups.push(applianceGroup);
         }
       });
     }
@@ -681,18 +708,21 @@
       group: group, length: length, height: height, depth: depth, countertop: countertop,
       updateCountertop: countertop ? function (newThicknessM, newEdgeProfile) {
         countertop.update(newThicknessM, newEdgeProfile);
-        var deltaY = newThicknessM - curThickness;          // FIX #3
+        var deltaY = newThicknessM - curThickness;
         applianceGroups.forEach(function (g) { g.position.y += deltaY; });
         curThickness = newThicknessM;
       } : function () {},
+      dispose: function () { if (countertop) countertop.dispose(); }, // FIX #28
     };
   };
 
-  // ── Island: freestanding cabinet body + countertop child, same rules ────
+  // ── Island — FEATURE A: body shares the 'cabinet-frame' cache key with
+  // CabinetRun, so tinting it here keeps kitchen cabinetry consistent.
   Builders.Island = function (mm, gc, opts) {
     var length = opts.length || 1.6, depth = opts.depth || 0.9, height = opts.height || 0.85;
+    var cabinetColor = opts.cabinetColor || 0xEDE7D9;
     var group = new THREE.Group();
-    var body = new THREE.Mesh(gc.get('island-body:' + length.toFixed(2) + ':' + depth.toFixed(2) + ':' + height.toFixed(2), function () { return new THREE.BoxGeometry(length, height, depth); }), mm.standard('cabinet-frame', 0xEDE7D9, 0.6));
+    var body = new THREE.Mesh(gc.get('island-body:' + length.toFixed(2) + ':' + depth.toFixed(2) + ':' + height.toFixed(2), function () { return new THREE.BoxGeometry(length, height, depth); }), mm.tinted('cabinet-frame', cabinetColor, 0.6));
     body.position.y = height / 2; body.castShadow = body.receiveShadow = true;
     group.add(body);
     var co = opts.countertop || {};
@@ -704,14 +734,16 @@
     countertop.mesh.position.y = height;
     group.add(countertop.mesh);
     centerBottom(group);
-    return { group: group, countertop: countertop, updateCountertop: countertop.update };
+    return { group: group, countertop: countertop, updateCountertop: countertop.update, dispose: function () { countertop.dispose(); } }; // FIX #28
   };
 
-  // ── Vanity: bathroom cabinet + countertop + sink/faucet children ────────
+  // ── Vanity: bathroom cabinet + countertop + sink/faucet children.
+  // Inherits CabinetRun's dispose() and cabinetColor tinting for free.
   Builders.Vanity = function (mm, gc, opts) {
     var length = opts.length || 1.3, depth = opts.depth || 0.5, height = opts.height || 0.82;
     var run = Builders.CabinetRun(mm, gc, {
       length: length, height: height, depth: depth, doorsPerMeter: 0, drawerRows: 2,
+      cabinetColor: opts.cabinetColor,
       countertop: {
         thicknessM: opts.thicknessM, edgeProfile: opts.edgeProfile || 'bullnose',
         surfaceKey: opts.surfaceKey || 'vanity', overhang: 0.04, overhangDepth: 0.02,
@@ -721,11 +753,11 @@
     return run;
   };
 
-  // ── ReceptionDesk: desk body + countertop child ─────────────────────────
+  // ── ReceptionDesk: desk body + countertop child.
   Builders.ReceptionDesk = function (mm, gc, opts) {
     var length = opts.length || 2.4, depth = opts.depth || 0.7, height = opts.height || 1.1;
     var group = new THREE.Group();
-    var body = new THREE.Mesh(gc.get('desk-body:' + length.toFixed(2) + ':' + depth.toFixed(2) + ':' + height.toFixed(2), function () { return new THREE.BoxGeometry(length, height, depth); }), mm.standard('desk-body', 0x2a2420, 0.5));
+    var body = new THREE.Mesh(gc.get('desk-body:' + length.toFixed(2) + ':' + depth.toFixed(2) + ':' + height.toFixed(2), function () { return new THREE.BoxGeometry(length, height, depth); }), mm.standard('desk-body', 0x2a2420, 0.5)); // natural wood — intentionally slab-agnostic
     body.position.y = height / 2; body.castShadow = body.receiveShadow = true;
     group.add(body);
     var co = opts.countertop || {};
@@ -737,17 +769,21 @@
     countertop.mesh.position.y = height;
     group.add(countertop.mesh);
     centerBottom(group);
-    return { group: group, countertop: countertop, updateCountertop: countertop.update };
+    return { group: group, countertop: countertop, updateCountertop: countertop.update, dispose: function () { countertop.dispose(); } }; // FIX #28
   };
 
-  // ── Staircase: a flight of treads, each built from the shared countertop
-  //    geometry factory (no cabinet parent — nested under its own riser) ──
+  // ── Staircase — FIX #22: baluster height now constant per step instead
+  // of growing with step index. FIX #23: rail rebuilt from one consistent
+  // step-count basis with the correct slope sign. FIX #28: dispose()
+  // cascades across all N independent tread Countertop instances.
   Builders.Staircase = function (mm, gc, opts) {
     var steps = opts.steps || 9, treadH = opts.treadH || 0.18, treadDepth = opts.treadDepth || 0.30, treadW = opts.treadW || 1.2;
     var thicknessM = opts.thicknessM, edgeProfile = opts.edgeProfile || 'bullnose';
+    var railHeight = opts.railHeight != null ? opts.railHeight : 0.75;
     var group = new THREE.Group();
     var treads = [];
     var updaters = [];
+    var disposers = [];
     var riserMat = mm.standard('cabinet-frame', 0xEDE7D9, 0.6);
     var railMat = mm.standard('stair-rail', 0x2a2420, 0.4, 0.5);
     var balusterGeo = gc.get('baluster', function () { return new THREE.CylinderGeometry(0.012, 0.012, 1, 6); });
@@ -764,30 +800,44 @@
       stepGroup.add(treadHandle.mesh);
       treads.push(treadHandle.mesh);
       updaters.push(treadHandle.update);
+      disposers.push(treadHandle.dispose); // FIX #28
 
+      // FIX #22: was treadH*(i+1)+0.75 — grew unboundedly with step index,
+      // stacking on top of the stepGroup's own treadH*i offset. Height above
+      // each tread is now constant across the whole flight.
+      var balusterH = treadH + railHeight;
       var baluster = new THREE.Mesh(balusterGeo, railMat);
-      baluster.scale.y = treadH * (i + 1) + 0.75;
-      baluster.position.set(treadW / 2 - 0.03, (treadH * (i + 1) + 0.75) / 2, 0);
+      baluster.scale.y = balusterH;
+      baluster.position.set(treadW / 2 - 0.03, balusterH / 2, 0);
       stepGroup.add(baluster);
 
       stepGroup.position.set(0, treadH * i, -i * treadDepth);
       group.add(stepGroup);
     }
 
-    var railLen = Math.sqrt(Math.pow(steps * treadDepth, 2) + Math.pow(steps * treadH, 2));
+    // FIX #23: was mixing `steps` (railLen/rotation) with `steps-1`
+    // (position.z) as two different bases for the same line segment, and
+    // the rotation sign was inverted (rail sloped opposite the stairs).
+    // Rebuilt from one consistent basis with the corrected sign.
+    var runSteps = steps - 1;
+    var railDX = runSteps * treadDepth;
+    var railDY = runSteps * treadH;
+    var railLen = Math.sqrt(railDX * railDX + railDY * railDY);
     var railCurve = new THREE.Mesh(gc.get('rail-curve:' + railLen.toFixed(2), function () { return new THREE.CylinderGeometry(0.02, 0.02, railLen, 8); }), railMat);
-    railCurve.position.set(treadW / 2 - 0.03, treadH * steps / 2 + 0.9, -(steps - 1) * treadDepth / 2);
-    railCurve.rotation.x = Math.atan2(steps * treadH, steps * treadDepth);
+    var yBottom = treadH + railHeight;
+    var yTop = treadH * steps + railHeight;
+    railCurve.position.set(treadW / 2 - 0.03, (yBottom + yTop) / 2, -railDX / 2);
+    railCurve.rotation.x = Math.atan2(-railDX, railDY);
     group.add(railCurve);
 
     return {
       group: group, treads: treads,
       updateCountertop: function (newThicknessM, newEdgeProfile) { updaters.forEach(function (fn) { fn(newThicknessM, newEdgeProfile); }); },
+      dispose: function () { disposers.forEach(function (fn) { fn(); }); }, // FIX #28
     };
   };
-// ═══════════════════════════════════════════════════════════════════════
-  // Room builders — every one starts with a LayoutEngine + RoomShell, so all
-  // 8 rooms share the identical placement machinery.
+  // ═══════════════════════════════════════════════════════════════════════
+  // Room builders
   // ═══════════════════════════════════════════════════════════════════════
   var ROOM_DIMS = {
     kitchen:     { width: 4.2, height: 2.7, depth: 4.0 },
@@ -807,7 +857,8 @@
     var layout = createLayoutEngine({ width: dims.width, height: dims.height, depth: dims.depth, wallThickness: ctx.wallThickness });
     var shell = Builders.RoomShell(mm, gc, layout, {
       wallColor: ctx.wallColor, floorBaseColor: ctx.floorBase, windowWall: 'side',
-      pendantAt: [[0.4, -0.6]], plantAt: [[-dims.width / 2 + 0.4, dims.depth / 2 - 0.4]],
+      pendantAt: [[-0.2, -1.6]], // FIX #15 — was [0.4,-0.6], over open floor; now over the back-wall counter run
+      plantAt: [[-dims.width / 2 + 0.4, dims.depth / 2 - 0.4]],
     });
     group.add(shell.group);
 
@@ -817,6 +868,7 @@
 
     var runA = Builders.CabinetRun(mm, gc, {
       length: runALen, height: cabinetHeight, depth: counterDepth, doorsPerMeter: 1.3, drawerRows: 0,
+      cabinetColor: ctx.cabinetColor, // FEATURE A
       countertop: { thicknessM: ctx.thicknessM, edgeProfile: ctx.edgeProfile },
       appliances: [{ type: 'sink', offsetX: 0.2 }],
     });
@@ -825,6 +877,7 @@
 
     var runB = Builders.CabinetRun(mm, gc, {
       length: runBLen, height: cabinetHeight, depth: counterDepth, doorsPerMeter: 0, drawerRows: 3,
+      cabinetColor: ctx.cabinetColor, // FEATURE A
       countertop: { thicknessM: ctx.thicknessM, edgeProfile: ctx.edgeProfile },
       appliances: [{ type: 'stove', offsetX: runBLen / 2 - 0.4 }],
     });
@@ -832,17 +885,15 @@
     group.add(runB.group);
 
     var wallCabH = 0.7, wallCabDepth = 0.34;
-    var wallRun = Builders.CabinetRun(mm, gc, { length: runALen, height: wallCabH, depth: wallCabDepth, doorsPerMeter: 1.3, drawerRows: 0 });
+    var wallRun = Builders.CabinetRun(mm, gc, { length: runALen, height: wallCabH, depth: wallCabDepth, doorsPerMeter: 1.3, drawerRows: 0, cabinetColor: ctx.cabinetColor });
     var wallTransform = layout.alongBackWall(wallCabDepth, lshape.runA.position.x);
     applyTransform(wallRun.group, wallTransform);
     wallRun.group.position.y = cabinetHeight + 0.55;
     group.add(wallRun.group);
 
-    // FIX #2/#12: backsplash previously swapped to an orphaned material
-    // ('backsplash-base') that applyTexture() never touches — selecting
-    // "Backsplash" in the surface picker was a silent no-op. Now uses the
-    // shared mm.surface('backsplash') material directly, seeded with the
-    // tile look as its default appearance. ensureUv2 fixes aoMap sampling.
+    // FIX #2/#12: backsplash previously swapped to an orphaned material.
+    // FIX #24: Y-position now accounts for slab thickness instead of a
+    // fixed cabinetHeight, and is kept in sync live in rebuildSurface below.
     var splashH = 0.55;
     var backsplashMat = mm.surface('backsplash');
     var tileTex = Builders.decor.tileTexture(mm);
@@ -853,17 +904,29 @@
     ensureUv2(backsplashGeo);
     var backsplash = new THREE.Mesh(backsplashGeo, backsplashMat);
     applyTransform(backsplash, layout.alongBackWall(0.02, lshape.runA.position.x));
-    backsplash.position.y = cabinetHeight + splashH / 2;
+    backsplash.position.y = cabinetHeight + ctx.thicknessM + splashH / 2; // FIX #24
     group.add(backsplash);
+
+    // FEATURE D: low-intensity under-cabinet task light; 'nightLight' name
+    // makes it participate in the existing day/night intensity boost.
+    var taskLight = new THREE.PointLight(0xfff2d0, 0.22, 1.8, 2);
+    taskLight.name = 'nightLight';
+    taskLight.position.set(lshape.runA.position.x, cabinetHeight + 0.53, lshape.runA.position.z);
+    group.add(taskLight);
 
     var islandHandle = null;
     if (ctx.showIsland) {
       islandHandle = Builders.Island(mm, gc, {
         length: 1.6, depth: 0.9, height: cabinetHeight,
+        cabinetColor: ctx.cabinetColor, // FEATURE A
         countertop: { thicknessM: ctx.thicknessM, edgeProfile: ctx.edgeProfile },
       });
-      applyTransform(islandHandle.group, layout.atOffset(0.6, 0.9));
+      var islandTransform = layout.atOffset(0.6, 0.9);
+      applyTransform(islandHandle.group, islandTransform);
       group.add(islandHandle.group);
+      var islandShadow = Builders.decor.contactShadow(mm, gc, 2.0, 0.28); // FEATURE C — was missing
+      islandShadow.position.set(islandTransform.position.x, 0.001, islandTransform.position.z);
+      group.add(islandShadow);
     }
 
     var counterMeshes = [runA.countertop.mesh, runB.countertop.mesh];
@@ -872,11 +935,16 @@
     return {
       surfaces: { floor: [shell.floor], counter: counterMeshes, backsplash: [backsplash] },
       camPos: [0.6, 1.6, 4.6], camTarget: [-0.2, 1.0, -0.2],
-      windowGlowPos: [-dims.width / 2 + 0.5, dims.height * 0.58, 0], // FIX #7 — side window
+      windowGlowPos: [-dims.width / 2 + 0.5, dims.height * 0.58, 0], // FIX #7
       rebuildSurface: function (t, p) {
         runA.updateCountertop(t, p);
         runB.updateCountertop(t, p);
         if (islandHandle) islandHandle.updateCountertop(t, p);
+        backsplash.position.y = cabinetHeight + t + splashH / 2; // FIX #24
+      },
+      dispose: function () { // FIX #28
+        runA.dispose(); runB.dispose();
+        if (islandHandle) islandHandle.dispose();
       },
     };
   };
@@ -888,7 +956,7 @@
     group.add(shell.group);
 
     var vanityLen = 1.3, vanityDepth = 0.5, vanityH = 0.82;
-    var vanity = Builders.Vanity(mm, gc, { length: vanityLen, depth: vanityDepth, height: vanityH, thicknessM: ctx.thicknessM, edgeProfile: ctx.edgeProfile });
+    var vanity = Builders.Vanity(mm, gc, { length: vanityLen, depth: vanityDepth, height: vanityH, thicknessM: ctx.thicknessM, edgeProfile: ctx.edgeProfile, cabinetColor: ctx.cabinetColor }); // FEATURE A
     applyTransform(vanity.group, layout.alongSideWall(vanityDepth, -dims.depth / 2 + vanityDepth + 0.7));
     group.add(vanity.group);
 
@@ -914,11 +982,11 @@
     group.add(tubShadow);
 
     return {
-      // No windowGlowPos — bathroom has no window (correct per FIX #7: don't
-      // light a window that doesn't exist).
+      // No windowGlowPos — bathroom has no window.
       surfaces: { floor: [shell.floor], vanity: [vanity.countertop.mesh], wall: [accent] },
       camPos: [0.8, 1.5, 3.6], camTarget: [0, 1.0, 0],
       rebuildSurface: function (t, p) { vanity.updateCountertop(t, p); },
+      dispose: function () { vanity.dispose(); }, // FIX #28
     };
   };
 
@@ -926,40 +994,47 @@
     var layout = createLayoutEngine({ width: dims.width, height: dims.height, depth: dims.depth, wallThickness: ctx.wallThickness });
     var shell = Builders.RoomShell(mm, gc, layout, {
       wallColor: ctx.wallColor, floorBaseColor: ctx.floorBase, windowWall: 'back', doorWall: 'side',
-      wallArtAt: [-1.6, -0.4], pendantAt: [[0, -0.3]], plantAt: [[dims.width / 2 - 0.4, dims.depth / 2 - 0.4]],
+      wallArtAt: [-1.6, -2.05], // FIX #17 — was [-1.6,-0.4], floating mid-room; now flush against the back wall
+      pendantAt: [[0, -0.3]], plantAt: [[dims.width / 2 - 0.4, dims.depth / 2 - 0.4]],
     });
     group.add(shell.group);
 
+    var fabricColor = ctx.fabricColor || 0x5f6f5b; // FEATURE A
+    var sofaMat = mm.tinted('sofa', fabricColor, 0.8);
     var sofa = new THREE.Group();
-    var seat = new THREE.Mesh(gc.get('sofa-seat-geo', function () { return new THREE.BoxGeometry(2.0, 0.4, 0.85); }), mm.standard('sofa', 0x5f6f5b, 0.8));
+    var seat = new THREE.Mesh(gc.get('sofa-seat-geo', function () { return new THREE.BoxGeometry(2.0, 0.4, 0.85); }), sofaMat);
     seat.position.y = 0.35; seat.castShadow = seat.receiveShadow = true; sofa.add(seat);
-    var back = new THREE.Mesh(gc.get('sofa-back-geo', function () { return new THREE.BoxGeometry(2.0, 0.55, 0.22); }), mm.standard('sofa', 0x5f6f5b, 0.8));
+    var back = new THREE.Mesh(gc.get('sofa-back-geo', function () { return new THREE.BoxGeometry(2.0, 0.55, 0.22); }), sofaMat);
     back.position.set(0, 0.68, -0.32); back.castShadow = true; sofa.add(back);
     var armGeo = gc.get('sofa-arm-geo', function () { return new THREE.BoxGeometry(0.22, 0.55, 0.85); });
-    var armL = new THREE.Mesh(armGeo, mm.standard('sofa', 0x5f6f5b, 0.8));
+    var armL = new THREE.Mesh(armGeo, sofaMat);
     armL.position.set(-1.0, 0.55, 0); armL.castShadow = true; sofa.add(armL);
-    var armR = new THREE.Mesh(armGeo, mm.standard('sofa', 0x5f6f5b, 0.8));
+    var armR = new THREE.Mesh(armGeo, sofaMat);
     armR.position.set(1.0, 0.55, 0); armR.castShadow = true; sofa.add(armR);
+    var cushionMat = mm.tinted('sofa-cushion', lightenHex(fabricColor, 0.15), 0.9); // FEATURE A
     var cushionGeo = gc.get('sofa-cushion-geo', function () { return new THREE.BoxGeometry(0.75, 0.15, 0.75); });
     [-0.55, 0.55].forEach(function (cx) {
-      var c = new THREE.Mesh(cushionGeo, mm.standard('sofa-cushion', 0x8a9a7f, 0.9));
+      var c = new THREE.Mesh(cushionGeo, cushionMat);
       c.position.set(cx, 0.58, 0.02); sofa.add(c);
     });
     centerBottom(sofa);
-    applyTransform(sofa, layout.atOffset(-0.6, 1.1));
+    // FIX #16: sofa previously floated at z=1.1 with nothing behind it (back
+    // wall is at roughly z=-2.1) — stranded mid-room. Backed against the
+    // window wall instead, facing into the room toward the coffee table.
+    applyTransform(sofa, layout.atOffset(-0.6, -1.5));
     group.add(sofa);
     var sofaShadow = Builders.decor.contactShadow(mm, gc, 2.6, 0.3);
-    sofaShadow.position.set(-0.6, 0.001, 1.1);
+    sofaShadow.position.set(-0.6, 0.001, -1.5);
     group.add(sofaShadow);
 
     var coffeeTable = Builders.ReceptionDesk(mm, gc, {
       length: 0.9, depth: 0.5, height: 0.28,
       countertop: { thicknessM: ctx.thicknessM, edgeProfile: ctx.edgeProfile, surfaceKey: 'counter', overhang: 0, overhangDepth: 0 },
     });
-    applyTransform(coffeeTable.group, layout.atOffset(-0.6, 0.15));
+    applyTransform(coffeeTable.group, layout.atOffset(-0.6, -0.4)); // FIX #16 — ~0.45m clearance from sofa front
     group.add(coffeeTable.group);
 
-    group.add((function () { var r = Builders.decor.rug(mm, gc, 1.1, 0xB9A98E); applyTransform(r, layout.atOffset(-0.6, 1.0)); return r; })());
+    group.add((function () { var r = Builders.decor.rug(mm, gc, 1.1, 0xB9A98E); applyTransform(r, layout.atOffset(-0.6, -0.9)); return r; })()); // FIX #16
     var lamp = Builders.decor.floorLamp(mm, gc);
     applyTransform(lamp, layout.atOffset(1.6, -1.5));
     group.add(lamp);
@@ -967,8 +1042,9 @@
     return {
       surfaces: { floor: [shell.floor], wall: [shell.wall], sidewall: [shell.sidewall], counter: [coffeeTable.countertop.mesh] },
       camPos: [0.6, 1.5, 4.6], camTarget: [-0.3, 1.0, 0.3],
-      windowGlowPos: [dims.width * 0.28, dims.height * 0.58, -dims.depth / 2 + 0.5], // FIX #7 — back window
+      windowGlowPos: [dims.width * 0.28, dims.height * 0.58, -dims.depth / 2 + 0.5], // FIX #7
       rebuildSurface: function (t, p) { coffeeTable.updateCountertop(t, p); },
+      dispose: function () { coffeeTable.dispose(); }, // FIX #28
     };
   }
   ROOM_BUILDERS.living_room = function (group, mm, gc, ctx) { return livingRoomLike(group, mm, gc, ctx, ROOM_DIMS.living_room); };
@@ -980,19 +1056,22 @@
     var shell = Builders.RoomShell(mm, gc, layout, { wallColor: ctx.wallColor, floorBaseColor: ctx.floorBase, windowWall: 'back', doorWall: 'side' });
     group.add(shell.group);
 
+    var woodMat = mm.tinted('bed-frame', ctx.cabinetColor || 0x7a5f45, 0.65);       // FEATURE A
+    var quiltMat = mm.tinted('quilt', lightenHex(ctx.fabricColor || 0xB6C2B0, 0.1), 0.85); // FEATURE A
+
     var bed = new THREE.Group();
-    var frame = new THREE.Mesh(gc.get('bed-frame-geo', function () { return new THREE.BoxGeometry(1.8, 0.35, 2.1); }), mm.standard('bed-frame', 0x7a5f45, 0.65));
+    var frame = new THREE.Mesh(gc.get('bed-frame-geo', function () { return new THREE.BoxGeometry(1.8, 0.35, 2.1); }), woodMat);
     frame.position.y = 0.175; frame.castShadow = frame.receiveShadow = true; bed.add(frame);
-    var mattress = new THREE.Mesh(gc.get('bed-mattress-geo', function () { return new THREE.BoxGeometry(1.7, 0.25, 2.0); }), mm.standard('mattress', 0xffffff, 0.9));
+    var mattress = new THREE.Mesh(gc.get('bed-mattress-geo', function () { return new THREE.BoxGeometry(1.7, 0.25, 2.0); }), mm.standard('mattress', 0xffffff, 0.9)); // stays white — realistic
     mattress.position.y = 0.475; mattress.castShadow = mattress.receiveShadow = true; bed.add(mattress);
-    var quilt = new THREE.Mesh(gc.get('bed-quilt-geo', function () { return new THREE.BoxGeometry(1.72, 0.06, 1.3); }), mm.standard('quilt', 0xB6C2B0, 0.85));
+    var quilt = new THREE.Mesh(gc.get('bed-quilt-geo', function () { return new THREE.BoxGeometry(1.72, 0.06, 1.3); }), quiltMat);
     quilt.position.set(0, 0.62, 0.3); bed.add(quilt);
     var pillowGeo = gc.get('bed-pillow-geo', function () { return new THREE.BoxGeometry(0.55, 0.12, 0.4); });
     [-0.4, 0.4].forEach(function (px) {
-      var p = new THREE.Mesh(pillowGeo, mm.standard('pillow', 0xf5f0e6, 0.9));
+      var p = new THREE.Mesh(pillowGeo, mm.standard('pillow', 0xf5f0e6, 0.9)); // stays neutral cream — realistic
       p.position.set(px, 0.66, -0.75); bed.add(p);
     });
-    var headboard = new THREE.Mesh(gc.get('bed-headboard-geo', function () { return new THREE.BoxGeometry(1.9, 0.9, 0.1); }), mm.standard('bed-frame', 0x7a5f45, 0.65));
+    var headboard = new THREE.Mesh(gc.get('bed-headboard-geo', function () { return new THREE.BoxGeometry(1.9, 0.9, 0.1); }), woodMat);
     headboard.position.set(0, 0.75, -1.1); headboard.castShadow = true; bed.add(headboard);
     centerBottom(bed);
     applyTransform(bed, layout.atOffset(0.3, -0.5));
@@ -1001,7 +1080,7 @@
     bedShadow.position.set(0.3, 0.001, -0.5);
     group.add(bedShadow);
 
-    group.add((function () { var r = Builders.decor.rug(mm, gc, 0.9, 0xC9BBA6); applyTransform(r, layout.atOffset(-0.6, 1.0)); return r; })());
+    group.add((function () { var r = Builders.decor.rug(mm, gc, 0.9, 0xC9BBA6); applyTransform(r, layout.atOffset(0.3, 1.1)); return r; })()); // FIX #18 — was 1.6m from the bed; now at the foot of the bed
     var lamp = Builders.decor.floorLamp(mm, gc);
     applyTransform(lamp, layout.atOffset(-1.6, -1.4));
     group.add(lamp);
@@ -1009,7 +1088,7 @@
     return {
       surfaces: { floor: [shell.floor], wall: [shell.wall] },
       camPos: [0.5, 1.5, 4.4], camTarget: [0.3, 1.0, -0.3],
-      windowGlowPos: [dims.width * 0.28, dims.height * 0.58, -dims.depth / 2 + 0.5], // FIX #7 — back window
+      windowGlowPos: [dims.width * 0.28, dims.height * 0.58, -dims.depth / 2 + 0.5], // FIX #7
     };
   };
 
@@ -1030,6 +1109,7 @@
       surfaces: { floor: [shell.floor], tread: stair.treads },
       camPos: [2.4, 2.0, 3.2], camTarget: [0, 1.2, -0.4],
       rebuildSurface: function (t, p) { stair.updateCountertop(t, p); },
+      dispose: function () { stair.dispose(); }, // FIX #28
     };
   };
 
@@ -1047,19 +1127,23 @@
     applyTransform(desk.group, layout.alongBackWall(0.7, 0));
     group.add(desk.group);
 
-    var panel = new THREE.Mesh(gc.get('reception-panel-geo', function () { return new THREE.PlaneGeometry(2.0, 1.0); }), mm.standard('desk-panel', 0xF4F1EA, 0.7));
+    var panel = new THREE.Mesh(gc.get('reception-panel-geo', function () { return new THREE.PlaneGeometry(2.0, 1.0); }), mm.tinted('desk-panel', lightenHex(ctx.cabinetColor || 0xF4F1EA, 0.15), 0.7)); // FEATURE A
     applyTransform(panel, layout.alongBackWall(0.001, 0));
     panel.position.y = 1.5;
     group.add(panel);
 
     var bench = new THREE.Group();
-    var benchBody = new THREE.Mesh(gc.get('bench-body-geo', function () { return new THREE.BoxGeometry(1.6, 0.42, 0.55); }), mm.standard('bench', 0x6b5844, 0.7));
+    var benchBody = new THREE.Mesh(gc.get('bench-body-geo', function () { return new THREE.BoxGeometry(1.6, 0.42, 0.55); }), mm.tinted('bench', ctx.cabinetColor || 0x6b5844, 0.7)); // FEATURE A
     benchBody.position.y = 0.21; benchBody.castShadow = benchBody.receiveShadow = true; bench.add(benchBody);
-    var cushion = new THREE.Mesh(gc.get('bench-cushion-geo', function () { return new THREE.BoxGeometry(1.55, 0.12, 0.5); }), mm.standard('sofa-cushion', 0x8a9a7f, 0.9));
+    var cushion = new THREE.Mesh(gc.get('bench-cushion-geo', function () { return new THREE.BoxGeometry(1.55, 0.12, 0.5); }), mm.tinted('sofa-cushion', lightenHex(ctx.fabricColor || 0x8a9a7f, 0.15), 0.9)); // FEATURE A
     cushion.position.y = 0.48; bench.add(cushion);
     centerBottom(bench);
-    applyTransform(bench, layout.atOffset(1.6, dims.depth / 2 - 1.0));
+    var benchTransform = layout.atOffset(1.6, dims.depth / 2 - 1.0);
+    applyTransform(bench, benchTransform);
     group.add(bench);
+    var benchShadow = Builders.decor.contactShadow(mm, gc, 2.0, 0.25); // FEATURE C — was missing
+    benchShadow.position.set(benchTransform.position.x, 0.001, benchTransform.position.z);
+    group.add(benchShadow);
 
     group.add((function () { var r = Builders.decor.rug(mm, gc, 1.6, 0xC2B49A); applyTransform(r, layout.atOffset(0, 0.5)); return r; })());
 
@@ -1068,6 +1152,7 @@
       surfaces: { floor: [shell.floor], desk: [desk.countertop.mesh] },
       camPos: [0, 1.7, 4.8], camTarget: [0, 1.1, -0.3],
       rebuildSurface: function (t, p) { desk.updateCountertop(t, p); },
+      dispose: function () { desk.dispose(); }, // FIX #28
     };
   };
 
@@ -1077,11 +1162,13 @@
     var shell = Builders.RoomShell(mm, gc, layout, { wallColor: ctx.wallColor, floorBaseColor: ctx.floorBase, windowWall: 'back', doorWall: 'side', plantAt: [[-1.8, -1.8]] });
     group.add(shell.group);
 
+    var consoleDepth = 0.35;
+    var consoleTransform = layout.alongSideWall(consoleDepth, -1.9); // FIX #20 — computed once, reused for both console and its shadow
     var console_ = Builders.ReceptionDesk(mm, gc, {
-      length: 1.3, depth: 0.35, height: 0.75,
+      length: 1.3, depth: consoleDepth, height: 0.75,
       countertop: { thicknessM: ctx.thicknessM, edgeProfile: ctx.edgeProfile, surfaceKey: 'counter' },
     });
-    applyTransform(console_.group, layout.alongSideWall(0.35, -1.9));
+    applyTransform(console_.group, consoleTransform);
     group.add(console_.group);
 
     var mirror = new THREE.Mesh(gc.get('hall-mirror-geo', function () { return new THREE.PlaneGeometry(0.7, 0.9); }), mm.physical('mirror', { color: 0xcfd8dc, roughness: 0.05, metalness: 0.9, clearcoat: 1 }));
@@ -1090,15 +1177,16 @@
     group.add(mirror);
 
     var consoleShadow = Builders.decor.contactShadow(mm, gc, 1.8, 0.25);
-    consoleShadow.position.set(-dims.width / 2 + 0.18, 0.001, -1.9);
+    consoleShadow.position.set(consoleTransform.position.x, 0.001, -1.9); // FIX #20 — was a hand-typed literal 9.5cm off the console's real x
     group.add(consoleShadow);
     group.add((function () { var r = Builders.decor.rug(mm, gc, 1.0, 0xC2B49A); applyTransform(r, layout.atOffset(0, 0.8)); return r; })());
 
     return {
       surfaces: { floor: [shell.floor], wall: [shell.wall], counter: [console_.countertop.mesh] },
       camPos: [0, 1.6, 4.8], camTarget: [0, 1.1, -0.4],
-      windowGlowPos: [dims.width * 0.28, dims.height * 0.58, -dims.depth / 2 + 0.5], // FIX #7 — back window
+      windowGlowPos: [dims.width * 0.28, dims.height * 0.58, -dims.depth / 2 + 0.5], // FIX #7
       rebuildSurface: function (t, p) { console_.updateCountertop(t, p); },
+      dispose: function () { console_.dispose(); }, // FIX #28
     };
   };
 
@@ -1109,15 +1197,13 @@
     group.add(shell.group);
 
     var tableGroup = new THREE.Group();
-    // FIX #4: dead `buildCountertopGeometry(1.7, 1.7, ctx.thicknessM, ...)`
-    // call removed — it built a full ExtrudeGeometry and discarded it; the
+    // FIX #4: dead buildCountertopGeometry(1.7,1.7,...) call removed — the
     // table top actually uses the CylinderGeometry below.
     var tableTopMat = mm.surface('counter');
-    var pedestal = new THREE.Mesh(gc.get('dining-pedestal-geo', function () { return new THREE.CylinderGeometry(0.08, 0.14, 0.7, 16); }), mm.standard('table-pedestal', 0x3a2c1e, 0.5));
+    var pedestal = new THREE.Mesh(gc.get('dining-pedestal-geo', function () { return new THREE.CylinderGeometry(0.08, 0.14, 0.7, 16); }), mm.tinted('table-pedestal', ctx.cabinetColor || 0x3a2c1e, 0.5)); // FEATURE A
     pedestal.position.y = 0.35; pedestal.castShadow = true; tableGroup.add(pedestal);
-    // `top`'s geometry is intentionally NOT cached — rebuildSurface() below
-    // replaces it directly on thickness change; sharing it via GeometryCache
-    // would let one instance's thickness edit corrupt another's mesh.
+    // `top`'s geometry intentionally NOT gc-cached — rebuildSurface() below
+    // replaces it directly on a thickness edit.
     var top = new THREE.Mesh(new THREE.CylinderGeometry(0.85, 0.85, ctx.thicknessM || 0.035, 32), tableTopMat);
     top.position.y = 0.7 + (ctx.thicknessM || 0.035) / 2;
     top.castShadow = top.receiveShadow = true; tableGroup.add(top);
@@ -1130,7 +1216,7 @@
 
     var chairSeatGeo = gc.get('dining-chair-seat-geo', function () { return new THREE.BoxGeometry(0.4, 0.08, 0.4); });
     var chairBackGeo = gc.get('dining-chair-back-geo', function () { return new THREE.BoxGeometry(0.4, 0.5, 0.06); });
-    var chairMat = mm.standard('chair', 0x6b5844, 0.7);
+    var chairMat = mm.tinted('chair', ctx.cabinetColor || 0x6b5844, 0.7); // FEATURE A
     [[0, -1.15, 0], [0, 0.75, Math.PI], [-1.15, -0.2, Math.PI / 2], [1.15, -0.2, -Math.PI / 2]].forEach(function (c) {
       var seat = new THREE.Mesh(chairSeatGeo, chairMat);
       applyTransform(seat, layout.atOffset(c[0], c[1]));
@@ -1149,11 +1235,12 @@
         top.geometry = new THREE.CylinderGeometry(0.85, 0.85, t, 32);
         top.position.y = 0.7 + t / 2;
       },
+      dispose: function () { top.geometry.dispose(); }, // FIX #28 — bespoke; `top` isn't a Countertop() instance
     };
   };
 
   // ═══════════════════════════════════════════════════════════════════════
-  // Slab texture + PBR map generation (unchanged)
+  // Slab texture + PBR map generation
   // ═══════════════════════════════════════════════════════════════════════
   function generatePBRMaps(img, size) {
     var work = document.createElement('canvas'); work.width = work.height = size;
@@ -1232,12 +1319,8 @@
     else tex.repeat.set(2, 1.6);
   }
 
-  // FIX #9: scratch geometry/materials used only to bake the PMREM texture
-  // are now disposed in a finally block instead of leaking on every call.
-  // Also called unconditionally now (see FIX #1) and once per instance, so
-  // this leak — previously per quality-tier-switch — is now capped at one
-  // per mounted instance even without the dispose fix; the fix removes that
-  // last leak too.
+  // FIX #9: scratch geometry/materials disposed in a finally block instead
+  // of leaking. Called once per instance now (see FIX #1).
   function buildProceduralEnvironment(renderer) {
     if (typeof THREE.PMREMGenerator !== 'function') return null;
     var envScene = new THREE.Scene();
@@ -1266,8 +1349,7 @@
   }
 
   // ═══════════════════════════════════════════════════════════════════════
-  // Main entry — public signature unchanged from v2, plus rv3d_getScene_*
-  // and rv3d_destroy_* additions (diagnostics + teardown).
+  // Main entry
   // ═══════════════════════════════════════════════════════════════════════
   window.RoomVisualizer3D = function (containerId, opts) {
     opts = opts || {};
@@ -1298,6 +1380,12 @@
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     container.innerHTML = '';
     container.appendChild(renderer.domElement);
+    // FIX #21: CSS-percentage sizing so the canvas tracks its real container
+    // box instead of being pixel-locked at mount. Paired with
+    // renderer.setSize(w,h,false) in doResize() below.
+    renderer.domElement.style.display = 'block';
+    renderer.domElement.style.width = '100%';
+    renderer.domElement.style.height = '100%';
 
     var controls = new THREE.OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true; controls.dampingFactor = 0.08; controls.enablePan = true;
@@ -1317,13 +1405,9 @@
     var rimLight = new THREE.DirectionalLight(0xcfe0ff, 0.25); scene.add(rimLight);
     var windowGlow = new THREE.PointLight(0xfff2cc, 0.45, 6); scene.add(windowGlow);
 
-    // FIX #1: environment is now built ONCE and always assigned — the old
-    // `if (qualityKey !== 'low')` gate made it a binary on/off switch, so
-    // Medium/High/Ultra all got identical IBL contribution and looked
-    // equally overexposed relative to Low. Differentiation now happens via
-    // per-material envMapIntensity (applyEnvIntensity, called below and on
-    // every quality change / room rebuild) since this file targets
-    // three@0.128.0, which has no scene.environmentIntensity API.
+    // FIX #1: environment built ONCE and always assigned — differentiation
+    // across quality tiers now happens via per-material envMapIntensity
+    // (applyEnvIntensity, below) instead of an on/off scene.environment gate.
     var envTex = buildProceduralEnvironment(renderer);
     if (envTex) scene.environment = envTex;
 
@@ -1332,7 +1416,13 @@
       var all = mm.all();
       Object.keys(all).forEach(function (k) {
         var m = all[k];
-        if (m && 'envMapIntensity' in m) m.envMapIntensity = val;
+        if (!m || !('envMapIntensity' in m)) return;
+        // FIX #27: mirror-like floor generalized via the material's own
+        // metalness/roughness instead of a hardcoded key-name check (#25),
+        // so any future near-mirror material (faucet-metal, sink-rim, etc.)
+        // is covered automatically instead of needing a remembered key list.
+        var isMirrorLike = m.metalness != null && m.metalness >= 0.85 && m.roughness != null && m.roughness <= 0.25;
+        m.envMapIntensity = isMirrorLike ? Math.max(val, 0.5) : val;
       });
     }
 
@@ -1342,7 +1432,7 @@
     var edgeProfile = opts.edgeProfile || 'straight';
     var showIsland = !!opts.showIsland;
     var wallThickness = opts.wallThicknessM != null ? opts.wallThicknessM : 0.1;
-    var currentRoomKey = opts.room || 'kitchen'; // FIX #14 — single source of truth for "which room is open"
+    var currentRoomKey = opts.room || 'kitchen'; // FIX #14
 
     function applyTexture() {
       Object.keys(surfaces).forEach(function (k) {
@@ -1353,11 +1443,9 @@
         } else if (k === activeKey && currentMaps && !beforeAfter) {
           m.map = null; m.normalMap = null; m.roughnessMap = null; m.aoMap = null; m.color.set(0xE7E2D8);
         } else if (k === 'floor') {
-          // FIX #13: floor previously had NO reset branch when it wasnt the
-          // active surface — once selected, it kept the slab texture forever,
-          // layered under whatever surface got selected afterward. Now resets
-          // to the room-tinted base color instead of the generic grey every
-          // other unselected surface gets (which would look wrong on a floor).
+          // FIX #13: floor previously had NO reset branch — once selected,
+          // it kept the slab texture forever. Resets to the room-tinted
+          // base color instead of the generic grey every other surface gets.
           m.map = null; m.normalMap = null; m.roughnessMap = null; m.aoMap = null;
           m.color.set(roomPalette.floorBase);
         } else {
@@ -1394,9 +1482,16 @@
     function buildRoom(roomKey, keepSurface) {
       if (!ROOM_BUILDERS[roomKey]) roomKey = 'kitchen';
       currentRoomKey = roomKey; // FIX #14
-      if (roomGroup) scene.remove(roomGroup);
+      if (roomGroup) {
+        if (currentBuilt && typeof currentBuilt.dispose === 'function') currentBuilt.dispose(); // FIX #28
+        scene.remove(roomGroup);
+      }
       roomGroup = new THREE.Group();
-      var ctx = { wallColor: roomPalette.wall, floorBase: roomPalette.floorBase, thicknessM: thicknessM, edgeProfile: edgeProfile, showIsland: showIsland, wallThickness: wallThickness };
+      var ctx = {
+        wallColor: roomPalette.wall, floorBase: roomPalette.floorBase,
+        cabinetColor: roomPalette.cabinet, fabricColor: roomPalette.fabric, // FEATURE A
+        thicknessM: thicknessM, edgeProfile: edgeProfile, showIsland: showIsland, wallThickness: wallThickness,
+      };
       currentBuilt = ROOM_BUILDERS[roomKey](roomGroup, mm, gc, ctx);
       scene.add(roomGroup);
       surfaces = currentBuilt.surfaces;
@@ -1407,11 +1502,7 @@
       rimLight.position.set(currentBuilt.camTarget[0] - 2, 2.2, currentBuilt.camTarget[2] - 3);
       fillLight.position.set(currentBuilt.camTarget[0] - 2, 1.4, currentBuilt.camTarget[2] + 2);
 
-      // FIX #7: windowGlow was hardcoded to one literal position for every
-      // room, including the 4 rooms with no window at all (bathroom,
-      // staircase, reception, dining). Now derived per-room from the
-      // builders own window placement, and switched off entirely where
-      // theres no window to glow through.
+      // FIX #7: windowGlow now room-aware — off in windowless rooms.
       if (currentBuilt.windowGlowPos) {
         windowGlow.visible = true;
         windowGlow.position.set(currentBuilt.windowGlowPos[0], currentBuilt.windowGlowPos[1], currentBuilt.windowGlowPos[2]);
@@ -1431,7 +1522,7 @@
           : keys.indexOf('tread') !== -1 ? 'tread'
           : keys[0];
       }
-      applyTexture(); applyRotation(); applyDayNight(); applyEnvIntensity(); // FIX #1 — re-apply after new materials/room built
+      applyTexture(); applyRotation(); applyDayNight(); applyEnvIntensity();
     }
 
     buildRoom(opts.room || 'kitchen');
@@ -1458,7 +1549,7 @@
       applyTexture();
     };
     window['rv3d_getSurfaces_' + containerId] = function () { return Object.keys(surfaces); };
-    window['rv3d_getScene_' + containerId] = function () { return scene; }; // NEW — diagnostics-only
+    window['rv3d_getScene_' + containerId] = function () { return scene; }; // diagnostics-only
     window['rv3d_getRoomLabel'] = function (k) { return ROOM_LABELS[k] || k; };
     window['rv3d_getSurfaceLabel'] = function (k) { return SURFACE_LABELS[k] || k; };
 
@@ -1468,7 +1559,7 @@
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, q.pixelRatio));
       keyLight.shadow.mapSize.set(q.shadowMap, q.shadowMap);
       if (keyLight.shadow.map) { keyLight.shadow.map.dispose(); keyLight.shadow.map = null; }
-      applyEnvIntensity(); // FIX #1 — replaces old conditional env-rebuild/env-null logic
+      applyEnvIntensity();
     };
     window['rv3d_toggleDayNight_' + containerId] = function () { dayMode = !dayMode; applyDayNight(); return dayMode; };
     window['rv3d_toggleBeforeAfter_' + containerId] = function () { beforeAfter = !beforeAfter; applyTexture(); return beforeAfter; };
@@ -1501,10 +1592,16 @@
     window['rv3d_setSlabRotation_' + containerId] = function (deg) { slabRotationDeg = deg; applyRotation(); };
     window['rv3d_setIsland_' + containerId] = function (on) {
       showIsland = !!on;
-      // FIX #14: previously hardcoded buildRoom('kitchen', true) — toggling
-      // Island from any other room silently teleported the user to Kitchen.
-      // Now rebuilds whichever room is actually open; only Kitchen visually
-      // consumes showIsland, same as before.
+      // FIX #14: rebuilds whichever room is actually open, not a hardcoded
+      // 'kitchen' — previously toggling Island from any other room silently
+      // teleported the user to Kitchen.
+      buildRoom(currentRoomKey, true);
+      if (currentMaps) { [currentMaps.colorTex, currentMaps.normalTex, currentMaps.aoTex, currentMaps.roughTex].forEach(function (t) { repeatForKey(t, activeKey); }); applyTexture(); applyRotation(); }
+    };
+    // FEATURE B: re-tint the room live from a new slab's palette without a
+    // full remount — useful when switching between products in one session.
+    window['rv3d_setPalette_' + containerId] = function (paletteHexArr) {
+      roomPalette = pickRoomPalette(paletteHexArr || []);
       buildRoom(currentRoomKey, true);
       if (currentMaps) { [currentMaps.colorTex, currentMaps.normalTex, currentMaps.aoTex, currentMaps.roughTex].forEach(function (t) { repeatForKey(t, activeKey); }); applyTexture(); applyRotation(); }
     };
@@ -1524,9 +1621,8 @@
       return data;
     };
 
-    // FIX #6: render loop now checks a destroyed flag instead of running
-    // forever unconditionally (previously kept rendering an invisible scene
-    // after the modal was closed via display:none, with no way to stop it).
+    // FIX #6: render loop checks a destroyed flag instead of running forever
+    // unconditionally.
     var _destroyed = false;
     (function animate() {
       if (_destroyed) return;
@@ -1537,15 +1633,16 @@
 
     function doResize() {
       var w = container.clientWidth || width;
-      var hh = document.fullscreenElement === container ? window.innerHeight : height;
+      var hh = document.fullscreenElement === container ? window.innerHeight : (container.clientHeight || height); // FIX #21
       camera.aspect = w / hh; camera.updateProjectionMatrix();
-      renderer.setSize(w, hh);
+      renderer.setSize(w, hh, false); // FIX #21 — don't let three.js re-overwrite the CSS 100%/100% sizing
     }
     window.addEventListener('resize', doResize);
     document.addEventListener('fullscreenchange', doResize);
+    doResize(); // FIX #21 — sync the render buffer to the real container box immediately at mount
 
     // FIX #6: teardown — callers should invoke this when closing the 3D
-    // preview modal (see rv3d_destroy_<id> usage note in file header).
+    // preview modal.
     window['rv3d_destroy_' + containerId] = function () {
       _destroyed = true;
       window.removeEventListener('resize', doResize);
@@ -1561,40 +1658,25 @@
   };
 
   // ═══════════════════════════════════════════════════════════════════════
-  // Shared control-bar builder — professional light UI, one implementation
-  // reused by both the user panel and the admin panel. Unchanged from v2.
+  // Shared control-bar builder — sidebar layout (right of canvas).
   // ═══════════════════════════════════════════════════════════════════════
   var _rv3dStyleInjected = false;
   function injectStyles() {
     if (_rv3dStyleInjected) return;
     _rv3dStyleInjected = true;
- var css = '' +
-  '.rv3d-bar{--rv3d-accent:#B8975A;--rv3d-ink:#1A2837;--rv3d-sub:#6B7684;--rv3d-line:#E7E2D8;' +
-    'background:#FBFAF8;font-family:inherit;width:100%;height:100%;overflow-y:auto;box-sizing:border-box;}' +
-  '.rv3d-section{padding:12px 14px;border-bottom:1px solid var(--rv3d-line);}' +
-  '.rv3d-section:last-child{border-bottom:none;}' +
-  '.rv3d-row--stack{flex-direction:column;align-items:stretch;}' +
-  '.rv3d-row--stack .rv3d-tab{width:100%;text-align:left;}' +
-  // Applied via JS in RV3D_mount() directly to the real container/wrap
-  // elements and their shared parent — works no matter what markup
-  // surrounds them, so this no longer depends on the PHP template.
-  '.rv3d-flex-parent{display:flex !important;align-items:stretch;flex-wrap:nowrap;}' +
-  '.rv3d-flex-canvas{flex:1 1 auto;min-width:0;position:relative;background:#111;}' +
-  '.rv3d-flex-controls{flex:0 0 260px;max-width:260px;overflow-y:auto;box-sizing:border-box;' +
-    'border-left:1px solid var(--rv3d-line,#E7E2D8);}' +
-  '@media (max-width:680px){' +
-    '.rv3d-flex-parent{flex-direction:column;}' +
-    '.rv3d-flex-canvas{min-height:280px;}' +
-    '.rv3d-flex-controls{flex:0 0 auto;max-width:100%;max-height:220px;border-left:none;' +
-      'border-top:1px solid var(--rv3d-line,#E7E2D8);}' +
-  '}' +
+    var css = '' +
+      '.rv3d-bar{--rv3d-accent:#B8975A;--rv3d-ink:#1A2837;--rv3d-sub:#6B7684;--rv3d-line:#E7E2D8;' +
+        'background:#FBFAF8;font-family:inherit;width:100%;height:100%;overflow-y:auto;box-sizing:border-box;}' +
+      '.rv3d-section{padding:12px 14px;border-bottom:1px solid var(--rv3d-line);}' +
+      '.rv3d-section:last-child{border-bottom:none;}' +
       '.rv3d-caption{font-size:9.5px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--rv3d-sub);margin-bottom:7px;}' +
       '.rv3d-row{display:flex;flex-wrap:wrap;gap:6px;align-items:center;}' +
+      '.rv3d-row--stack{flex-direction:column;align-items:stretch;}' +
+      '.rv3d-row--stack .rv3d-tab{width:100%;text-align:left;}' +
       '.rv3d-tab{padding:6px 13px;border-radius:20px;font-size:12px;font-weight:600;background:#fff;color:var(--rv3d-sub);' +
         'border:1px solid var(--rv3d-line);cursor:pointer;white-space:nowrap;font-family:inherit;transition:all .15s;}' +
       '.rv3d-tab:hover{border-color:var(--rv3d-accent);color:var(--rv3d-ink);}' +
       '.rv3d-tab.active{background:var(--rv3d-ink);border-color:var(--rv3d-ink);color:#fff;}' +
-      '.rv3d-tab.active::after{content:"";}' +
       '.rv3d-divider{width:1px;align-self:stretch;background:var(--rv3d-line);margin:0 4px;}' +
       '.rv3d-btn{width:32px;height:32px;border-radius:8px;background:#fff;color:var(--rv3d-ink);' +
         'border:1px solid var(--rv3d-line);cursor:pointer;display:flex;align-items:center;justify-content:center;' +
@@ -1606,30 +1688,37 @@
       '.rv3d-label{font-size:11px;color:var(--rv3d-sub);font-weight:600;white-space:nowrap;margin-right:2px;}' +
       '.rv3d-slider{width:90px;accent-color:var(--rv3d-accent);}' +
       '.rv3d-check{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--rv3d-ink);font-weight:600;cursor:pointer;padding:0 4px;}' +
-      '.rv3d-check input{accent-color:var(--rv3d-accent);width:15px;height:15px;cursor:pointer;}';
+      '.rv3d-check input{accent-color:var(--rv3d-accent);width:15px;height:15px;cursor:pointer;}' +
+      // FIX (sidebar layout): applied via JS in RV3D_mount() directly to the
+      // real container/wrap elements and their shared parent — works
+      // regardless of what markup surrounds them.
+      '.rv3d-flex-parent{display:flex !important;align-items:stretch;flex-wrap:nowrap;}' +
+      '.rv3d-flex-canvas{flex:1 1 auto;min-width:0;position:relative;background:#111;}' +
+      '.rv3d-flex-controls{flex:0 0 260px;max-width:260px;overflow-y:auto;box-sizing:border-box;' +
+        'border-left:1px solid var(--rv3d-line,#E7E2D8);}' +
+      '@media (max-width:680px){' +
+        '.rv3d-flex-parent{flex-direction:column;}' +
+        '.rv3d-flex-canvas{min-height:280px;}' +
+        '.rv3d-flex-controls{flex:0 0 auto;max-width:100%;max-height:220px;border-left:none;' +
+          'border-top:1px solid var(--rv3d-line,#E7E2D8);}' +
+      '}';
     var style = document.createElement('style');
     style.textContent = css;
     document.head.appendChild(style);
   }
 
   window.RV3D_mount = function (containerId, controlsWrapId, opts) {
-  injectStyles();
-  var handle = window.RoomVisualizer3D(containerId, opts);
-  var container = document.getElementById(containerId);
-  var wrap = document.getElementById(controlsWrapId);
-  if (!wrap || !handle || !container) return handle;
+    injectStyles();
+    var handle = window.RoomVisualizer3D(containerId, opts);
+    var container = document.getElementById(containerId);
+    var wrap = document.getElementById(controlsWrapId);
+    if (!wrap || !handle || !container) return handle;
 
-  // Force the sidebar layout directly on the actual elements, regardless of
-  // whatever wrapper (or lack of one) surrounds them in the page markup —
-  // this is what makes the sidebar work even if the PHP template's own
-  // wrapper div is missing, stale, or cached out of date.
-  var parent = container.parentElement;
-  if (parent && parent === wrap.parentElement) {
-    parent.classList.add('rv3d-flex-parent');
-  }
-  container.classList.add('rv3d-flex-canvas');
-  if (!container.style.minHeight) container.style.minHeight = (opts.height || 420) + 'px';
-  wrap.classList.add('rv3d-flex-controls');
+    var parent = container.parentElement;
+    if (parent && parent === wrap.parentElement) parent.classList.add('rv3d-flex-parent');
+    container.classList.add('rv3d-flex-canvas');
+    if (!container.style.minHeight) container.style.minHeight = (opts.height || 420) + 'px';
+    wrap.classList.add('rv3d-flex-controls');
 
     function call(name) {
       var args = Array.prototype.slice.call(arguments, 1);
@@ -1658,7 +1747,7 @@
 
     var surfaceSection = document.createElement('div'); surfaceSection.className = 'rv3d-section';
     var surfaceCaption = document.createElement('div'); surfaceCaption.className = 'rv3d-caption'; surfaceCaption.textContent = 'Slab Applied To';
-   var surfaceRow = document.createElement('div'); surfaceRow.className = 'rv3d-row rv3d-row--stack';
+    var surfaceRow = document.createElement('div'); surfaceRow.className = 'rv3d-row rv3d-row--stack';
     surfaceSection.appendChild(surfaceCaption); surfaceSection.appendChild(surfaceRow);
 
     function renderSurfaceRow() {
@@ -1779,5 +1868,5 @@
   }
 
   window.RV3D_ROOM_LABELS = ROOM_LABELS;
-  window.RV3D_ROOM_DIMS = ROOM_DIMS; // NEW — exposes room dims for external diagnostics (room_visualizer_diagnostics.js)
+  window.RV3D_ROOM_DIMS = ROOM_DIMS;
 })();
