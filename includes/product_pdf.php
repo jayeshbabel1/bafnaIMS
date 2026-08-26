@@ -1,459 +1,1590 @@
 <?php
+
 /**
- * includes/product_pdf.php
- * Product PDF generator using TCPDF (tecnickcom/tcpdf v7).
- * Called via: index.php?pdf_download=1&product_id=N  (direct download)
- *             index.php?wa_pdf=1&product_id=N         (WhatsApp share — returns JSON)
+ * Product PDF Generator
+ * TCPDF + tc-lib-pdf-font
  */
 
-define('PDF_TEMP_DIR', BASE_PATH . '/storage/pdfs');
-define('PDF_TEMP_URL', BASE_URL  . '/storage/pdfs');
-define('PDF_MAX_AGE',  3600);
+defined('PDF_TEMP_DIR') || define(
+    'PDF_TEMP_DIR',
+    BASE_PATH . '/storage/pdfs'
+);
 
-if (!is_dir(PDF_TEMP_DIR)) {
-    @mkdir(PDF_TEMP_DIR, 0755, true);
-}
-$_htFile = PDF_TEMP_DIR . '/.htaccess';
-if (!file_exists($_htFile)) {
-    file_put_contents($_htFile, "Options -Indexes\nAllow from all\n");
-}
+defined('PDF_TEMP_URL') || define(
+    'PDF_TEMP_URL',
+    BASE_URL . '/storage/pdfs'
+);
 
-// ── Public entry point 
-function generateProductPdf(int $productId): array
+defined('PDF_MAX_AGE') || define(
+    'PDF_MAX_AGE',
+    3600
+);
+
+/**
+ * --------------------------------------------------------------------------
+ * PDF directory
+ * --------------------------------------------------------------------------
+ */
+function ensureProductPdfDirectory(): void
 {
-    // 1. Fetch product
-    $db = getDB();
-    $st = $db->prepare("SELECT * FROM products WHERE id = ?");
-    $st->execute([$productId]);
-    $p = $st->fetch();
-    if (!$p) {
-        return ['success' => false, 'error' => 'Product not found.'];
-    }
-
-    // 2. Primary photo — local path only
-    $photoPst = $db->prepare(
-        "SELECT filename FROM product_photos WHERE product_id = ? ORDER BY sort_order LIMIT 1"
-    );
-    $photoPst->execute([$productId]);
-    $photoRow  = $photoPst->fetch();
-    $photoPath = null;
-    if ($photoRow) {
-        $dbFilename = $photoRow['filename'];
-        error_log('PDF photo lookup — DB filename: ' . $dbFilename);
-        error_log('PDF photo lookup — PHOTOS_DIR: ' . PHOTOS_DIR);
-
-        // Try 1: resolvePhotoPath (handles casing)
-        $resolved = resolvePhotoPath(PHOTOS_DIR, $dbFilename);
-        if ($resolved) {
-            $fullPath = PHOTOS_DIR . '/' . $resolved;
-            if (file_exists($fullPath)) {
-                $photoPath = realpath($fullPath);
-                error_log('PDF photo — resolved path: ' . $photoPath);
-            }
-        }
-
-        // Try 2: direct path
-        if (!$photoPath) {
-            $candidate = PHOTOS_DIR . '/' . $dbFilename;
-            if (file_exists($candidate)) {
-                $photoPath = realpath($candidate);
-                error_log('PDF photo — direct path: ' . $photoPath);
-            } else {
-                error_log('PDF photo — direct path NOT found: ' . $candidate);
-            }
-        }
-
-        // Try 3: just the basename (no subfolder)
-        if (!$photoPath) {
-            $basename  = basename($dbFilename);
-            $candidate = PHOTOS_DIR . '/' . $basename;
-            if (file_exists($candidate)) {
-                $photoPath = realpath($candidate);
-                error_log('PDF photo — basename path: ' . $photoPath);
-            } else {
-                error_log('PDF photo — basename NOT found: ' . $candidate);
-            }
-        }
-
-        // Try 4: scan all subfolders for the filename
-        if (!$photoPath) {
-            $basename = basename($dbFilename);
-            $iterator = new \RecursiveIteratorIterator(
-                new \RecursiveDirectoryIterator(PHOTOS_DIR, \RecursiveDirectoryIterator::SKIP_DOTS)
+    if (!is_dir(PDF_TEMP_DIR)) {
+        if (!@mkdir(PDF_TEMP_DIR, 0755, true) && !is_dir(PDF_TEMP_DIR)) {
+            throw new RuntimeException(
+                'Cannot create PDF directory: ' . PDF_TEMP_DIR
             );
-            foreach ($iterator as $file) {
-                if ($file->isFile() && strcasecmp($file->getFilename(), $basename) === 0) {
-                    $photoPath = $file->getRealPath();
-                    error_log('PDF photo — found by scan: ' . $photoPath);
-                    break;
-                }
-            }
-            if (!$photoPath) {
-                error_log('PDF photo — NOT FOUND anywhere on disk for: ' . $basename);
-            }
-        }
-    } else {
-        error_log('PDF photo — no photo row found in DB for product ' . $productId);
-    }
-
-    // 3. Safe filename
-    $rawName  = $p['name'] ?? 'product';
-    $safeName = preg_replace('/[^A-Za-z0-9 _\-]/u', '', $rawName);
-    $safeName = trim(preg_replace('/\s+/', '_', $safeName));
-    if ($safeName === '') $safeName = 'product_' . $productId;
-    $filename = $safeName . '.pdf';
-    $pdfPath  = PDF_TEMP_DIR . '/' . time() . '_' . $filename;
-    $pdfUrl   = PDF_TEMP_URL . '/' . time() . '_' . $filename;
-
-    // 4. Cleanup old PDFs
-    cleanOldProductPdfs();
-
-    // 5. Dimension strings
-    $sizesDisplay   = formatDimension($p['sizes_l']       ?? '', $p['sizes_h']       ?? '');
-    $italianDisplay = formatDimension($p['cutter_size_l'] ?? '', $p['cutter_size_h'] ?? '');
-
-    // 6. Logo — local only, no remote fetching
-    $logoPath = _resolveLogoPath();
-if (!is_dir(PDF_TEMP_DIR)) {
-    if (!mkdir(PDF_TEMP_DIR, 0755, true)) {
-        throw new \RuntimeException("Cannot create PDF directory");
-    }
-}
-
-if (!is_writable(PDF_TEMP_DIR)) {
-    throw new \RuntimeException("PDF directory not writable: " . PDF_TEMP_DIR);
-}
-    // 7. Generate
-    try {
-        _buildPdf($p, $photoPath, $sizesDisplay, $italianDisplay, $logoPath, $pdfPath);
-        return [
-            'success'  => true,
-            'path'     => $pdfPath,
-            'url'      => $pdfUrl,
-            'filename' => $filename,
-        ];
-    } catch (\Throwable $e) {
-        error_log('generateProductPdf error: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
-        return ['success' => false, 'error' => $e->getMessage()];
-    }
-}
-
-// ── Resolve local logo path 
-function _resolveLogoPath(): ?string
-{
-    try {
-        $logoFile = getSetting('site_logo', '');
-        if ($logoFile !== '') {
-            $p = BASE_PATH . '/uploads/logo/' . $logoFile;
-            if (file_exists($p)) return realpath($p);
-        }
-    } catch (\Throwable $e) {}
-    return null;
-}
-
-// ── Core PDF builder using TCPDF 
-function _buildPdf(
-    array   $p,
-    ?string $photoPath,
-    string  $sizesDisplay,
-    string  $italianDisplay,
-    ?string $logoPath,
-    string  $pdfPath
-): void {
-    $autoload = BASE_PATH . '/vendor/autoload.php';
-    if (!file_exists($autoload)) {
-        throw new \RuntimeException('vendor/autoload.php not found.');
-    }
-    require_once $autoload;
-if (!defined('K_PATH_FONTS')) {
-        define('K_PATH_FONTS', BASE_PATH . '/vendor/tecnickcom/tc-lib-pdf-font/target/fonts/');
-    }
-    if (!class_exists('\TCPDF')) {
-        throw new \RuntimeException('TCPDF class not found. Run: composer require tecnickcom/tcpdf');
-    }
-
-    // ── Page setup 
-    $pdf = new \TCPDF('P', 'mm', 'A4', true, 'UTF-8', false);
-    $pdf->SetCreator(APP_NAME);
-    $pdf->SetAuthor(APP_NAME);
-    $pdf->SetTitle(($p['name'] ?? 'Product') . ' — ' . APP_NAME);
-    $pdf->setPrintHeader(false);
-    $pdf->setPrintFooter(false);
-    $pdf->SetMargins(15, 15, 15);
-    $pdf->SetAutoPageBreak(true, 20);
-    $pdf->AddPage();
-
-    $pageW    = $pdf->getPageWidth();
-    $mL       = 15;
-    $mR       = 15;
-    $contW    = $pageW - $mL - $mR;   // 180 mm
-
-    // ── Colours ───────────────────────────────────────────────────────────────
-    $black  = [26,  26,  26];
-    $mid    = [100, 100, 100];
-    $light  = [200, 200, 200];
-    $white  = [255, 255, 255];
-    $altRow = [248, 248, 248];
-
-    $y = 15;
-
-    // ── HEADER: Logo (left) | Date-time (right) ───────────────────────────────
-    $logoW = 44;
-    $logoH = 14;
-
-    if ($logoPath) {
-        try {
-            $pdf->Image($logoPath, $mL, $y, $logoW, $logoH, '', '', '', true, 150, '', false, false, 0, 'CM');
-        } catch (\Throwable $e) {
-            // logo failed — use text
-            $pdf->SetXY($mL, $y + 3);
-            $pdf->SetFont('helvetica', 'B', 12);
-            $pdf->SetTextColor(...$black);
-            $pdf->Cell($logoW, 8, APP_NAME, 0, 0, 'L');
-        }
-    } else {
-        $pdf->SetXY($mL, $y + 3);
-        $pdf->SetFont('helvetica', 'B', 12);
-        $pdf->SetTextColor(...$black);
-        $pdf->Cell($logoW, 8, APP_NAME, 0, 0, 'L');
-    }
-
-    // Date-time right
-    $pdf->SetFont('helvetica', '', 9);
-    $pdf->SetTextColor(...$mid);
-    $pdf->SetXY($mL, $y + 4);
-    $pdf->Cell($contW, 6, date('d-m-Y  h:i A'), 0, 0, 'R');
-
-    $y += $logoH + 4;
-
-    // ── Divider 
-    $pdf->SetDrawColor(...$black);
-    $pdf->SetLineWidth(0.5);
-    $pdf->Line($mL, $y, $mL + $contW, $y);
-    $y += 6;
-
-    // ── Product Name 
-    $pdf->SetXY($mL, $y);
-    $pdf->SetFont('helvetica', 'B', 18);
-    $pdf->SetTextColor(...$black);
-    $pdf->MultiCell($contW, 9, $p['name'] ?? '', 0, 'C', false, 1);
-    $y = $pdf->GetY() + 2;
-
-    // ── Quarry sub-header 
-    $pdf->SetXY($mL, $y);
-    $pdf->SetFont('helvetica', '', 11);
-    $pdf->SetTextColor(...$mid);
-    $pdf->Cell($contW, 6, 'Quarry No: ' . ($p['quarry_number'] ?? '—'), 0, 1, 'C');
-    $y = $pdf->GetY() + 4;
-
-    // ── Product Photo 
-    $imageRendered = false;
-    error_log('PDF _buildPdf — photoPath received: ' . ($photoPath ?? 'NULL'));
-    if ($photoPath) {
-        error_log('PDF _buildPdf — file_exists: ' . (file_exists($photoPath) ? 'YES' : 'NO'));
-        error_log('PDF _buildPdf — is_readable: ' . (is_readable($photoPath) ? 'YES' : 'NO'));
-        if (file_exists($photoPath)) {
-            error_log('PDF _buildPdf — filesize: ' . filesize($photoPath));
-            error_log('PDF _buildPdf — mime: ' . (function_exists('mime_content_type') ? mime_content_type($photoPath) : 'n/a'));
         }
     }
-    if ($photoPath && file_exists($photoPath)) {
-        $info = @getimagesize($photoPath);
-        if ($info && $info[0] > 0 && $info[1] > 0) {
-            // Determine image type explicitly for TCPDF
-            $imgType = '';
-            switch ($info[2]) {
-                case IMAGETYPE_JPEG: $imgType = 'JPEG'; break;
-                case IMAGETYPE_PNG:  $imgType = 'PNG';  break;
-                case IMAGETYPE_WEBP: $imgType = 'WEBP'; break;
-                default:
-                    $ext = strtoupper(pathinfo($photoPath, PATHINFO_EXTENSION));
-                    $imgType = in_array($ext, ['JPG','JPEG','PNG','WEBP']) ? $ext : 'JPEG';
-            }
-            // Always copy image to sys_get_temp_dir() — TCPDF v7 / tc-lib-pdf-image
-            // refuses to read files outside certain paths even when readable.
-            // Copying to /tmp sidesteps this restriction entirely.
-            $tmpImg = sys_get_temp_dir() . '/tcpdf_img_' . getmypid() . '_' . time();
 
-            if ($imgType === 'WEBP' && function_exists('imagecreatefromwebp')) {
-                // Convert WEBP → JPEG via GD
-                $tmpImg .= '.jpg';
-                $gd = @imagecreatefromwebp($photoPath);
-                if ($gd) {
-                    imagejpeg($gd, $tmpImg, 90);
-                    imagedestroy($gd);
-                    $imgType = 'JPEG';
-                    $info    = @getimagesize($tmpImg) ?: $info;
-                } else {
-                    $tmpImg = null;
-                }
-            } elseif ($imgType === 'PNG') {
-                $tmpImg .= '.png';
-                copy($photoPath, $tmpImg);
-            } else {
-                // JPEG or fallback
-                $tmpImg .= '.jpg';
-                copy($photoPath, $tmpImg);
-            }
-
-            // Use temp path if copy succeeded, otherwise original
-            $renderPath = ($tmpImg && file_exists($tmpImg)) ? $tmpImg : $photoPath;
-            error_log('PDF render path: ' . $renderPath . ' | exists: ' . (file_exists($renderPath) ? 'yes' : 'no'));
-
-            $maxW  = 130.0;
-            $maxH  = 85.0;
-            $ratio = $info[0] / max($info[1], 1);
-            $imgW  = $maxW;
-            $imgH  = $maxW / $ratio;
-            if ($imgH > $maxH) { $imgH = $maxH; $imgW = $maxH * $ratio; }
-            $imgX  = $mL + ($contW - $imgW) / 2;
-
-            // Light border
-            $pdf->SetDrawColor(...$light);
-            $pdf->SetLineWidth(0.3);
-            $pdf->RoundedRect($imgX - 1, $y - 1, $imgW + 2, $imgH + 2, 2, '1111', 'D');
-
-            try {
-                $pdf->Image(
-                    $renderPath,
-                    $imgX, $y,
-                    $imgW, $imgH,
-                    $imgType,
-                    '', '', true, 150, '', false, false, 0, 'CM', false, false
-                );
-                $y += $imgH + 7;
-                $imageRendered = true;
-            } catch (\Throwable $e) {
-                error_log('PDF image error for ' . $renderPath . ': ' . $e->getMessage());
-            } finally {
-                // Always clean up temp file
-                if ($tmpImg && file_exists($tmpImg)) {
-                    @unlink($tmpImg);
-                }
-            }
-        }
-    }
-    if (!$imageRendered) {
-        $y = _noImagePlaceholder($pdf, $mL, $contW, $y);
+    if (!is_writable(PDF_TEMP_DIR)) {
+        throw new RuntimeException(
+            'PDF directory is not writable: ' . PDF_TEMP_DIR
+        );
     }
 
-    // ── Details table ─────────────────────────────────────────────────────────
-    $colL = 72;
-    $colV = $contW - $colL;
+    $htaccess = PDF_TEMP_DIR . '/.htaccess';
 
-    $rows = array_filter([
-        ['Product Name',    $p['name']                   ?? ''],
-        ['Quarry No',       $p['quarry_number']           ?? ''],
-        ['Stone Type',      $p['category']               ?? ''],
-        ['Color',           $p['color_subcategory']       ?? ''],
-        ['Thickness',       $p['thickness']              ?? ''],
-        ['Usable Size',     $sizesDisplay],
-        ['Italian Size',    $italianDisplay],
-        ['No. of Pieces',   ($p['pieces'] ?? 0) > 0 ? (string)(int)$p['pieces'] : ''],
-        ['Available Qty',   ((float)($p['quantity_available'] ?? 0)) > 0
-                                ? number_format((float)$p['quantity_available'], 0) . ' sq.ft.' : ''],
-        ['On Hold',         ((float)($p['quantity_on_hold'] ?? 0)) > 0
-                                ? number_format((float)$p['quantity_on_hold'], 0) . ' sq.ft.' : ''],
-        ['Origin',          $p['origin']  ?? ''],
-        ['Finish',          $p['finish']  ?? ''],
-    ], fn($r) => $r[1] !== '');
-
-    $pdf->SetXY($mL, $y);
-
-    // Table header
-    $pdf->SetFillColor(...$black);
-    $pdf->SetTextColor(...$white);
-    $pdf->SetFont('helvetica', 'B', 9);
-    $pdf->SetDrawColor(...$light);
-    $pdf->SetLineWidth(0.2);
-    $pdf->Cell($colL, 7, 'Field',  'B', 0, 'L', true);
-    $pdf->Cell($colV, 7, 'Value',  'B', 1, 'L', true);
-
-    $alt = false;
-    $pdf->SetFont('helvetica', '', 9);
-    foreach ($rows as $row) {
-        $pdf->SetFillColor(...($alt ? $altRow : $white));
-        $pdf->SetTextColor(...$black);
-        $pdf->SetFont('helvetica', 'B', 9);
-        $pdf->Cell($colL, 6.5, $row[0], 'B', 0, 'L', true);
-        $pdf->SetFont('helvetica', '', 9);
-        $pdf->Cell($colV, 6.5, $row[1], 'B', 1, 'L', true);
-        $alt = !$alt;
-    }
-
-    $y = $pdf->GetY() + 8;
-
-    // ── Footer 
-    $pdf->SetDrawColor(...$black);
-    $pdf->SetLineWidth(0.4);
-    $pdf->Line($mL, $y, $mL + $contW, $y);
-    $y += 4;
-
-    $pdf->SetXY($mL, $y);
-    $pdf->SetFont('helvetica', 'B', 9);
-    $pdf->SetTextColor(...$black);
-    $pdf->Cell($contW, 5, APP_NAME, 0, 1, 'C');
-
-    $pdf->SetFont('helvetica', 'I', 8);
-    $pdf->SetTextColor(...$mid);
-    $pdf->Cell($contW, 5, 'Regards, ' . APP_NAME, 0, 0, 'C');
-
-    // ── Save — write via PHP instead of TCPDF to avoid tc-lib-pdf path validation bug ──
-    $pdfString = $pdf->Output('', 'S');   // get as string
-    if (empty($pdfString)) {
-        throw new \RuntimeException('TCPDF returned empty PDF string.');
-    }
-    $written = file_put_contents($pdfPath, $pdfString);
-    if ($written === false || $written === 0) {
-        throw new \RuntimeException(
-            'file_put_contents failed writing PDF to: ' . $pdfPath .
-            ' | dir_writable=' . (is_writable(dirname($pdfPath)) ? 'yes' : 'no') .
-            ' | dir_exists=' . (is_dir(dirname($pdfPath)) ? 'yes' : 'no')
+    if (!file_exists($htaccess)) {
+        @file_put_contents(
+            $htaccess,
+            "Options -Indexes\nAllow from all\n"
         );
     }
 }
 
-// ── No-image placeholder ──────────────────────────────────────────────────────
-function _noImagePlaceholder(\TCPDF $pdf, float $mL, float $contW, float $y): float
+
+/**
+ * --------------------------------------------------------------------------
+ * Public entry point
+ * --------------------------------------------------------------------------
+ */
+function generateProductPdf(int $productId): array
 {
-    $ph = 28;
-    $pdf->SetFillColor(240, 240, 240);
-    $pdf->SetDrawColor(200, 200, 200);
-    $pdf->SetLineWidth(0.3);
-    $cx = $mL + ($contW - 80) / 2;
-    $pdf->RoundedRect($cx, $y, 80, $ph, 3, '1111', 'FD');
-    $pdf->SetXY($mL, $y + 10);
-    $pdf->SetFont('helvetica', 'I', 9);
-    $pdf->SetTextColor(150, 150, 150);
-    $pdf->Cell($contW, 6, 'No image available', 0, 1, 'C');
-    return $y + $ph + 6;
+    try {
+
+        if ($productId <= 0) {
+            return [
+                'success' => false,
+                'error'   => 'Invalid product ID.'
+            ];
+        }
+
+        ensureProductPdfDirectory();
+
+        cleanOldProductPdfs();
+
+        $db = getDB();
+
+        /**
+         * Product
+         */
+        $stmt = $db->prepare(
+            "SELECT *
+             FROM products
+             WHERE id = ?
+             LIMIT 1"
+        );
+
+        $stmt->execute([$productId]);
+
+        $product = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$product) {
+            return [
+                'success' => false,
+                'error'   => 'Product not found.'
+            ];
+        }
+
+        /**
+         * Primary product photo
+         */
+        $photoPath = resolveProductPhotoPath(
+            $db,
+            $productId
+        );
+
+        /**
+         * Display dimensions
+         */
+        $sizesDisplay = formatDimension(
+            $product['sizes_l'] ?? '',
+            $product['sizes_h'] ?? ''
+        );
+
+        $italianDisplay = formatDimension(
+            $product['cutter_size_l'] ?? '',
+            $product['cutter_size_h'] ?? ''
+        );
+
+        /**
+         * Logo
+         */
+        $logoPath = resolveProductPdfLogo();
+
+        /**
+         * Safe filename
+         */
+        $rawName = trim((string)($product['name'] ?? ''));
+
+        $safeName = preg_replace(
+            '/[^A-Za-z0-9 _\-]/u',
+            '',
+            $rawName
+        );
+
+        $safeName = trim(
+            preg_replace('/\s+/', '_', $safeName)
+        );
+
+        if ($safeName === '') {
+            $safeName = 'product_' . $productId;
+        }
+
+        /**
+         * Unique filename.
+         *
+         * Use the same filename for both path and URL.
+         */
+        $uniqueName = date('Ymd_His') .
+            '_' .
+            $productId .
+            '_' .
+            $safeName .
+            '_' .
+            bin2hex(random_bytes(4)) .
+            '.pdf';
+
+        $pdfPath = PDF_TEMP_DIR . '/' . $uniqueName;
+        $pdfUrl  = PDF_TEMP_URL . '/' . $uniqueName;
+
+        /**
+         * Build PDF
+         */
+        buildProductPdf(
+            $product,
+            $photoPath,
+            $sizesDisplay,
+            $italianDisplay,
+            $logoPath,
+            $pdfPath
+        );
+
+        if (!file_exists($pdfPath)) {
+            throw new RuntimeException(
+                'PDF was not created.'
+            );
+        }
+
+        if (filesize($pdfPath) <= 0) {
+            throw new RuntimeException(
+                'Generated PDF is empty.'
+            );
+        }
+
+        return [
+            'success'  => true,
+            'path'     => $pdfPath,
+            'url'      => $pdfUrl,
+            'filename' => $uniqueName
+        ];
+
+    } catch (Throwable $e) {
+
+        error_log(
+            'generateProductPdf ERROR: ' .
+            $e->getMessage() .
+            "\n" .
+            $e->getTraceAsString()
+        );
+
+        return [
+            'success' => false,
+            'error'   => $e->getMessage()
+        ];
+    }
 }
 
-// ── Cleanup ───────────────────────────────────────────────────────────────────
-function cleanOldProductPdfs(int $maxAge = PDF_MAX_AGE): int
+
+/**
+ * --------------------------------------------------------------------------
+ * Resolve product photo
+ * --------------------------------------------------------------------------
+ */
+function resolveProductPhotoPath(
+    PDO $db,
+    int $productId
+): ?string {
+
+    try {
+
+        $stmt = $db->prepare(
+            "SELECT filename
+             FROM product_photos
+             WHERE product_id = ?
+             ORDER BY sort_order ASC, id ASC
+             LIMIT 1"
+        );
+
+        $stmt->execute([$productId]);
+
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$row || empty($row['filename'])) {
+            error_log(
+                'PDF: No product photo found for product ' .
+                $productId
+            );
+
+            return null;
+        }
+
+        $filename = trim((string)$row['filename']);
+
+        error_log(
+            'PDF: Product photo DB filename: ' .
+            $filename
+        );
+
+        /**
+         * 1. resolvePhotoPath()
+         */
+        if (function_exists('resolvePhotoPath')) {
+
+            try {
+
+                $resolved = resolvePhotoPath(
+                    PHOTOS_DIR,
+                    $filename
+                );
+
+                if ($resolved) {
+
+                    $candidate = PHOTOS_DIR .
+                        '/' .
+                        ltrim($resolved, '/');
+
+                    if (is_file($candidate)) {
+
+                        $real = realpath($candidate);
+
+                        if ($real) {
+                            error_log(
+                                'PDF: Photo resolved: ' .
+                                $real
+                            );
+
+                            return $real;
+                        }
+                    }
+                }
+
+            } catch (Throwable $e) {
+
+                error_log(
+                    'PDF: resolvePhotoPath failed: ' .
+                    $e->getMessage()
+                );
+            }
+        }
+
+        /**
+         * 2. Direct path
+         */
+        $candidate = PHOTOS_DIR .
+            '/' .
+            ltrim($filename, '/');
+
+        if (is_file($candidate)) {
+
+            $real = realpath($candidate);
+
+            if ($real) {
+                error_log(
+                    'PDF: Photo direct path: ' .
+                    $real
+                );
+
+                return $real;
+            }
+        }
+
+        /**
+         * 3. Basename
+         */
+        $basename = basename($filename);
+
+        $candidate = PHOTOS_DIR .
+            '/' .
+            $basename;
+
+        if (is_file($candidate)) {
+
+            $real = realpath($candidate);
+
+            if ($real) {
+                error_log(
+                    'PDF: Photo basename path: ' .
+                    $real
+                );
+
+                return $real;
+            }
+        }
+
+        /**
+         * 4. Recursive search
+         */
+        if (is_dir(PHOTOS_DIR)) {
+
+            try {
+
+                $iterator = new RecursiveIteratorIterator(
+                    new RecursiveDirectoryIterator(
+                        PHOTOS_DIR,
+                        FilesystemIterator::SKIP_DOTS
+                    )
+                );
+
+                foreach ($iterator as $file) {
+
+                    if (
+                        $file->isFile() &&
+                        strcasecmp(
+                            $file->getFilename(),
+                            $basename
+                        ) === 0
+                    ) {
+
+                        $real = $file->getRealPath();
+
+                        if ($real) {
+
+                            error_log(
+                                'PDF: Photo found by scan: ' .
+                                $real
+                            );
+
+                            return $real;
+                        }
+                    }
+                }
+
+            } catch (Throwable $e) {
+
+                error_log(
+                    'PDF: Photo scan failed: ' .
+                    $e->getMessage()
+                );
+            }
+        }
+
+        error_log(
+            'PDF: Product photo NOT FOUND: ' .
+            $filename
+        );
+
+    } catch (Throwable $e) {
+
+        error_log(
+            'PDF: Photo lookup error: ' .
+            $e->getMessage()
+        );
+    }
+
+    return null;
+}
+
+
+/**
+ * --------------------------------------------------------------------------
+ * Logo
+ * --------------------------------------------------------------------------
+ */
+function resolveProductPdfLogo(): ?string
 {
-    $deleted = 0;
-    if (!is_dir(PDF_TEMP_DIR)) return 0;
-    foreach (glob(PDF_TEMP_DIR . '/*.pdf') ?: [] as $file) {
-        if (is_file($file) && (time() - filemtime($file)) > $maxAge) {
-            @unlink($file);
-            $deleted++;
+    try {
+
+        $logoFile = getSetting(
+            'site_logo',
+            ''
+        );
+
+        if (!$logoFile) {
+            return null;
+        }
+
+        $path = BASE_PATH .
+            '/uploads/logo/' .
+            basename($logoFile);
+
+        if (is_file($path)) {
+
+            $real = realpath($path);
+
+            if ($real) {
+                return $real;
+            }
+        }
+
+    } catch (Throwable $e) {
+
+        error_log(
+            'PDF: Logo error: ' .
+            $e->getMessage()
+        );
+    }
+
+    return null;
+}
+
+
+/**
+ * --------------------------------------------------------------------------
+ * Build PDF
+ * --------------------------------------------------------------------------
+ */
+function buildProductPdf(
+    array $product,
+    ?string $photoPath,
+    string $sizesDisplay,
+    string $italianDisplay,
+    ?string $logoPath,
+    string $pdfPath
+): void {
+
+    /**
+     * Composer
+     */
+    $autoload = BASE_PATH .
+        '/vendor/autoload.php';
+
+    if (!is_file($autoload)) {
+        throw new RuntimeException(
+            'vendor/autoload.php not found.'
+        );
+    }
+
+    require_once $autoload;
+
+
+    /**
+     * IMPORTANT:
+     *
+     * This is the font directory generated by:
+     *
+     * tc-lib-pdf-font
+     */
+    if (!defined('K_PATH_FONTS')) {
+
+        define(
+            'K_PATH_FONTS',
+            BASE_PATH .
+            '/vendor/tecnickcom/tc-lib-pdf-font/target/fonts/'
+        );
+    }
+
+
+    /**
+     * TCPDF
+     */
+    if (!class_exists('TCPDF')) {
+
+        throw new RuntimeException(
+            'TCPDF class not found. ' .
+            'Run: composer require tecnickcom/tcpdf'
+        );
+    }
+
+
+    /**
+     * Check font directory
+     */
+    if (!is_dir(K_PATH_FONTS)) {
+
+        throw new RuntimeException(
+            'TCPDF font directory not found: ' .
+            K_PATH_FONTS
+        );
+    }
+
+
+    /**
+     * Create PDF
+     */
+    $pdf = new TCPDF(
+        'P',
+        'mm',
+        'A4',
+        true,
+        'UTF-8',
+        false
+    );
+
+
+    $pdf->SetCreator(APP_NAME);
+
+    $pdf->SetAuthor(APP_NAME);
+
+    $pdf->SetTitle(
+        ($product['name'] ?? 'Product') .
+        ' - ' .
+        APP_NAME
+    );
+
+    $pdf->SetSubject(
+        'Product Information'
+    );
+
+    $pdf->setPrintHeader(false);
+    $pdf->setPrintFooter(false);
+
+    $pdf->SetMargins(
+        15,
+        15,
+        15
+    );
+
+    $pdf->SetAutoPageBreak(
+        true,
+        20
+    );
+
+    $pdf->AddPage();
+
+
+    /**
+     * Page measurements
+     */
+    $pageW = $pdf->getPageWidth();
+
+    $mL = 15;
+    $mR = 15;
+
+    $contW = $pageW -
+        $mL -
+        $mR;
+
+
+    /**
+     * Colours
+     */
+    $black = [26, 26, 26];
+    $mid   = [100, 100, 100];
+    $light = [200, 200, 200];
+    $white = [255, 255, 255];
+    $altRow = [248, 248, 248];
+
+
+    $y = 15;
+
+
+    /**
+     * ==============================================================
+     * HEADER
+     * ==============================================================
+     */
+
+    $logoW = 44;
+    $logoH = 14;
+
+
+    if ($logoPath && is_file($logoPath)) {
+
+        try {
+
+            $pdf->Image(
+                $logoPath,
+                $mL,
+                $y,
+                $logoW,
+                $logoH,
+                '',
+                '',
+                '',
+                true,
+                150,
+                '',
+                false,
+                false,
+                0,
+                'CM'
+            );
+
+        } catch (Throwable $e) {
+
+            error_log(
+                'PDF: Logo rendering failed: ' .
+                $e->getMessage()
+            );
+
+            drawPdfTextLogo(
+                $pdf,
+                $mL,
+                $y,
+                $logoW,
+                $black
+            );
+        }
+
+    } else {
+
+        drawPdfTextLogo(
+            $pdf,
+            $mL,
+            $y,
+            $logoW,
+            $black
+        );
+    }
+
+
+    /**
+     * Date
+     */
+    $pdf->SetFont(
+        'helvetica',
+        '',
+        9
+    );
+
+    $pdf->SetTextColor(
+        ...$mid
+    );
+
+    $pdf->SetXY(
+        $mL,
+        $y + 4
+    );
+
+    $pdf->Cell(
+        $contW,
+        6,
+        date('d-m-Y h:i A'),
+        0,
+        0,
+        'R'
+    );
+
+
+    $y += $logoH + 4;
+
+
+    /**
+     * Header divider
+     */
+    $pdf->SetDrawColor(
+        ...$black
+    );
+
+    $pdf->SetLineWidth(
+        0.5
+    );
+
+    $pdf->Line(
+        $mL,
+        $y,
+        $mL + $contW,
+        $y
+    );
+
+    $y += 6;
+
+
+    /**
+     * ==============================================================
+     * PRODUCT NAME
+     * ==============================================================
+     */
+
+    $pdf->SetXY(
+        $mL,
+        $y
+    );
+
+    $pdf->SetFont(
+        'helvetica',
+        'B',
+        18
+    );
+
+    $pdf->SetTextColor(
+        ...$black
+    );
+
+    $pdf->MultiCell(
+        $contW,
+        9,
+        (string)($product['name'] ?? ''),
+        0,
+        'C',
+        false,
+        1
+    );
+
+    $y = $pdf->GetY() + 2;
+
+
+    /**
+     * Quarry
+     */
+    $pdf->SetXY(
+        $mL,
+        $y
+    );
+
+    $pdf->SetFont(
+        'helvetica',
+        '',
+        11
+    );
+
+    $pdf->SetTextColor(
+        ...$mid
+    );
+
+    $pdf->Cell(
+        $contW,
+        6,
+        'Quarry No: ' .
+        ($product['quarry_number'] ?? '—'),
+        0,
+        1,
+        'C'
+    );
+
+    $y = $pdf->GetY() + 4;
+
+
+    /**
+     * ==============================================================
+     * PRODUCT IMAGE
+     * ==============================================================
+     */
+
+    $imageRendered = false;
+
+
+   if (
+    $photoPath &&
+    is_file($photoPath) &&
+    is_readable($photoPath)
+) {
+
+    // Normalize JPEG EXIF orientation
+    $renderPath = normalizeProductImage($photoPath);
+
+    if (!$renderPath) {
+        $renderPath = $photoPath;
+    }
+
+    $info = @getimagesize($renderPath);
+
+    if (
+        $info &&
+        !empty($info[0]) &&
+        !empty($info[1])
+    ) {
+
+        $imgType = getTcpdfImageType(
+            $info,
+            $renderPath
+        );
+
+        $maxW = 130;
+        $maxH = 85;
+
+        $ratio =
+            $info[0] /
+            max($info[1], 1);
+
+        $imgW = $maxW;
+        $imgH = $maxW / $ratio;
+
+        if ($imgH > $maxH) {
+
+            $imgH = $maxH;
+            $imgW = $maxH * $ratio;
+        }
+
+        $imgX =
+            $mL +
+            ($contW - $imgW) / 2;
+
+        // Border
+        $pdf->SetDrawColor(
+            ...$light
+        );
+
+        $pdf->SetLineWidth(0.3);
+
+        $pdf->RoundedRect(
+            $imgX - 1,
+            $y - 1,
+            $imgW + 2,
+            $imgH + 2,
+            2,
+            '1111',
+            'D'
+        );
+
+        try {
+
+            $pdf->Image(
+                $renderPath,
+                $imgX,
+                $y,
+                $imgW,
+                $imgH,
+                $imgType,
+                '',
+                '',
+                true,
+                150,
+                '',
+                false,
+                false,
+                0,
+                'CM',
+                false,
+                false
+            );
+
+            $y += $imgH + 7;
+
+            $imageRendered = true;
+
+        } catch (Throwable $e) {
+
+            error_log(
+                'PDF image error: ' .
+                $e->getMessage()
+            );
+
+        } finally {
+
+            // Delete normalized temporary image
+            if (
+                $renderPath !== $photoPath &&
+                is_file($renderPath)
+            ) {
+                @unlink($renderPath);
+            }
         }
     }
+}
+
+
+    /**
+     * No image
+     */
+    if (!$imageRendered) {
+
+        $y = drawNoImagePlaceholder(
+            $pdf,
+            $mL,
+            $contW,
+            $y
+        );
+    }
+
+
+    /**
+     * ==============================================================
+     * PRODUCT DETAILS TABLE
+     * ==============================================================
+     */
+
+    $colL = 72;
+
+    $colV =
+        $contW -
+        $colL;
+
+
+    $rows = [
+
+        [
+            'Product Name',
+            $product['name'] ?? ''
+        ],
+
+        [
+            'Quarry No',
+            $product['quarry_number'] ?? ''
+        ],
+
+        [
+            'Stone Type',
+            $product['category'] ?? ''
+        ],
+
+        [
+            'Color',
+            $product['color_subcategory'] ?? ''
+        ],
+
+        [
+            'Thickness',
+            $product['thickness'] ?? ''
+        ],
+
+        [
+            'Usable Size',
+            $sizesDisplay
+        ],
+
+        [
+            'Italian Size',
+            $italianDisplay
+        ],
+
+        [
+            'No. of Pieces',
+            ((int)($product['pieces'] ?? 0) > 0)
+                ? (string)(int)$product['pieces']
+                : ''
+        ],
+
+        [
+            'Available Qty',
+            ((float)($product['quantity_available'] ?? 0) > 0)
+                ? number_format(
+                    (float)$product['quantity_available'],
+                    0
+                ) . ' sq.ft.'
+                : ''
+        ],
+
+        [
+            'On Hold',
+            ((float)($product['quantity_on_hold'] ?? 0) > 0)
+                ? number_format(
+                    (float)$product['quantity_on_hold'],
+                    0
+                ) . ' sq.ft.'
+                : ''
+        ],
+
+        [
+            'Origin',
+            $product['origin'] ?? ''
+        ],
+
+        [
+            'Finish',
+            $product['finish'] ?? ''
+        ]
+
+    ];
+
+
+    /**
+     * Remove empty rows
+     */
+    $rows = array_values(
+        array_filter(
+            $rows,
+            static function ($row) {
+                return trim(
+                    (string)$row[1]
+                ) !== '';
+            }
+        )
+    );
+
+
+    $pdf->SetXY(
+        $mL,
+        $y
+    );
+
+
+    /**
+     * Table header
+     */
+    $pdf->SetFillColor(
+        ...$black
+    );
+
+    $pdf->SetTextColor(
+        ...$white
+    );
+
+    $pdf->SetFont(
+        'helvetica',
+        'B',
+        9
+    );
+
+    $pdf->SetDrawColor(
+        ...$light
+    );
+
+    $pdf->SetLineWidth(
+        0.2
+    );
+
+
+    $pdf->Cell(
+        $colL,
+        7,
+        'Field',
+        'B',
+        0,
+        'L',
+        true
+    );
+
+    $pdf->Cell(
+        $colV,
+        7,
+        'Value',
+        'B',
+        1,
+        'L',
+        true
+    );
+
+
+    /**
+     * Table rows
+     */
+    $alternate = false;
+
+
+    foreach ($rows as $row) {
+
+        $pdf->SetFillColor(
+            ...(
+                $alternate
+                    ? $altRow
+                    : $white
+            )
+        );
+
+        $pdf->SetTextColor(
+            ...$black
+        );
+
+
+        /**
+         * Field
+         */
+        $pdf->SetFont(
+            'helvetica',
+            'B',
+            9
+        );
+
+        $pdf->Cell(
+            $colL,
+            6.5,
+            (string)$row[0],
+            'B',
+            0,
+            'L',
+            true
+        );
+
+
+        /**
+         * Value
+         */
+        $pdf->SetFont(
+            'helvetica',
+            '',
+            9
+        );
+
+        $pdf->Cell(
+            $colV,
+            6.5,
+            (string)$row[1],
+            'B',
+            1,
+            'L',
+            true
+        );
+
+
+        $alternate = !$alternate;
+    }
+
+
+    /**
+     * ==============================================================
+     * FOOTER
+     * ==============================================================
+     */
+
+    $y =
+        $pdf->GetY() +
+        8;
+
+
+    $pdf->SetDrawColor(
+        ...$black
+    );
+
+    $pdf->SetLineWidth(
+        0.4
+    );
+
+    $pdf->Line(
+        $mL,
+        $y,
+        $mL + $contW,
+        $y
+    );
+
+
+    $y += 4;
+
+
+    $pdf->SetXY(
+        $mL,
+        $y
+    );
+
+    $pdf->SetFont(
+        'helvetica',
+        'B',
+        9
+    );
+
+    $pdf->SetTextColor(
+        ...$black
+    );
+
+    $pdf->Cell(
+        $contW,
+        5,
+        APP_NAME,
+        0,
+        1,
+        'C'
+    );
+
+
+    $pdf->SetFont(
+        'helvetica',
+        'I',
+        8
+    );
+
+    $pdf->SetTextColor(
+        ...$mid
+    );
+
+    $pdf->Cell(
+        $contW,
+        5,
+        'Regards, ' . APP_NAME,
+        0,
+        0,
+        'C'
+    );
+
+
+    /**
+     * ==============================================================
+     * SAVE PDF
+     * ==============================================================
+     */
+
+    $pdfData = $pdf->Output(
+        '',
+        'S'
+    );
+
+
+    if (
+        !is_string($pdfData) ||
+        $pdfData === ''
+    ) {
+
+        throw new RuntimeException(
+            'TCPDF returned an empty PDF.'
+        );
+    }
+
+
+    $written = @file_put_contents(
+        $pdfPath,
+        $pdfData,
+        LOCK_EX
+    );
+
+
+    if (
+        $written === false ||
+        $written <= 0
+    ) {
+
+        throw new RuntimeException(
+            'Unable to write PDF: ' .
+            $pdfPath
+        );
+    }
+}
+
+
+/**
+ * --------------------------------------------------------------------------
+ * TCPDF image type
+ * --------------------------------------------------------------------------
+ */
+function getTcpdfImageType(
+    array $info,
+    string $path
+): string {
+
+    switch ($info[2] ?? 0) {
+
+        case IMAGETYPE_JPEG:
+            return 'JPEG';
+
+        case IMAGETYPE_PNG:
+            return 'PNG';
+
+        case IMAGETYPE_GIF:
+            return 'GIF';
+
+        case IMAGETYPE_WEBP:
+            /**
+             * TCPDF installations can differ in WEBP support.
+             *
+             * If WEBP causes an error on your server,
+             * convert WEBP to JPG before Image().
+             */
+            return 'WEBP';
+
+        default:
+
+            $ext = strtoupper(
+                pathinfo(
+                    $path,
+                    PATHINFO_EXTENSION
+                )
+            );
+
+            return in_array(
+                $ext,
+                [
+                    'JPG',
+                    'JPEG',
+                    'PNG',
+                    'GIF',
+                    'WEBP'
+                ],
+                true
+            )
+                ? $ext
+                : 'JPEG';
+    }
+}
+
+
+/**
+ * --------------------------------------------------------------------------
+ * Text logo fallback
+ * --------------------------------------------------------------------------
+ */
+function drawPdfTextLogo(
+    TCPDF $pdf,
+    float $x,
+    float $y,
+    float $width,
+    array $black
+): void {
+
+    $pdf->SetXY(
+        $x,
+        $y + 3
+    );
+
+    $pdf->SetFont(
+        'helvetica',
+        'B',
+        12
+    );
+
+    $pdf->SetTextColor(
+        ...$black
+    );
+
+    $pdf->Cell(
+        $width,
+        8,
+        APP_NAME,
+        0,
+        0,
+        'L'
+    );
+}
+
+
+/**
+ * --------------------------------------------------------------------------
+ * No image placeholder
+ * --------------------------------------------------------------------------
+ */
+function drawNoImagePlaceholder(
+    TCPDF $pdf,
+    float $mL,
+    float $contW,
+    float $y
+): float {
+
+    $ph = 28;
+
+    $pdf->SetFillColor(
+        240,
+        240,
+        240
+    );
+
+    $pdf->SetDrawColor(
+        200,
+        200,
+        200
+    );
+
+    $pdf->SetLineWidth(
+        0.3
+    );
+
+
+    $boxW = 80;
+
+    $cx =
+        $mL +
+        ($contW - $boxW) / 2;
+
+
+    $pdf->RoundedRect(
+        $cx,
+        $y,
+        $boxW,
+        $ph,
+        3,
+        '1111',
+        'FD'
+    );
+
+
+    $pdf->SetXY(
+        $mL,
+        $y + 10
+    );
+
+    $pdf->SetFont(
+        'helvetica',
+        'I',
+        9
+    );
+
+    $pdf->SetTextColor(
+        150,
+        150,
+        150
+    );
+
+    $pdf->Cell(
+        $contW,
+        6,
+        'No image available',
+        0,
+        1,
+        'C'
+    );
+
+
+    return $y +
+        $ph +
+        6;
+}
+
+/**
+ * Normalize JPEG EXIF orientation
+ */
+function normalizeProductImage(string $sourcePath): ?string
+{
+    if (!is_file($sourcePath) || !is_readable($sourcePath)) {
+        return null;
+    }
+
+    $info = @getimagesize($sourcePath);
+
+    if (!$info) {
+        return null;
+    }
+
+    $type = $info[2] ?? 0;
+
+    // Only JPEG has the EXIF orientation problem
+    if ($type !== IMAGETYPE_JPEG) {
+        return $sourcePath;
+    }
+
+    if (!function_exists('imagecreatefromjpeg')) {
+        return $sourcePath;
+    }
+
+    $image = @imagecreatefromjpeg($sourcePath);
+
+    if (!$image) {
+        return $sourcePath;
+    }
+
+    $orientation = 1;
+
+    if (function_exists('exif_read_data')) {
+        $exif = @exif_read_data($sourcePath);
+
+        if (!empty($exif['Orientation'])) {
+            $orientation = (int)$exif['Orientation'];
+        }
+    }
+
+    switch ($orientation) {
+
+        case 2:
+            imageflip($image, IMG_FLIP_HORIZONTAL);
+            break;
+
+        case 3:
+            $image = imagerotate($image, 180, 0);
+            break;
+
+        case 4:
+            imageflip($image, IMG_FLIP_VERTICAL);
+            break;
+
+        case 5:
+            imageflip($image, IMG_FLIP_HORIZONTAL);
+            $image = imagerotate($image, 90, 0);
+            break;
+
+        case 6:
+            // Rotate 90° clockwise
+            $image = imagerotate($image, -90, 0);
+            break;
+
+        case 7:
+            imageflip($image, IMG_FLIP_HORIZONTAL);
+            $image = imagerotate($image, -90, 0);
+            break;
+
+        case 8:
+            // Rotate 90° counter-clockwise
+            $image = imagerotate($image, 90, 0);
+            break;
+    }
+
+    /**
+     * Always create a normalized temporary JPEG.
+     */
+    $tmpFile = sys_get_temp_dir() .
+        '/product_pdf_' .
+        getmypid() .
+        '_' .
+        bin2hex(random_bytes(5)) .
+        '.jpg';
+
+    imageinterlace($image, true);
+
+    if (!imagejpeg($image, $tmpFile, 92)) {
+        imagedestroy($image);
+        return $sourcePath;
+    }
+
+    imagedestroy($image);
+
+    return $tmpFile;
+}
+
+/**
+ * --------------------------------------------------------------------------
+ * Cleanup
+ * --------------------------------------------------------------------------
+ */
+function cleanOldProductPdfs(
+    int $maxAge = PDF_MAX_AGE
+): int {
+
+    $deleted = 0;
+
+
+    if (!is_dir(PDF_TEMP_DIR)) {
+        return 0;
+    }
+
+
+    foreach (
+        glob(PDF_TEMP_DIR . '/*.pdf') ?: []
+        as $file
+    ) {
+
+        if (
+            is_file($file) &&
+            (
+                time() -
+                filemtime($file)
+            ) > $maxAge
+        ) {
+
+            if (@unlink($file)) {
+                $deleted++;
+            }
+        }
+    }
+
+
     return $deleted;
 }
 
-// ── AJAX endpoint for WhatsApp share ─────────────────────────────────────────
+
+/**
+ * --------------------------------------------------------------------------
+ * WhatsApp AJAX endpoint
+ * --------------------------------------------------------------------------
+ */
 function handleWaPdfAjax(): void
 {
-    $pid = (int)($_GET['product_id'] ?? 0);
-    if (!$pid) {
-        header('Content-Type: application/json');
-        echo json_encode(['success' => false, 'error' => 'Missing product_id']);
+    $productId = (int)(
+        $_GET['product_id'] ?? 0
+    );
+
+
+    header(
+        'Content-Type: application/json; charset=utf-8'
+    );
+
+
+    if ($productId <= 0) {
+
+        echo json_encode(
+            [
+                'success' => false,
+                'error'   => 'Missing product_id'
+            ],
+            JSON_UNESCAPED_UNICODE
+        );
+
         exit;
     }
-    $result = generateProductPdf($pid);
-    header('Content-Type: application/json');
-    echo json_encode($result);
+
+
+    $result = generateProductPdf(
+        $productId
+    );
+
+
+    echo json_encode(
+        $result,
+        JSON_UNESCAPED_UNICODE
+    );
+
     exit;
 }

@@ -10,11 +10,15 @@ require_once __DIR__ . '/includes/translations.php';
 require_once __DIR__ . '/includes/notifications.php';
 require_once __DIR__ . '/includes/clients.php';
 require_once __DIR__ . '/includes/room_visualizer.php';
+require_once __DIR__ . '/includes/license_caps.php';
 require_once __DIR__ . '/includes/license.php';
 require_once __DIR__ . '/includes/product_views.php';
 require_once __DIR__ . '/includes/device_auth.php';
 require_once __DIR__ . '/includes/catalog_pdf.php';
+require_once __DIR__ . '/includes/product_pdf.php';
 require_once __DIR__ . '/includes/selection_history.php';
+require_once __DIR__ . '/includes/slab_calculator.php';
+
 ensureCatalogPdfPermissions();
 ensureSelectionHistoryTable();
 startSecureSession();
@@ -184,7 +188,19 @@ if ($action === 'delete_room_visualization') {
     echo json_encode(['success' => $ok]);
     exit;
 }
-  
+  // ── Slab Calculator: server-side validation endpoint ────────────────────
+  // Nothing persisted — pure calc, defense-in-depth against direct POST
+  // with tampered client-side math. Feature toggle enforced here too.
+  if ($action === 'calc_slab_area') {
+      header('Content-Type: application/json');
+      if (!isSlabCalculatorEnabled()) {
+          http_response_code(403);
+          echo json_encode(['success' => false, 'error' => 'Slab Calculator is currently disabled.']);
+          exit;
+      }
+      echo json_encode(calcSlabArea($_POST));
+      exit;
+  }
   //  Create client
 if ($action === 'create_client') {
     $result = createClient($_SESSION['user_id'], $_POST);
@@ -365,7 +381,159 @@ if ($action === 'delete_selection') {
         flash('toast', 'Password changed successfully. All trusted devices have been signed out for security.');
         redirect('index.php?page=profile');
     }
+  
+   // ── Selection PDF: generate (AJAX) ────────────────────────────────────
+    if ($action === 'generate_selection_pdf') {
+        header('Content-Type: application/json');
+        $clientId = (int)($_POST['client_id'] ?? 0);
+        $client   = getClient($clientId, $_SESSION['user_id']);
+        if (!$client) {
+            echo json_encode(['success' => false, 'error' => 'Client not found.']);
+            exit;
+        }
+        if (!throttle('user_selection_pdf_gen', 10, 60)) {
+            echo json_encode(['success' => false, 'error' => 'Too many requests. Please wait a moment.']);
+            exit;
+        }
+        try {
+            $result = generateClientSelectionCatalog($clientId, null, $_SESSION['user_id']);
+        } catch (Throwable $e) {
+            error_log('generate_selection_pdf: ' . $e->getMessage());
+            $result = ['success' => false, 'error' => 'Unexpected error while generating the catalog.'];
+        }
+        echo json_encode($result);
+        exit;
+    }
+
+    // ── Selection PDF: email (AJAX) ────────────────────────────────────────
+    if ($action === 'send_selection_catalog_email') {
+        header('Content-Type: application/json');
+        $catalogId = (int)($_POST['catalog_id'] ?? 0);
+        $cat       = getCatalog($catalogId);
+        if (!$cat || (int)($cat['user_id'] ?? 0) !== (int)$_SESSION['user_id']) {
+            echo json_encode(['success' => false, 'error' => 'Catalog not found.']);
+            exit;
+        }
+        if (!throttle('user_selection_pdf_email', 10, 60)) {
+            echo json_encode(['success' => false, 'error' => 'Too many requests. Please wait a moment.']);
+            exit;
+        }
+        $toRaw   = trim($_POST['to']  ?? '');
+        $ccRaw   = trim($_POST['cc']  ?? '');
+        $bccRaw  = trim($_POST['bcc'] ?? '');
+        $subject = trim($_POST['subject'] ?? '') ?: 'Your Product Selection Catalog';
+        $message = trim($_POST['message'] ?? '') ?: "Hi,\n\nPlease find attached your product selection catalog.\n\nRegards";
+
+        $toList = array_values(array_filter(array_map('trim', explode(',', $toRaw))));
+        if (empty($toList)) {
+            echo json_encode(['success' => false, 'error' => 'No recipient email provided.']);
+            exit;
+        }
+        $allAddrs = array_merge(
+            $toList,
+            array_filter(array_map('trim', explode(',', $ccRaw))),
+            array_filter(array_map('trim', explode(',', $bccRaw)))
+        );
+        foreach ($allAddrs as $addr) {
+            if (!filter_var($addr, FILTER_VALIDATE_EMAIL)) {
+                echo json_encode(['success' => false, 'error' => "Invalid email address: {$addr}"]);
+                exit;
+            }
+        }
+        $errors = [];
+        foreach ($toList as $to) {
+            try {
+                $r = sendCatalogPdfEmail($catalogId, $to, $subject, $message, $ccRaw, $bccRaw);
+                if (!$r['success']) $errors[] = "{$to}: " . ($r['error'] ?? 'send failed');
+            } catch (Throwable $e) {
+                error_log('send_selection_catalog_email: ' . $e->getMessage());
+                $errors[] = "{$to}: unexpected error";
+            }
+        }
+        echo json_encode(['success' => empty($errors), 'error' => implode('; ', $errors)]);
+        exit;
+    }
 }
+
+// ── Individual product PDF: download (user panel) ─────────────────────────
+if (isset($_GET['pdf_download']) && isLoggedIn()) {
+    $pid = (int)($_GET['product_id'] ?? 0);
+    if (!$pid) { http_response_code(400); echo 'Missing product_id'; exit; }
+    if (!throttle('user_pdf_download', 10, 60)) {
+        http_response_code(429);
+        echo 'Too many requests. Please wait a moment.';
+        exit;
+    }
+
+    $result = generateProductPdf($pid);
+    if (!$result['success']) {
+        http_response_code(500);
+        echo $result['error'] ?? 'PDF generation failed.';
+        exit;
+    }
+
+    $db  = getDB();
+    $st  = $db->prepare("SELECT name FROM products WHERE id = ?");
+    $st->execute([$pid]);
+    $row = $st->fetch();
+    $safeName = preg_replace('/[^A-Za-z0-9 _\-]/u', '', $row['name'] ?? 'product');
+    $safeName = trim(preg_replace('/\s+/', '_', $safeName));
+    if ($safeName === '') $safeName = 'product_' . $pid;
+
+    header('Content-Type: application/pdf');
+    header('Content-Disposition: attachment; filename="' . $safeName . '.pdf"');
+    header('Content-Length: ' . filesize($result['path']));
+    header('Cache-Control: no-cache, no-store, must-revalidate');
+    header('Pragma: no-cache');
+    header('Expires: 0');
+    readfile($result['path']);
+    @unlink($result['path']);
+    exit;
+}
+
+// ── Individual product PDF: WhatsApp share (user panel, AJAX) ─────────────
+if (isset($_GET['wa_pdf']) && isLoggedIn()) {
+    if (!throttle('user_wa_pdf', 10, 60)) {
+        http_response_code(429);
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'error' => 'Too many requests. Please wait a moment.']);
+        exit;
+    }
+    handleWaPdfAjax();
+}
+
+// ── Selection PDF: download (user panel, ownership-scoped) ────────────────
+if (isset($_GET['catalog_download']) && isLoggedIn()) {
+    $cid = (int)($_GET['id'] ?? 0);
+    $cat = getCatalog($cid);
+    if (!$cat || (int)($cat['user_id'] ?? 0) !== (int)$_SESSION['user_id']
+        || empty($cat['pdf_path']) || !file_exists($cat['pdf_path'])) {
+        http_response_code(404);
+        echo 'Catalog PDF not found. Generate it first.';
+        exit;
+    }
+    if (!throttle('user_catalog_download', 20, 60)) {
+        http_response_code(429);
+        echo 'Too many requests. Please wait a moment.';
+        exit;
+    }
+
+    getDB()->prepare("INSERT INTO catalog_download_logs (catalog_id, channel, ip_address, success, created_at) VALUES (?,?,?,?,?)")
+           ->execute([$cid, 'download', $_SERVER['REMOTE_ADDR'] ?? '', 1, time()]);
+
+    $safeName = preg_replace('/[^A-Za-z0-9 _\-]/u', '', $cat['name']);
+    $safeName = trim(preg_replace('/\s+/', '_', $safeName)) ?: ('catalog_' . $cid);
+
+    header('Content-Type: application/pdf');
+    header('Content-Disposition: attachment; filename="' . $safeName . '.pdf"');
+    header('Content-Length: ' . filesize($cat['pdf_path']));
+    header('Cache-Control: no-cache, no-store, must-revalidate');
+    header('Pragma: no-cache');
+    header('Expires: 0');
+    readfile($cat['pdf_path']);
+    exit;
+}
+
 
 ///  Page routing 
 $publicPages    = ['login','register','forgot_password','reset_password','waiting_approval','activation'];

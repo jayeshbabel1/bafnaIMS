@@ -1,15 +1,4 @@
 <?php
-/**
- * includes/device_auth.php
- * ─────────────────────────────────────────────────────────────────────────
- * Trusted-Device auto-login. NOT MAC-based — browsers cannot read MAC over
- * HTTP(S) and trusting one would be trivially spoofable. Instead: a random
- * 256-bit token stored in a secure/httponly/signed cookie, hashed in DB
- * (never store plain token), paired with a browser fingerprint hash and
- * optional IP pinning. Additive only — normal username/password login is
- * untouched.
- * ─────────────────────────────────────────────────────────────────────────
- */
 
 define('DEVICE_COOKIE_NAME', 'trusted_device');
 define('DEVICE_COOKIE_TTL',  86400 * 90); // 90 days
@@ -108,6 +97,9 @@ function buildDeviceFingerprint(string $extra = ''): string {
 function issueTrustedDevice(array $opts): array {
     ensureDeviceTables();
 
+   if (licenseCapExceeded('trusted_devices')) {
+        return ['success' => false, 'error' => licenseCapExceededMessage('trusted_devices')];
+    }
     $userId   = $opts['user_id']   ?? null;
     $adminId  = $opts['admin_id']  ?? null;
     $panel    = $opts['panel']     ?? ($adminId ? 'admin' : 'user');
@@ -396,4 +388,13 @@ function getCurrentTrustedDevice(string $panel): ?array {
         return $device;
     }
     return null;
+}
+
+function touchTrustedDeviceLastSeen(array $device): void {
+    $now = time();
+    if (!empty($device['last_seen']) && ($now - (int)$device['last_seen']) < 43200) {
+        return;
+    }
+    getDB()->prepare("UPDATE trusted_devices SET last_seen=?, ip_last=?, updated_at=? WHERE id=?")
+           ->execute([$now, $_SERVER['REMOTE_ADDR'] ?? null, $now, (int)$device['id']]);
 }

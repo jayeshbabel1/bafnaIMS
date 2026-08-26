@@ -16,7 +16,7 @@ if (!empty($_GET['ajax']) || !empty($_GET['ajax_product_search']) || !empty($_GE
 
 // ── AJAX: selection rows (search + pagination) ──────────────────────────────
 if (!empty($_GET['ajax'])) {
-    $perPage     = 10;
+    $perPage     = 15;
     $currentPage = max(1, (int)($_GET['p'] ?? 1));
     $search      = trim($_GET['q'] ?? '');
 
@@ -50,7 +50,7 @@ if (!empty($_GET['ajax_latest_catalog'])) {
     $st = $db->prepare("
         SELECT id, name, pages, size_bytes, status, created_at
         FROM catalogs
-        WHERE JSON_EXTRACT(config_json, '$._source.client_id') = ?
+        WHERE source_client_id = ?
         ORDER BY created_at DESC LIMIT 1
     ");
     $st->execute([$clientId]);
@@ -81,7 +81,7 @@ if (!empty($_GET['ajax_history'])) {
 $adminTitle = 'Selections — ' . $client['client_name'];
 include __DIR__ . '/../_layout_top.php';
 
-$perPage     = 10;
+$perPage     = 15;
 $currentPage = max(1, (int)($_GET['p'] ?? 1));
 $search      = trim($_GET['q'] ?? '');
 

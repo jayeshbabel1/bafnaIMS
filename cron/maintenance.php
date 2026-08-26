@@ -27,28 +27,18 @@ define('CRON_RUN', true);
 
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../includes/db.php';
+require_once __DIR__ . '/../includes/helpers.php';
 
 $db  = getDB();
 $now = time();
 $log = [];
 
 // ── 1. Delete old notifications ──────────────────────────────────────────────
-$cutoff20 = $now - (20 * 86400); // 20 days ago
+$cutoff20 = $now - (10 * 86400); // 10 days ago
 $stmt2 = $db->prepare("DELETE FROM notifications WHERE created_at < ?");
 $stmt2->execute([$cutoff20]);
 $deleted = $stmt2->rowCount();
 $log[] = "[".date('Y-m-d H:i:s')."] Deleted $deleted notifications older than 20 days.";
-
-// ── Log output ───────────────────────────────────────────────────────────────
-foreach ($log as $line) {
-    echo $line . PHP_EOL;
-}
-
-// Optional: write to a log file
-$logFile = __DIR__ . '/../storage/logs/cron.log';
-if (is_dir(dirname($logFile)) || @mkdir(dirname($logFile), 0755, true)) {
-    file_put_contents($logFile, implode(PHP_EOL, $log) . PHP_EOL, FILE_APPEND);
-}
 
 // cron/maintenance.php — add alongside the notifications cleanup
 require_once __DIR__ . '/../includes/catalog_pdf.php';
@@ -65,3 +55,36 @@ if ($retentionDays > 0) {
     }
     $log[] = "[".date('Y-m-d H:i:s')."] Purged $purged catalog PDF(s) older than $retentionDays days.";
 }
+
+//echo "<pre>";
+//$db   = getDB();
+$rows = $db->query("SELECT DISTINCT filename FROM product_photos")->fetchAll(PDO::FETCH_COLUMN);
+$done = 0; $skip = 0;
+foreach ($rows as $rel) {
+    $resolved = resolvePhotoPath(PHOTOS_DIR, $rel);
+    if (!$resolved) { $skip++; continue; }
+    $fullOrig  = PHOTOS_DIR . '/' . $resolved;
+    $thumbFull = THUMBS_DIR . '/' . $resolved;
+    if (file_exists($thumbFull)) { $skip++; continue; } // already has thumb
+    $log[] = (generateThumbnail($fullOrig) ? "OK: " : "FAIL: ") . $resolved . "\n";
+    $done++;
+}
+$log[] = "\nDone. Generated: $done, Skipped: $skip\n";
+$log[] = "Thumbs live in: " . THUMBS_DIR . "\n";
+//echo "</pre>";
+
+
+// ── Log output ───────────────────────────────────────────────────────────────
+foreach ($log as $line) {
+    echo $line . PHP_EOL;
+}
+
+// Optional: write to a log file
+$logFile = __DIR__ . '/../storage/logs/cron.log';
+if (is_dir(dirname($logFile)) || @mkdir(dirname($logFile), 0755, true)) {
+    file_put_contents($logFile, implode(PHP_EOL, $log) . PHP_EOL, FILE_APPEND);
+}
+
+
+
+

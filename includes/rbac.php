@@ -1,29 +1,5 @@
 <?php
-/**
- * includes/rbac.php
- * ─────────────────────────────────────────────────────────────────────────
- * Role-Based Access Control helpers for the Admin Panel.
- *
- * USAGE
- *   require_once BASE_PATH . '/includes/rbac.php';
- *
- *   // Check a permission (returns bool)
- *   if (adminCan('products.edit')) { ... }
- *
- *   // Hard-gate: redirect if no permission
- *   requireAdminPermission('users.view');
- *
- *   // Check if current admin is super_admin
- *   if (isSuperAdmin()) { ... }
- *
- * The current admin's full permission set is cached in $_SESSION so that
- * every page load only runs one DB query max.
- * ─────────────────────────────────────────────────────────────────────────
- */
 
-// ── Permission cache versioning — bumped whenever role permissions change,
-// so already-logged-in admins pick up new grants without needing to log
-// out/in. Cheap: one getSetting() read per request (already file-cached).
 function _permissionsVersion(): string {
     return getSetting('permissions_version', '0');
 }
@@ -310,6 +286,9 @@ function getAllAdminAccounts(): array {
 }
 
 function createAdminAccount(array $data): array {
+  if (licenseCapExceeded('admins')) {
+        return ['success' => false, 'error' => licenseCapExceededMessage('admins')];
+    }
     $username = strtolower(trim($data['username'] ?? ''));
     $name     = trim($data['name']     ?? '');
     $email    = strtolower(trim($data['email'] ?? ''));

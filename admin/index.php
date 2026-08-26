@@ -1,14 +1,15 @@
 <?php
 
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
+//ini_set('display_errors', 1);
+//ini_set('display_startup_errors', 1);
+//error_reporting(E_ALL);
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/helpers.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/device_auth.php';
-
+require_once __DIR__ . '/../includes/license.php';
+require_once __DIR__ . '/../includes/license_caps.php';
 startSecureSession(); 
 
 if (!isAdmin()) {
@@ -39,22 +40,22 @@ require_once __DIR__ . '/../includes/wa_share.php';
 require_once __DIR__ . '/../includes/product_pdf.php';
 require_once __DIR__ . '/views/_permission_guards.php';
 require_once __DIR__ . '/../includes/room_visualizer.php';
-require_once __DIR__ . '/../includes/license.php';
 require_once __DIR__ . '/../includes/product_views.php';
 require_once __DIR__ . '/../includes/watermark.php';
 require_once __DIR__ . '/../includes/categories.php';
 require_once __DIR__ . '/../includes/translations.php';
 require_once __DIR__ . '/../includes/catalog_pdf.php';
+require_once __DIR__ . '/../includes/slab_calculator.php';
 ensureCatalogPdfPermissions();
 ensureCategoryPermissions();
 ensureWatermarkPermission();
 ensureProductViewPermission();
 ensureTranslationsPermission();
+ensureSlabCalculatorPermission();
 
 // Handle POST 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
-
   
    $_jsonOnlyActions = ['admin_add_selection','admin_update_selection','admin_delete_selection','test_smtp',
                          'generate_client_catalog_pdf','email_client_catalog_pdf'];
@@ -90,6 +91,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $chk->execute([$did, (int)$_SESSION['admin_id']]);
         if ($chk->fetch()) {
             revokeTrustedDevice($did);
+          flushLicenseCapUsageCache();
             flash('toast', 'Device removed.');
         } else {
             flash('error', 'Device not found.');
@@ -204,7 +206,6 @@ if ($action === 'admin_delete_device') {
 }
   
   
-  // ── CATALOG PDF: regenerate ─────────────────────────────────────────────────
 if ($action === 'catalog_pdf_regenerate') {
     requireAdmin();
     requireAdminPermission('catalog.regenerate');
@@ -218,7 +219,6 @@ if (!$cat || !catalogOwnedByCurrentAdmin($cat)) { flash('error','Catalog not be 
     redirect('index.php?page=catalog_pdf_history');
 }
 
-// ── CATALOG PDF: delete ──────────────────────────────────────────────────────
 if ($action === 'catalog_pdf_delete') {
     requireAdmin();
     requireAdminPermission('catalog.delete');
@@ -231,7 +231,6 @@ if (!$cat || !catalogOwnedByCurrentAdmin($cat)) { flash('error','Catalog not fou
     redirect('index.php?page=catalog_pdf_history');
 }
 
-  // ── CATALOG PDF: delete template ────────────────────────────────────────────
 if ($action === 'delete_catalog_template') {
     requireAdmin();
     requireAdminPermission('catalog.template.manage');
@@ -307,10 +306,6 @@ if ($action === 'save_room_template') {
     redirect('index.php?page=room_templates');
 }
 
-  // ── CLIENT SELECTION → GENERATE CATALOG PDF (AJAX) ──────────────────────────
-// Reuses generateClientSelectionCatalog() (includes/catalog_pdf.php), which
-// in turn reuses createCatalogDraft() + generateCatalogPdf() — no duplicated
-// PDF logic. Products are pulled fresh from the client's live selection.
 if ($action === 'generate_client_catalog_pdf') {
     header('Content-Type: application/json');
     requireAdmin();
@@ -340,8 +335,6 @@ if ($action === 'generate_client_catalog_pdf') {
     exit;
 }
 
-// ── CLIENT SELECTION → EMAIL CATALOG PDF (AJAX) ─────────────────────────────
-// Reuses sendCatalogPdfEmail() (includes/catalog_pdf.php / includes/mailer.php).
 if ($action === 'email_client_catalog_pdf') {
     header('Content-Type: application/json');
     requireAdmin();
@@ -479,7 +472,7 @@ if ($action === 'admin_update_client') {
     exit;
 }
  
-//  ADMIN: DELETE CLIENT 
+
 if ($action === 'admin_delete_client') {
     requireAdmin();
     requireAdminPermission('clients.delete');
@@ -489,7 +482,6 @@ if ($action === 'admin_delete_client') {
     redirect('index.php?page=admin_clients');
 }
  
-//  ADMIN: ADD PRODUCT SELECTION (AJAX — returns JSON)
 if ($action === 'admin_add_selection') {
     requireAdmin();
     requireAdminPermissionJson('clients.edit');
@@ -519,51 +511,30 @@ if ($action === 'admin_delete_selection') {
     $selectionId = (int)($_POST['selection_id'] ?? 0);
     $clientId    = (int)($_POST['client_id']    ?? 0);
     adminDeleteSelection($selectionId);
+  flushLicenseCapUsageCache();
     flash('toast', 'Product removed from selection.');
     redirect('index.php?page=admin_client_selections&client_id=' . $clientId);
 }
   
-  // ── LICENSE: GENERATE 
-    if ($action === 'generate_license_key') {
-        requireAdmin();
-        requireAdminPermission('license.manage');
-        $result = createLicense($_POST);
-        if ($result['success']) {
-            flash('license_new_key', $result['plain_key']);
-            flash('toast', 'Activation key generated successfully.');
-        } else {
-            flash('error', $result['error']);
-        }
-        redirect('index.php?page=license');
-    }
+  // ── LICENSE: ACTIVATE (admin panel) 
+if ($action === 'admin_activate_license') {
+    requireAdmin();
+    requireAdminPermission('license.manage');
+    $result = activateLicenseKey($_POST['activation_key'] ?? '');
+    $result['success'] ? flash('toast', 'License activated successfully.') : flash('error', $result['error']);
+    redirect('index.php?page=license');
+}
 
-    // ── LICENSE: UPDATE EXPIRY / CONVERT TO LIFETIME 
-    if ($action === 'update_license') {
-        requireAdmin();
-        requireAdminPermission('license.manage');
-        $id = (int)($_POST['license_id'] ?? 0);
-        $result = updateLicenseExpiry($id, $_POST['expiry_date'] ?? '', !empty($_POST['is_lifetime']));
-        $result['success'] ? flash('toast', 'License updated.') : flash('error', $result['error']);
-        redirect('index.php?page=license');
-    }
+// ── LICENSE: DELETE 
+if ($action === 'admin_delete_license') {
+    requireAdmin();
+    requireAdminPermission('license.manage');
+    $result = deleteCurrentLicense();
+    $result['success'] ? flash('toast', 'License deleted.') : flash('error', $result['error']);
+    redirect('index.php?page=license');
+}
 
-    //  LICENSE: REVOKE 
-    if ($action === 'revoke_license') {
-        requireAdmin();
-        requireAdminPermission('license.manage');
-        revokeLicense((int)($_POST['license_id'] ?? 0));
-        flash('toast', 'License revoked.');
-        redirect('index.php?page=license');
-    }
-
-    //  LICENSE: REACTIVATE 
-    if ($action === 'reactivate_license') {
-        requireAdmin();
-        requireAdminPermission('license.manage');
-        reactivateLicense((int)($_POST['license_id'] ?? 0));
-        flash('toast', 'License reactivated.');
-        redirect('index.php?page=license');
-    }
+   
     
     if ($action === 'save_watermark_settings') {
     requireAdminPermission('settings.watermark');
@@ -583,6 +554,12 @@ if ($action === 'remove_watermark_image') {
     requireAdminPermission('settings.watermark');
     removeWatermarkImage();
     flash('toast', 'Watermark image removed.');
+    redirect('index.php?page=product_view_settings');
+}
+  if ($action === 'save_slab_calculator_settings') {
+    requireAdminPermission('settings.slab_calculator');
+    saveSlabCalculatorSettings($_POST);
+    flash('toast', 'Slab Calculator settings saved.');
     redirect('index.php?page=product_view_settings');
 }
   
@@ -756,6 +733,7 @@ if ($action === 'remove_watermark_image') {
         $pid = (int)($_POST['product_id'] ?? 0);
         $db = getDB();
         _deleteProductWithDependencies($db, $pid);
+      flushLicenseCapUsageCache();
         flash('toast', 'Product deleted.');
         redirect('index.php?page=products');
     }
@@ -972,6 +950,7 @@ if ($action === 'delete_user') {
         $db->prepare("DELETE FROM shortlist WHERE user_id=?")->execute([$uid]);
         $db->prepare("DELETE FROM users WHERE id=?")->execute([$uid]);
         $db->commit();
+      flushLicenseCapUsageCache();
         flash('toast', 'User and all related data deleted.');
     } catch (Throwable $e) {
         $db->rollBack();
@@ -1101,9 +1080,7 @@ if ($action === 'delete_user') {
         $adminId = (int)($_POST['admin_id'] ?? 0);
         $result  = updateAdminAccount($adminId, $_POST);
         if ($result['success']) {
-            // Security: if a password was set, revoke that admin's trusted
-            // devices so old device cookies can't bypass the new credentials.
-            if (!empty($_POST['password'])) {
+                if (!empty($_POST['password'])) {
                 require_once __DIR__ . '/../includes/device_auth.php';
                 revokeAllDevicesFor(null, $adminId);
             }
@@ -1121,6 +1098,7 @@ if ($action === 'delete_user') {
         requireAdminPermission('admins.manage');
         $adminId = (int)($_POST['admin_id'] ?? 0);
         $result  = deleteAdminAccount($adminId);
+      flushLicenseCapUsageCache();
         if ($result['success']) {
             flash('toast', 'Admin account deleted.');
         } else {
@@ -1137,11 +1115,6 @@ if (isset($_GET["ajax_sync"]) && isAdmin()) {
     $step = (int)($_GET["ajax_sync"]);
     echo json_encode(runSyncStep($step));
     exit;
-}
-//  License CSV export 
-if (isset($_GET['export_licenses']) && isAdmin()) {
-    requireAdminPermission('license.manage');
-    exportLicensesCsv();
 }
 
 if (isset($_GET['ajax_role_perms']) && isAdmin()) {
@@ -1271,7 +1244,13 @@ function catalogOwnedByCurrentAdmin(array $cat): bool {
 function saveProduct(array $data, array $files): void {
     $db  = getDB();
     $pid = (int)($data['product_id'] ?? 0);
-
+    
+    // ── License cap check — only applies to NEW products, never edits ──────
+    if (!$pid && licenseCapExceeded('products')) {
+        flash('error', licenseCapExceededMessage('products'));
+        return;
+    }
+    
     $fields = [
         'name'              => trim($data['name']              ?? ''),
         'category'          => trim($data['category']          ?? ''),
@@ -2476,7 +2455,7 @@ function syncDnaReports(): array {
 
 
 $pages = ['dashboard','products','product_edit','colors','users','inquiries','sync',
-              'notifications','logo','user_clients','admin_selections','smtp',
+              'notifications','logo','user_clients','smtp',
               'admin_clients','admin_client_form','admin_client_selections',             'roles','admin_accounts','room_templates','license','product_view_settings','devices','product_categories','translations','catalog_pdf_settings','catalog_pdf_history', 'catalog_pdf_wizard','catalog_pdf_templates'];
 
 // Unknown ?page= value in admin panel → 404 instead of silently falling
@@ -2497,7 +2476,6 @@ $file = __DIR__ . '/views/' . $page . '.php';
         'admin_clients'          => 'clients.view',
         'admin_client_form'      => 'clients.view',
         'admin_client_selections'=> 'clients.view',
-        'admin_selections'       => 'clients.view',
         'notifications'          => 'notifications.view',
         'sync'                   => 'sync.run',
         'logo'                   => 'settings.logo',

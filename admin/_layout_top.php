@@ -37,6 +37,9 @@ try {
 
 $_adminLogo = getLogo(true);
 $_trustedDeviceAdmin = isAdmin() ? getCurrentTrustedDevice('admin') : null;
+if ($_trustedDeviceAdmin) {
+     touchTrustedDeviceLastSeen($_trustedDeviceAdmin);
+ }
 $ap = $_GET['page'] ?? 'dashboard';
 
 $settingsPages    = ['colors', 'logo', 'smtp','license'];
@@ -44,6 +47,31 @@ $isSettingsActive = in_array($ap, $settingsPages);
 
 $t = getFlash('toast');
 $e = getFlash('error');
+
+// ── License badge data ─────────────────────────────────────────────────
+require_once BASE_PATH . '/includes/license_caps.php';
+$_licStatus  = checkLicenseStatus();
+$_licRow     = $_licStatus['license'] ?? null;
+$_licPlanKey = $_licRow['plan'] ?? 'demo';
+$_licPlan    = LICENSE_PLAN_CAPS[$_licPlanKey] ?? LICENSE_PLAN_CAPS['demo'];
+$_licIsLifetime = $_licRow && ((int)$_licRow['is_lifetime'] === 1 || (int)date('Y', strtotime($_licRow['expiry_date'])) >= LIFETIME_YEAR_THRESHOLD);
+$_licDaysLeft = ($_licRow && !$_licIsLifetime) ? (int)ceil((strtotime($_licRow['expiry_date']) - time()) / 86400) : null;
+// ── Cap warning banner data (≥80% usage) ────────────────────────────────
+$_licCapWarnings = adminCan('license.manage') ? getLicenseCapWarnings(80.0) : [];
+// Badge color: red if invalid/expired/revoked, amber if expiring soon (<7 days), else neutral/green
+$_licBadgeTone = 'ok';
+if (!$_licStatus['valid']) {
+    $_licBadgeTone = 'danger';
+} elseif ($_licDaysLeft !== null && $_licDaysLeft <= 7) {
+    $_licBadgeTone = 'warn';
+}
+
+$_licLabelText = !$_licStatus['valid']
+    ? ucfirst(str_replace('_', ' ', $_licStatus['state']))
+    : ($_licIsLifetime
+        ? $_licPlan['label'] . ' · Lifetime'
+        : $_licPlan['label'] . ' · ' . ($_licDaysLeft !== null && $_licDaysLeft >= 0 ? $_licDaysLeft . ' day' . ($_licDaysLeft === 1 ? '' : 's') . ' left' : 'Expired'));
+
 ?>
 
 <?php if ($t): ?><div class="toast toast-success" id="admin-toast"><?= h($t) ?></div><?php endif; ?>
@@ -201,6 +229,65 @@ $e = getFlash('error');
 .notif-drop-item:last-child { border-bottom:none; }
 .notif-drop-item:hover      { background:var(--surface2); }
 .notif-drop-item--unread    { background:var(--accent-light); }
+  .lic-topbar-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 20px;
+  font-size: 11.5px;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+  border: 1px solid transparent;
+  transition: opacity .15s;
+}
+.lic-topbar-badge:hover { opacity: .85; }
+.lic-topbar-badge--ok {
+  background: var(--admin-accent-light, #E3EFF4);
+  color: var(--admin-accent, #2C6E8A);
+  border-color: var(--admin-accent, #2C6E8A);
+}
+.lic-topbar-badge--warn {
+  background: #FFF8E6;
+  color: #92600A;
+  border-color: #E8C468;
+}
+.lic-topbar-badge--danger {
+  background: var(--danger-bg, #FFF0F0);
+  color: var(--danger, #E84040);
+  border-color: var(--danger, #E84040);
+}
+@media (max-width: 640px) {
+  .lic-topbar-badge span { display: none; } /* icon-only on very small screens */
+}
+ .lic-cap-warning-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  background: #FFF8E6;
+  border: 1px solid #E8C468;
+  color: #92600A;
+  border-radius: 10px;
+  padding: 10px 16px;
+  margin-bottom: 18px;
+  font-size: 12.5px;
+}
+.lic-cap-warning-text { display: flex; gap: 14px; flex-wrap: wrap; flex: 1; }
+.lic-cap-warning-item { font-weight: 600; white-space: nowrap; }
+.lic-cap-warning-item--limit { color: var(--danger, #E84040); }
+.lic-cap-warning-link {
+  font-weight: 700;
+  color: #92600A;
+  text-decoration: underline;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+@media (max-width: 640px) {
+  .lic-cap-warning-banner { flex-direction: column; align-items: flex-start; }
+} 
+  
 </style>
 
 <div class="admin-shell">
@@ -251,9 +338,9 @@ if (adminCan('clients.view')) {
 }
  
 // Notifications
-if (adminCan('notifications.view')) {
-    $navItems[] = ['page'=>'notifications', 'icon'=>'bell', 'label'=>'Notifications', 'badge'=>$_notifCount];
-}
+//if (adminCan('notifications.view')) {
+  //  $navItems[] = ['page'=>'notifications', 'icon'=>'bell', 'label'=>'Notifications', 'badge'=>$_notifCount];
+//}
 if (adminCan('catalog.create') || adminCan('catalog.history')) {
     $navItems[] = ['page'=>'catalog_pdf_wizard', 'icon'=>'pdf', 'label'=>'Generate Catalog PDF'];
 }
@@ -303,9 +390,9 @@ if (adminCan('categories.view')) {
 if (adminCan('translations.manage')) {
     $settingsSubItems[] = ['page'=>'translations', 'label'=>'Translations'];
 }
-//if (adminCan('license.manage')) {
-  //  $settingsSubItems[] = ['page'=>'license', 'label'=>'License & Activation'];
-//}
+if (adminCan('license.manage')) {
+    $settingsSubItems[] = ['page'=>'license', 'label'=>'License & Activation'];
+}
 if (adminCan('catalog.settings')) {
  $settingsSubItems[] = ['page'=>'catalog_pdf_settings','label'=>'Catalog PDF Settings'];
 }
@@ -511,11 +598,35 @@ function aflGoStep2(){document.getElementById('aflStep1').style.display='none';d
         <span style="font-size:13px;color:var(--text2);">
           Welcome, <?= h($_SESSION['admin_name'] ?? 'Admin') ?>
         </span>
+       <?php
+$_licHref = adminCan('license.manage') ? 'index.php?page=license' : null;
+$_licTag  = $_licHref ? 'a' : 'span';
+?>
+<<?= $_licTag ?> <?= $_licHref ? 'href="' . h($_licHref) . '"' : '' ?>
+   class="lic-topbar-badge lic-topbar-badge--<?= $_licBadgeTone ?>"
+   title="<?= $_licStatus['valid'] ? 'License plan and status' : 'License requires attention' ?>">
+  <?= icon('verified', 12) ?>
+  <span><?= h($_licLabelText) ?></span>
+</<?= $_licTag ?>>
       </div>
     </div>
 
     <div class="admin-content">
-
+ <?php if (!empty($_licCapWarnings)): ?>
+<div class="lic-cap-warning-banner">
+  <?= icon('info', 15) ?>
+  <div class="lic-cap-warning-text">
+    <?php foreach ($_licCapWarnings as $w): ?>
+    <span class="lic-cap-warning-item <?= $w['at_limit'] ? 'lic-cap-warning-item--limit' : '' ?>">
+      <?= h($w['label']) ?>: <?= $w['used'] ?>/<?= $w['limit'] ?><?= $w['at_limit'] ? ' (at limit)' : '' ?>
+    </span>
+    <?php endforeach; ?>
+  </div>
+  <?php if (adminCan('license.manage')): ?>
+  <a href="index.php?page=license" class="lic-cap-warning-link">View Plan →</a>
+  <?php endif; ?>
+</div>
+<?php endif; ?>
 <!--  JS: sidebar drawer + notification dropdown + settings submenu ── -->
 <script>
 /*  Settings submenu  */

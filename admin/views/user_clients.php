@@ -85,8 +85,8 @@ $totalPages = max(1, (int)ceil($total / $perPage));
         <td style="font-size:11px;color:var(--text3);max-width:180px;">
           <?= $c['site_address'] ? h(mb_strimwidth($c['site_address'], 0, 60, '…')) : '—' ?>
         </td>
-        <td>
-          <a href="index.php?page=admin_selections&client_id=<?= $c['id'] ?>"
+                <td>
+          <a href="index.php?page=admin_client_selections&client_id=<?= $c['id'] ?>"
              class="badge badge-blue" style="text-decoration:none;cursor:pointer;">
             <?= $c['selection_count'] ?> items
           </a>
@@ -94,7 +94,7 @@ $totalPages = max(1, (int)ceil($total / $perPage));
         <td style="font-size:11px;color:var(--text3);"><?= date('d M Y', $c['created_at']) ?></td>
         <td>
           <div style="display:flex;gap:6px;">
-            <a href="index.php?page=admin_selections&client_id=<?= $c['id'] ?>"
+            <a href="index.php?page=admin_client_selections&client_id=<?= $c['id'] ?>"
                class="btn-admin-secondary btn-admin-sm btn-admin-labeled"><?= icon('grid', 13) ?> Selections</a>
           </div>
         </td>

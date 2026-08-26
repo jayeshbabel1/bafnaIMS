@@ -31,6 +31,14 @@ function ensureCatalogPdfTables(): void {
         KEY idx_admin (admin_id),
         KEY idx_status(status)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    $hasCol = $db->query("
+        SELECT COUNT(*) FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'catalogs' AND COLUMN_NAME = 'source_client_id'
+    ")->fetchColumn();
+    if (!$hasCol) {
+        $db->exec("ALTER TABLE catalogs ADD COLUMN source_client_id INT UNSIGNED NULL AFTER admin_id");
+        $db->exec("ALTER TABLE catalogs ADD KEY idx_source_client (source_client_id)");
+    }
 
     $db->exec("CREATE TABLE IF NOT EXISTS catalog_download_logs (
         id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -94,10 +102,11 @@ function catalogPdfDefaultConfig(): array {
     return [
         'layout'       => 'one_per_page', // one_per_page|two_per_page|four_per_page|grid|architect
         'fields'       => ['name','category','color_subcategory','thickness','sizes','cutter_size','origin','finish','quantity_available'],
-        'cover' => [
+       'cover' => [
             'bg_image' => '', 'logo' => 1, 'title' => APP_NAME, 'subtitle' => '',
             'show_date' => 1, 'date_format' => 'd M Y', 'version' => 'v1.0',
             'marketing_message' => '', 'contact_details' => 1, 'footer_text' => '',
+            'label' => '', 'prepared_for' => '', 'tagline' => '',
         ],
         'closing' => [
             'enabled' => 1, 'thank_you_text' => 'Thank you for choosing ' . APP_NAME,
@@ -114,7 +123,7 @@ function catalogPdfDefaultConfig(): array {
         'orientation' => 'portrait',
         'page_size' => 'A4',
         'custom_w_mm' => 210, 'custom_h_mm' => 297,
-        'font' => 'helvetica',
+        'font' => 'bodoni72',
         'colors' => [
             'primary' => '#2C6E8A', 'secondary' => '#1A4D65', 'accent' => '#B8975A',
             'background' => '#FFFFFF', 'text' => '#1A2837', 'button' => '#2C6E8A', 'border' => '#DDE4EB',
@@ -184,15 +193,17 @@ function ensureCatalogPdfPermissions(): void {
 
 // ── Basic CRUD (enough for settings page + later wizard steps) ────────────
 function createCatalogDraft(array $data): array {
+    ensureCatalogPdfTables(); // guarantees source_client_id column exists
     $db = getDB();
     $now = time();
     $name = trim($data['name'] ?? 'Untitled Catalog');
-    $db->prepare("INSERT INTO catalogs (name,user_id,admin_id,product_ids_json,config_json,status,created_at,updated_at)
-                  VALUES (?,?,?,?,?,?,?,?)")
+    $db->prepare("INSERT INTO catalogs (name,user_id,admin_id,source_client_id,product_ids_json,config_json,status,created_at,updated_at)
+                  VALUES (?,?,?,?,?,?,?,?,?)")
        ->execute([
            $name,
            $data['user_id']  ?? null,
            $data['admin_id'] ?? null,
+           $data['source_client_id'] ?? null,
            json_encode($data['product_ids'] ?? []),
            json_encode($data['config'] ?? catalogPdfDefaultConfig()),
            'draft', $now, $now,
@@ -260,13 +271,8 @@ function sendCatalogPdfEmail(int $catalogId, string $to, string $subject, string
     return $result;
 }
 
-// ── Client Selection → Catalog PDF ──────────────────────────────────────────
-// Builds and generates a catalog PDF containing exactly the products in one
-// client's selection list. Reuses createCatalogDraft() + generateCatalogPdf()
-// — no new tables, no duplicated PDF logic. The originating client is tagged
-// inside config_json (config['_source']) so it can be surfaced later without
-// a schema change.
-function generateClientSelectionCatalog(int $clientId, ?int $adminId = null): array {
+
+function generateClientSelectionCatalog(int $clientId, ?int $adminId = null, ?int $userId = null): array {
     require_once BASE_PATH . '/includes/clients.php';
     require_once BASE_PATH . '/includes/catalog_pdf_engine.php';
 
@@ -274,31 +280,46 @@ function generateClientSelectionCatalog(int $clientId, ?int $adminId = null): ar
     if (!$client) {
         return ['success' => false, 'error' => 'Client not found.'];
     }
-
-    // Fetch ALL selections for this client — uncapped, ignoring the UI's
-    // 10-per-page limit. Reuses the existing paginated helper with a high
-    // limit rather than duplicating its query.
+    
     $result = adminGetSelections($clientId, ['limit' => 100000, 'offset' => 0]);
     $rows = $result['rows'] ?? [];
     if (empty($rows)) {
         return ['success' => false, 'error' => 'This client has no products in their selection.'];
     }
+      $productIds = array_values(array_unique(array_map(fn($r) => (int)$r['product_id'], $rows)));
 
-    $productIds = array_values(array_unique(array_map(fn($r) => (int)$r['product_id'], $rows)));
+    $selectionMap = [];
+    foreach ($rows as $r) {
+        $pid = (int)$r['product_id'];
+        if (!isset($selectionMap[$pid])) {
+            $selectionMap[$pid] = [
+                'quantity_required' => $r['quantity_required'] ?? '',
+                'selection_area'    => $r['selection_area']    ?? '',
+            ];
+        }
+    }
 
     $config = getCatalogPdfSettingsDefaults();
     $config['layout']            = 'one_per_page';
     $config['closing']['enabled'] = 1;
-    // header/footer/page-numbers/cover already default to enabled in
-    // catalogPdfDefaultConfig() — left untouched so admin branding settings
-    // (Settings → Catalog PDF Settings) are always respected.
-    $config['_source'] = ['type' => 'client_selection', 'client_id' => $clientId];
+    // Force these two on for a client-selection catalog even if the admin's
+    // saved defaults don't normally include them.
+    foreach (['quantity_required', 'selection_area'] as $f) {
+        if (!in_array($f, $config['fields'], true)) $config['fields'][] = $f;
+    }
+   $config['_source'] = ['type' => 'client_selection', 'client_id' => $clientId];
+    $config['_selection_map'] = $selectionMap;
+   $config['cover']['label']        = 'Stone Selections';
+    $config['cover']['prepared_for'] = $client['client_name'];
+   
 
     $draft = createCatalogDraft([
-        'name'        => $client['client_name'] . ' — Selections — ' . date('d M Y'),
-        'admin_id'    => $adminId,
-        'product_ids' => $productIds,
-        'config'      => $config,
+        'name'             => $client['client_name'] . ' — Selections — ' . date('d M Y'),
+        'admin_id'         => $adminId,
+        'source_client_id' => $clientId,
+        'user_id'     	   => $userId,
+        'product_ids'      => $productIds,
+        'config'           => $config,
     ]);
     if (empty($draft['success'])) {
         return ['success' => false, 'error' => 'Could not create catalog draft.'];
@@ -308,11 +329,18 @@ function generateClientSelectionCatalog(int $clientId, ?int $adminId = null): ar
     $genResult = generateCatalogPdf($catalogId);
 
     error_log(sprintf(
-        'generateClientSelectionCatalog: client #%d (%s) -> catalog #%d, %d product(s), success=%s%s',
-        $clientId, $client['client_name'], $catalogId, count($productIds),
-        !empty($genResult['success']) ? 'yes' : 'no',
-        empty($genResult['success']) ? ' error=' . ($genResult['error'] ?? 'unknown') : ''
-    ));
+    'generateClientSelectionCatalog: client #%d (%s) -> catalog #%d, %d product(s), admin_id=%s, user_id=%s, success=%s%s',
+    $clientId,
+    $client['client_name'],
+    $catalogId,
+    count($productIds),
+    $adminId !== null ? $adminId : 'NULL',
+    $userId !== null ? $userId : 'NULL',
+    !empty($genResult['success']) ? 'yes' : 'no',
+    empty($genResult['success'])
+        ? ' error=' . ($genResult['error'] ?? 'unknown')
+        : ''
+));
 
     if (empty($genResult['success'])) {
         return ['success' => false, 'error' => $genResult['error'] ?? 'PDF generation failed.', 'catalog_id' => $catalogId];

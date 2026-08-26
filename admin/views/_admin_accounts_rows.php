@@ -80,7 +80,7 @@
       <button type="button"
               class="btn-admin-danger btn-admin-sm"
               title="Delete account"
-              onclick="openAaDelete(<?= (int)$admin['id'] ?>, <?= json_encode($admin['name'] ?? '') ?>)">
+              onclick="openAaDelete(<?= (int)$admin['id'] ?>, <?= h(json_encode($admin['name'] ?? '')) ?>)">
         <?= icon('trash', 13) ?>
       </button>
       <?php endif; ?>

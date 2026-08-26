@@ -9,13 +9,12 @@ $pageTitle = h($p['name']) . ' — ' . APP_NAME;
 $showNav   = true;
 $extraJS   = ['product.js','zoom.js'];
 $extraCSS  = ['zoom.css','clients.css'];
-
+if (isSlabCalculatorEnabled()) $extraJS[] = 'slab_calculator.js';
 $pal           = $p['palette_arr'];
 $photos        = $p['photos'];
 $saved         = isShortlisted($id);
-
-// Flat, de-duped list of resolved photo URLs — drives the gallery
-// lightbox's next/prev navigation and swipe support.
+$slabPrefillLen = is_numeric($p['sizes_l'] ?? null) ? (float)$p['sizes_l'] : '';
+$slabPrefillWid = is_numeric($p['sizes_h'] ?? null) ? (float)$p['sizes_h'] : '';
 $galleryImages = [];
 if ($photos) {
     foreach ($photos as $ph) {
@@ -179,8 +178,7 @@ $specs = [
       <?php endforeach; ?>
     </div>
 
-    <!-- Photo gallery -->
-    <!-- Photo gallery -->
+     <!-- Photo gallery -->
     <?php if ($galleryImages): ?>
     <p class="section-label">Gallery</p>
     <div class="photo-gallery">
@@ -222,8 +220,21 @@ $vidShareMsg = rawurlencode(($p['name'] ?? '').' — Video: '.$vidShareUrl);
 <?php endif; ?>   
     
     <!-- Documents -->
-    <?php if ($p['measurement_sheet'] || $p['dna_report']): ?>
+    
+      
+   
     <p class="section-label">Documents</p>
+    <div class="doc-card">
+      <div class="doc-icon"><?= icon('file',20) ?></div>
+      <div class="doc-info">
+        <p class="doc-name">Product PDF</p>
+        <p class="doc-meta">Product Detail PDF</p>
+      </div>
+     
+      <a href="index.php?pdf_download=1&product_id=<?= $id ?>" class="btn btn-secondary btn-sm">
+        <?= icon('download',13) ?>Download</a>
+    </div>
+     <?php if ($p['measurement_sheet'] || $p['dna_report']): ?>
     <?php if ($p['measurement_sheet']): ?>
     <div class="doc-card">
       <div class="doc-icon"><?= icon('file',20) ?></div>
@@ -260,13 +271,15 @@ $vidShareMsg = rawurlencode(($p['name'] ?? '').' — Video: '.$vidShareUrl);
         <input type="hidden" name="return_url" value="index.php?page=product&id=<?= $id ?>"/>
         <?= csrfField() ?>
         <button type="submit" class="btn btn-secondary btn-block">
-          <?= $saved ? icon('heart_fill',16).'&nbsp;Saved' : icon('heart',16).'&nbsp;Save' ?>
+          <?= $saved ? icon('heart_fill',16).'&nbsp;Saved' : icon('heart',16).'&nbsp;Save to Shortlist' ?>
         </button>
       </form>
-      <button onclick="openShareModal()" class="btn btn-secondary" style="flex:1;">
-        <?= icon('share',16) ?>&nbsp; Share
+      <button type="button" onclick="openWaPdfShare()" class="btn btn-secondary" style="flex:1;">
+        <?= icon('whatsapp',16) ?>&nbsp; WhatsApp Share
       </button>
-    </div>
+      
+     </div>
+   
 
     <!-- Add to Selection — full width row -->
     <div style="margin-top:10px;">
@@ -274,6 +287,15 @@ $vidShareMsg = rawurlencode(($p['name'] ?? '').' — Video: '.$vidShareUrl);
         <?= icon('plus',16) ?>&nbsp; Add to Client Selection
       </button>
     </div>
+      <?php if (isSlabCalculatorEnabled()): ?>
+    <div style="margin-top:10px;">
+      <button type="button" class="btn btn-secondary btn-block btn-lg"
+              onclick="openSlabCalculator({length:<?= json_encode($slabPrefillLen) ?>, width:<?= json_encode($slabPrefillWid) ?>, unit:'in'})">
+        <?= icon('grid',16) ?>&nbsp; Slab Calculator
+      </button>
+    </div>
+    <script>window.SLAB_CALC_DEFAULT_WASTAGE = <?= json_encode(getSlabCalculatorDefaultWastage()) ?>;</script>
+    <?php endif; ?>
     <div style="margin-top:10px;">
   <a href="index.php?page=room_visualizer&product_id=<?= $id ?>" class="btn btn-secondary btn-block btn-lg" style="text-decoration:none;">
     <?= icon('image',16) ?>&nbsp; Visualize in a Room
@@ -802,5 +824,5 @@ document.getElementById('addToSelModal')?.addEventListener('click', function(e) 
 }
 </style>
 
-
+<?php include BASE_PATH . '/pages/_wa_share_modal_user.php'; ?>
 <?php include BASE_PATH . '/layouts/footer.php'; ?>

@@ -228,7 +228,7 @@ if (empty($options['fonts'])) {
 $convert_errors = 0;
 $convert_success = 0;
 
-require_once (\dirname(\dirname(__DIR__)).'/vendor/autoload.php');
+require_once dirname(__DIR__, 3) . '/autoload.php';;
 
 foreach ($options['fonts'] as $font) {
     try {

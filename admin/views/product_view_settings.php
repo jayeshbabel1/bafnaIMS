@@ -7,10 +7,15 @@
 requireAdminPermission('settings.product_views');
 require_once BASE_PATH . '/includes/product_views.php';
 require_once BASE_PATH . '/includes/watermark.php';
+require_once BASE_PATH . '/includes/slab_calculator.php';
 ensureWatermarkPermission();
+ensureSlabCalculatorPermission();
 $wm = getWatermarkSettings();
 $wmCanManage = adminCan('settings.watermark');
 $wmCurrentUrl = getWatermarkUrl(true);
+$slabCanManage = adminCan('settings.slab_calculator');
+$slabEnabled = isSlabCalculatorEnabled();
+$slabDefaultWastage = getSlabCalculatorDefaultWastage();
 ensureProductViewTables();
 
 // ── AJAX: save one panel's full config (default view + all 3 view field sets) ─
@@ -170,6 +175,9 @@ function pvsRenderPanel(string $panel, array $bundle, array $fieldLabels, array 
   <?php if ($wmCanManage): ?>
   <button class="pvs-tab" onclick="pvsSwitchTab('watermark')">Watermark</button>
   <?php endif; ?>
+  <?php if ($slabCanManage): ?>
+  <button class="pvs-tab" onclick="pvsSwitchTab('slabcalc')">Slab Calculator</button>
+  <?php endif; ?>
 </div>
 
 <div class="pvs-panel active" id="pvs-panel-admin">
@@ -249,7 +257,30 @@ function pvsRenderPanel(string $panel, array $bundle, array $fieldLabels, array 
   </div>
 </div>
 <?php endif; ?>
-
+<?php if ($slabCanManage): ?>
+<div class="pvs-panel" id="pvs-panel-slabcalc">
+  <div class="admin-form-section">
+    <p class="admin-form-section-title">Slab Calculator</p>
+    <p style="font-size:12px;color:var(--admin-text3,var(--text3));margin-bottom:16px;line-height:1.6;">
+      Controls the Area / Wastage calculator button shown on the Catalog page and Product Detail pages (user panel).
+    </p>
+    <form method="POST" action="index.php">
+      <input type="hidden" name="action" value="save_slab_calculator_settings"/>
+      <?= csrfField() ?>
+      <label class="admin-check-row" style="margin-bottom:16px;">
+        <input type="checkbox" name="enabled" value="1" <?= $slabEnabled?'checked':'' ?>/>
+        <span style="font-size:13px;font-weight:600;">Enable Slab Calculator</span>
+      </label>
+      <div style="max-width:240px;margin-bottom:18px;">
+        <label class="admin-label">Default Wastage %</label>
+        <input type="number" name="default_wastage" class="admin-input" min="0" max="100" step="0.1" value="<?= h((string)$slabDefaultWastage) ?>"/>
+        <p style="font-size:11px;color:var(--admin-text3,var(--text3));margin-top:5px;">Pre-filled when the calculator opens. Users can still change it.</p>
+      </div>
+      <button type="submit" class="btn-admin-primary"><?= icon('check',15) ?> Save Slab Calculator Settings</button>
+    </form>
+  </div>
+</div>
+<?php endif; ?>
 <script>
 function pvsSwitchTab(panel) {
   document.querySelectorAll('.pvs-tab').forEach(function(t){ t.classList.toggle('active', t.getAttribute('onclick').includes("'"+panel+"'")); });

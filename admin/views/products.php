@@ -26,12 +26,15 @@ function pvAdminFieldHtml(array $p, string $key): string {
     if ($p['primary_photo'] && file_exists(PHOTOS_DIR.'/'.$p['primary_photo'])) {
          $thumbSrc = '../' . getPhotoThumbUrl($p['primary_photo']);
     }
+     $outOfStock = !$p['in_stock'] || (float)$p['quantity_available'] <= 0;
+    $oosBadge   = $outOfStock ? '<span class="apv-oos-badge">Out of Stock</span>' : '';
+
      if ($thumbSrc) {
-       return '<img src="'.h($thumbSrc).'" alt="'.h($p['name']).'" loading="lazy" decoding="async" width="100%" height="100%"/>';
+       return $oosBadge . '<img src="'.h($thumbSrc).'" alt="'.h($p['name']).'" loading="lazy" decoding="async" width="100%" height="100%"/>';
     }
 
     $pal = json_decode($p['palette'] ?? '[]', true) ?: ['F2F0EC','D8CFC4','BFB0A0'];
-    return marbleSVG($pal, 60, 60, 'apv'.$p['id']);
+     return $oosBadge . marbleSVG($pal, 60, 60, 'apv'.$p['id']);
         case 'name':
             return (adminCan('products.edit') || adminCan('products.view_details'))
         ? '<a href="index.php?page=product_edit&id='.$p['id'].'" style="color:var(--admin-text,var(--text));font-weight:600;">'.h($p['name']).'</a>'
@@ -197,6 +200,24 @@ if (!empty($_GET['ajax_products'])) {
     } elseif ($filter === 'no_dna') {
         $where .= " AND (p.dna_report IS NULL OR p.dna_report='')";
     }
+$color     = trim($_GET['color'] ?? '');
+$stock     = trim($_GET['stock'] ?? '');       // 'in' | 'out' | ''
+$featured  = trim($_GET['featured'] ?? '');    // '1' | ''
+$qtyMin    = isset($_GET['qty_min']) && $_GET['qty_min'] !== '' ? (float)$_GET['qty_min'] : null;
+$qtyMax    = isset($_GET['qty_max']) && $_GET['qty_max'] !== '' ? (float)$_GET['qty_max'] : null;
+$thickness = trim($_GET['thickness'] ?? '');
+$origin    = trim($_GET['origin'] ?? '');
+$finish    = trim($_GET['finish'] ?? '');
+
+if ($color !== '')     { $where .= " AND p.color_subcategory = ?"; $params[] = $color; }
+if ($stock === 'in')   { $where .= " AND p.in_stock=1 AND p.quantity_available>0"; }
+if ($stock === 'out')  { $where .= " AND (p.in_stock=0 OR p.quantity_available<=0)"; }
+if ($featured === '1') { $where .= " AND p.featured=1"; }
+if ($qtyMin !== null)  { $where .= " AND p.quantity_available >= ?"; $params[] = $qtyMin; }
+if ($qtyMax !== null)  { $where .= " AND p.quantity_available <= ?"; $params[] = $qtyMax; }
+if ($thickness !== '') { $where .= " AND p.thickness LIKE ?"; $params[] = "%{$thickness}%"; }
+if ($origin !== '')    { $where .= " AND p.origin LIKE ?"; $params[] = "%{$origin}%"; }
+if ($finish !== '')    { $where .= " AND p.finish LIKE ?"; $params[] = "%{$finish}%"; }
 
     $cntSt = $db->prepare("SELECT COUNT(*) FROM products p $where");
     $cntSt->execute($params);
@@ -265,6 +286,17 @@ $serverDefaultView = getDefaultView('admin');
 ?>
 
 <style>
+  /* Out-of-stock banner — sits above the product image in Grid/List/Table */
+.tbl-thumb, .apv-card-photo, .apv-list-thumb { position:relative; }
+.apv-oos-badge {
+  position:absolute; top:0; left:0; right:0; z-index:2;
+  background:rgba(20,20,20,.8); color:#fff;
+  font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.4px;
+  text-align:center; padding:3px 4px; line-height:1.2;
+  pointer-events:none;
+}
+.tbl-thumb .apv-oos-badge     { font-size:6.5px; padding:1px 2px; letter-spacing:0; }
+.apv-list-thumb .apv-oos-badge{ font-size:7.5px; padding:2px 3px; }
 .sortable-th { cursor:pointer;user-select:none;white-space:nowrap; }
 .sortable-th:hover { color:var(--accent); }
 .sort-icon { display:inline-flex;flex-direction:column;gap:1px;vertical-align:middle;margin-left:4px;opacity:.35; }
@@ -457,6 +489,10 @@ tr.apv-row-clickable:hover td { background:var(--admin-table-row-hover,var(--sur
     <button type="button" class="apv-view-btn" data-view="list" title="List view"><?= icon('filter',14) ?> List</button>
     <button type="button" class="apv-view-btn" data-view="table" title="Table view"><?= icon('file',14) ?> Table</button>
   </div>
+  <button type="button" id="apfOpenBtn" class="admin-toolbar-btn admin-toolbar-btn--solid" style="position:relative;">
+  <?= icon('filter',14) ?> Filters
+  <span id="apfBadgeDot" style="display:none;position:absolute;top:-3px;right:-3px;width:8px;height:8px;border-radius:50%;background:var(--gold,#B8975A);border:2px solid var(--admin-bg,#fff);"></span>
+</button>
 </div>
 
 <div class="admin-products-loader" id="adminProductsLoader">
@@ -477,7 +513,122 @@ tr.apv-row-clickable:hover td { background:var(--admin-table-row-hover,var(--sur
 <script>
 window.ADMIN_PRODUCT_DEFAULT_VIEW = <?= json_encode($serverDefaultView) ?>;
 </script>
+<div id="apfModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9300;align-items:center;justify-content:center;padding:16px;">
+  <div class="acs-modal-card" style="max-width:520px;">
+    <div class="acs-modal-header">
+      <p style="font-size:16px;font-weight:700;color:var(--admin-text,var(--text));">Filter Products</p>
+      <button type="button" id="apfCloseBtn" style="color:var(--admin-text3,var(--text3));cursor:pointer;background:none;border:none;"><?= icon('close',18) ?></button>
+    </div>
+    <div class="acs-modal-body">
+      <div class="apf-grid">
+        <div>
+          <label class="admin-label">Color</label>
+          <select id="apfColor" class="admin-input admin-select">
+            <option value="">All Colors</option>
+            <?php foreach (COLOR_SUBCATEGORIES as $c): ?>
+            <option value="<?= h($c) ?>"><?= h($c) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div>
+          <label class="admin-label">Stock Status</label>
+          <select id="apfStock" class="admin-input admin-select">
+            <option value="">All</option>
+            <option value="in">In Stock</option>
+            <option value="out">Out of Stock</option>
+          </select>
+        </div>
+        <div>
+          <label class="admin-label">Thickness</label>
+          <input type="text" id="apfThickness" class="admin-input" placeholder="e.g. 18"/>
+        </div>
+        <div>
+          <label class="admin-label">Origin</label>
+          <input type="text" id="apfOrigin" class="admin-input" placeholder="e.g. Italy"/>
+        </div>
+        <div>
+          <label class="admin-label">Finish</label>
+          <input type="text" id="apfFinish" class="admin-input" placeholder="e.g. Polished"/>
+        </div>
+        <div>
+          <label class="admin-label">Available Qty — Min</label>
+          <input type="number" id="apfQtyMin" class="admin-input" min="0" placeholder="0"/>
+        </div>
+        <div>
+          <label class="admin-label">Available Qty — Max</label>
+          <input type="number" id="apfQtyMax" class="admin-input" min="0" placeholder="∞"/>
+        </div>
+        <div style="display:flex;align-items:flex-end;">
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;cursor:pointer;padding-bottom:9px;">
+            <input type="checkbox" id="apfFeatured" style="width:16px;height:16px;accent-color:var(--admin-accent,var(--accent));"/>
+            ✦ Featured only
+          </label>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:20px;">
+        <button type="button" id="apfApplyBtn" class="btn-admin-primary" style="flex:1;justify-content:center;"><?= icon('check',15) ?> Apply Filters</button>
+        <button type="button" id="apfClearBtn" class="btn-admin-secondary">Clear All</button>
+      </div>
+    </div>
+  </div>
+</div>
 
+<style>
+.apf-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+@media (max-width:479px){.apf-grid{grid-template-columns:1fr;}}
+</style>
+
+<script>
+(function () {
+  var modal = document.getElementById('apfModal');
+  var openBtn = document.getElementById('apfOpenBtn');
+  var closeBtn = document.getElementById('apfCloseBtn');
+  var applyBtn = document.getElementById('apfApplyBtn');
+  var clearBtn = document.getElementById('apfClearBtn');
+  var badge = document.getElementById('apfBadgeDot');
+
+  function fields() {
+    return {
+      color: document.getElementById('apfColor').value,
+      stock: document.getElementById('apfStock').value,
+      thickness: document.getElementById('apfThickness').value.trim(),
+      origin: document.getElementById('apfOrigin').value.trim(),
+      finish: document.getElementById('apfFinish').value.trim(),
+      qty_min: document.getElementById('apfQtyMin').value.trim(),
+      qty_max: document.getElementById('apfQtyMax').value.trim(),
+      featured: document.getElementById('apfFeatured').checked ? '1' : '',
+    };
+  }
+  function anyActive(f) {
+    return Object.keys(f).some(function (k) { return f[k] !== ''; });
+  }
+
+  openBtn.addEventListener('click', function () { modal.style.display = 'flex'; });
+  closeBtn.addEventListener('click', function () { modal.style.display = 'none'; });
+  modal.addEventListener('click', function (e) { if (e.target === modal) modal.style.display = 'none'; });
+
+  applyBtn.addEventListener('click', function () {
+    var f = fields();
+    if (window.adminProductsApplyFilters) window.adminProductsApplyFilters(f);
+    badge.style.display = anyActive(f) ? 'block' : 'none';
+    modal.style.display = 'none';
+  });
+
+  clearBtn.addEventListener('click', function () {
+    document.getElementById('apfColor').value = '';
+    document.getElementById('apfStock').value = '';
+    document.getElementById('apfThickness').value = '';
+    document.getElementById('apfOrigin').value = '';
+    document.getElementById('apfFinish').value = '';
+    document.getElementById('apfQtyMin').value = '';
+    document.getElementById('apfQtyMax').value = '';
+    document.getElementById('apfFeatured').checked = false;
+    if (window.adminProductsApplyFilters) window.adminProductsApplyFilters(fields());
+    badge.style.display = 'none';
+    modal.style.display = 'none';
+  });
+})();
+</script>
 <?php if (adminCan('products.whatsapp')): ?>
 <?php include __DIR__ . '/_wa_share_modal.php'; ?>
 <?php endif; ?>

@@ -123,22 +123,4 @@
     <?php endforeach; ?>
   </tbody>
 </table>
-
-<!-- Pagination -->
-<?php if ($totalPages > 1): ?>
-<?php $range = 2; $s = max(1, $currentPage - $range); $e = min($totalPages, $currentPage + $range); ?>
-<div class="admin-pagination" style="margin-top:14px;">
-  <button class="apag-btn <?= $currentPage <= 1 ? 'disabled' : '' ?>" data-page="<?= $currentPage - 1 ?>">&lsaquo;</button>
-  <?php if ($s > 1): ?><button class="apag-btn" data-page="1">1</button><?php if ($s > 2): ?><span class="apag-ellipsis">…</span><?php endif; endif; ?>
-  <?php for ($pi = $s; $pi <= $e; $pi++): ?>
-  <button class="apag-btn <?= $pi === $currentPage ? 'active' : '' ?>" data-page="<?= $pi ?>"><?= $pi ?></button>
-  <?php endfor; ?>
-  <?php if ($e < $totalPages): ?><?php if ($e < $totalPages - 1): ?><span class="pag-ellipsis">…</span><?php endif; ?><button class="apag-btn" data-page="<?= $totalPages ?>"><?= $totalPages ?></button><?php endif; ?>
-  <button class="apag-btn <?= $currentPage >= $totalPages ? 'disabled' : '' ?>" data-page="<?= $currentPage + 1 ?>">&rsaquo;</button>
-</div>
-<p style="text-align:center;font-size:12px;color:var(--admin-text3,var(--text3));margin-top:8px;">
-  <?= $total ?> total selection<?= $total !== 1 ? 's' : '' ?>
-</p>
-<?php endif; ?>
-
 <?php endif; ?>

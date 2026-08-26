@@ -34,16 +34,18 @@
     try { localStorage.setItem(LS_KEY, v); } catch (e) {}
   }
 
-  var state = {
+ var state = {
     q:      '',
     cat:    '',
     per:    24,
     page:   1,
-    sort:   '',        // column key (table view only)
+    sort:   '',
     dir:    'ASC',
     filter: initialFilter,
     view:   loadSavedView(),
-  };
+    color: '', stock: '', thickness: '', origin: '', finish: '',
+    qty_min: '', qty_max: '', featured: '',
+};
 
   function applyViewButtons() {
     if (!viewSwitch) return;
@@ -69,6 +71,14 @@
     if (state.sort)   params.set('sort',   state.sort);
     if (state.dir)    params.set('dir',    state.dir);
     if (state.filter) params.set('filter', state.filter);
+        if (state.color)     params.set('color', state.color);
+    if (state.stock)     params.set('stock', state.stock);
+    if (state.thickness) params.set('thickness', state.thickness);
+    if (state.origin)    params.set('origin', state.origin);
+    if (state.finish)    params.set('finish', state.finish);
+    if (state.qty_min)   params.set('qty_min', state.qty_min);
+    if (state.qty_max)   params.set('qty_max', state.qty_max);
+    if (state.featured)  params.set('featured', state.featured);
 
     fetch('index.php?' + params.toString())
       .then(function (r) { return r.json(); })
@@ -234,6 +244,11 @@
 
   //  Initial load 
   applyViewButtons();
+  window.adminProductsApplyFilters = function (f) {
+    Object.assign(state, f);
+    state.page = 1;
+    loadProducts();
+  };
   loadProducts();
 
 })();

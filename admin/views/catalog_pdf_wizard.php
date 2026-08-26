@@ -127,7 +127,7 @@ $existing  = $catalogId ? getCatalog($catalogId) : null;
 $categories = getCategoryNames();
 ?>
 <style>
-.cpw-steps{display:flex;gap:0;margin-bottom:22px;border-bottom:2px solid var(--admin-table-border,var(--border));overflow-x:inherit;}
+.cpw-steps{display:flex;flex-wrap:wrap;gap:4px 0;margin-bottom:22px;border-bottom:2px solid var(--admin-table-border,var(--border));overflow-x:visible;overflow-y:visible;}
 .cpw-step{padding:10px 18px;font-size:13px;font-weight:600;color:var(--admin-text3,var(--text3));border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap;display:flex;align-items:center;gap:6px;}
 .cpw-step.active{color:var(--admin-accent,var(--accent));border-bottom-color:var(--admin-accent,var(--accent));}
 .cpw-step.done{color:var(--success,#3D8B6E);}
@@ -329,7 +329,10 @@ $categories = getCategoryNames();
   <div class="cpw-cust-panel active" id="cpwCust-cover">
     <div class="cpw-cust-row"><span class="cpw-cust-label">Show Company Logo</span><div class="cpw-cust-control"><input type="checkbox" id="cCoverLogo" <?= !empty($cfg['cover']['logo'])?'checked':'' ?>/></div></div>
     <div class="cpw-cust-row"><span class="cpw-cust-label">Title</span><div class="cpw-cust-control"><input type="text" id="cCoverTitle" class="admin-input" value="<?= h($cfg['cover']['title']) ?>"/></div></div>
-    <div class="cpw-cust-row"><span class="cpw-cust-label">Subtitle</span><div class="cpw-cust-control"><input type="text" id="cCoverSubtitle" class="admin-input" value="<?= h($cfg['cover']['subtitle']) ?>"/></div></div>
+        <div class="cpw-cust-row"><span class="cpw-cust-label">Subtitle</span><div class="cpw-cust-control"><input type="text" id="cCoverSubtitle" class="admin-input" value="<?= h($cfg['cover']['subtitle']) ?>"/></div></div>
+    <div class="cpw-cust-row"><span class="cpw-cust-label">Section Label<small>e.g. STONE SELECTIONS</small></span><div class="cpw-cust-control"><input type="text" id="cCoverLabel" class="admin-input" value="<?= h($cfg['cover']['label'] ?? '') ?>" placeholder="STONE SELECTIONS"/></div></div>
+    <div class="cpw-cust-row"><span class="cpw-cust-label">Prepared For</span><div class="cpw-cust-control"><input type="text" id="cCoverPreparedFor" class="admin-input" value="<?= h($cfg['cover']['prepared_for'] ?? '') ?>" placeholder="Recipient name"/></div></div>
+    <div class="cpw-cust-row"><span class="cpw-cust-label">Tagline<small>Blank = use Company Tagline</small></span><div class="cpw-cust-control"><input type="text" id="cCoverTagline" class="admin-input" value="<?= h($cfg['cover']['tagline'] ?? '') ?>"/></div></div>
     <div class="cpw-cust-row"><span class="cpw-cust-label">Show Date</span><div class="cpw-cust-control"><input type="checkbox" id="cCoverDate" <?= !empty($cfg['cover']['show_date'])?'checked':'' ?>/>
       <select id="cCoverDateFormat" class="admin-input admin-select" style="max-width:160px;">
         <option value="d M Y" <?= $cfg['cover']['date_format']==='d M Y'?'selected':'' ?>>31 Dec 2026</option>
@@ -432,7 +435,7 @@ $categories = getCategoryNames();
   <div class="cpw-cust-panel" id="cpwCust-fontcolor">
     <div class="cpw-cust-row"><span class="cpw-cust-label">Font Family</span><div class="cpw-cust-control">
       <select id="cFont" class="admin-input admin-select">
-        <?php foreach (['helvetica'=>'Helvetica','arial'=>'Arial','roboto'=>'Roboto','open_sans'=>'Open Sans','noto_sans'=>'Noto Sans'] as $fk=>$fl): ?>
+            <?php foreach (['helvetica'=>'Helvetica','arial'=>'Arial','roboto'=>'Roboto','open_sans'=>'Open Sans','noto_sans'=>'Noto Sans','bodoni72'=>'bodoni 72'] as $fk=>$fl): ?>
         <option value="<?= $fk ?>" <?= $cfg['font']===$fk?'selected':'' ?>><?= $fl ?></option>
         <?php endforeach; ?>
       </select>
@@ -591,6 +594,9 @@ function resetStep5UI() {
         marketing_message: document.getElementById('cCoverMsg').value,
         contact_details: document.getElementById('cCoverContact').checked ? 1 : 0,
         footer_text: document.getElementById('cCoverFooter').value,
+        label: document.getElementById('cCoverLabel').value,
+        prepared_for: document.getElementById('cCoverPreparedFor').value,
+        tagline: document.getElementById('cCoverTagline').value,
       },
       closing: {
         enabled: document.getElementById('cClosingEnabled').checked ? 1 : 0,
@@ -962,6 +968,9 @@ fetch('index.php?page=catalog_pdf_wizard', { method:'POST', body: body, headers:
       document.getElementById('cCoverMsg').value = c.marketing_message || '';
       document.getElementById('cCoverContact').checked = !!c.contact_details;
       document.getElementById('cCoverFooter').value = c.footer_text || '';
+      if (document.getElementById('cCoverLabel')) document.getElementById('cCoverLabel').value = c.label || '';
+      if (document.getElementById('cCoverPreparedFor')) document.getElementById('cCoverPreparedFor').value = c.prepared_for || '';
+      if (document.getElementById('cCoverTagline')) document.getElementById('cCoverTagline').value = c.tagline || '';
 
       var cl = cfg.closing || {};
       document.getElementById('cClosingEnabled').checked = !!cl.enabled;

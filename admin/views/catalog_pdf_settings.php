@@ -185,7 +185,7 @@ $cfg = getCatalogPdfSettingsDefaults();
 <div class="cps-panel" id="cps-fontcolor">
   <div class="cps-row"><span class="cps-label">Font Family</span><div class="cps-control">
     <select id="sFont" class="admin-input admin-select">
-      <?php foreach (['helvetica'=>'Helvetica','arial'=>'Arial','roboto'=>'Roboto','open_sans'=>'Open Sans','noto_sans'=>'Noto Sans'] as $fk=>$fl): ?>
+            <?php foreach (['helvetica'=>'Helvetica','arial'=>'Arial','roboto'=>'Roboto','open_sans'=>'Open Sans','noto_sans'=>'Noto Sans','bodoni72'=>'Bodoni 72'] as $fk=>$fl): ?>
       <option value="<?= $fk ?>" <?= $cfg['font']===$fk?'selected':'' ?>><?= $fl ?></option>
       <?php endforeach; ?>
     </select>

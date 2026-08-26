@@ -176,6 +176,9 @@ function getSelection(int $id, int $userId): ?array {
 }
 
 function createSelection(int $clientId, int $userId, array $data): array {
+  if (licenseCapExceeded('client_selections')) {
+        return ['success' => false, 'error' => licenseCapExceededMessage('client_selections')];
+    }
     $pid    = (int)($data['product_id']       ?? 0);
     $area   = trim($data['selection_area']     ?? '');
     $qty    = (float)($data['quantity_required'] ?? 0);
@@ -494,6 +497,10 @@ function adminDeleteClient(int $clientId): bool {
 // of requiring a separately-passed $userId, and is callable from the admin
 // product-picker without a logged-in "user" session.
 function adminCreateSelectionForClient(int $clientId, int $productId, array $data): array {
+  
+   if (licenseCapExceeded('client_selections')) {
+        return ['success' => false, 'error' => licenseCapExceededMessage('client_selections')];
+    }
     if (!$productId) return ['success' => false, 'error' => 'Please choose a product.'];
     if (!$clientId)   return ['success' => false, 'error' => 'Invalid client.'];
  

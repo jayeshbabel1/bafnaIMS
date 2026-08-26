@@ -1,176 +1,112 @@
 <?php
 /**
- * admin/views/license.php — License / Activation Key management
+ * admin/views/license.php — License activation (view / activate / delete).
+ * Generation is intentionally NOT here — see Scripts/license_generator.php.
  */
 requireAdminPermission('license.manage');
-$adminTitle = 'License Management';
+$adminTitle = 'License & Activation';
 include __DIR__ . '/../_layout_top.php';
 require_once BASE_PATH . '/includes/license.php';
+require_once BASE_PATH . '/includes/license_caps.php';
 
-$search   = trim($_GET['q'] ?? '');
-$licenses = getAllLicenses($search);
-$newKey   = getFlash('license_new_key'); // shown once, right after generation
+$status   = checkLicenseStatus();
+$license  = $status['license'];
+$planKey  = $license['plan'] ?? null;
+$planInfo = $planKey && isset(LICENSE_PLAN_CAPS[$planKey]) ? LICENSE_PLAN_CAPS[$planKey] : null;
+
+function planBadgeClass(string $plan): string {
+    return ['demo'=>'badge-gray','lite'=>'badge-blue','pro'=>'badge-gold','pro_plus'=>'badge-green'][$plan] ?? 'badge-gray';
+}
+$statusCls = [
+    'active'=>'badge-green','lifetime'=>'badge-green','expired'=>'badge-gray','revoked'=>'badge-red',
+    'not_activated'=>'badge-gray','invalid'=>'badge-red','domain_mismatch'=>'badge-red',
+][$status['state']] ?? 'badge-gray';
+
+$_licUsage = $status['valid'] ? getAllLicenseCapUsageCached() : [];
+$_licPlanKey  = getCurrentLicensePlan();
+$_licPlanInfo = LICENSE_PLAN_CAPS[$_licPlanKey];
 ?>
-
 <style>
-.lic-toolbar{display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap;}
-.lic-search-wrap{position:relative;flex:1;min-width:220px;max-width:380px;}
-.lic-search-wrap > svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--admin-text3,var(--text3));}
-.lic-search-wrap input{padding-left:34px !important;}
-.lic-key-banner{background:var(--success-bg);border:1px solid var(--success);border-radius:10px;padding:16px 18px;margin-bottom:18px;}
-.lic-key-value{font-family:monospace;font-size:16px;font-weight:700;letter-spacing:1px;background:#fff;border:1px solid var(--border);border-radius:8px;padding:8px 12px;display:inline-block;margin:8px 0;}
-#licModal,#licEditModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9300;align-items:center;justify-content:center;padding:16px;}
-#licModal.open,#licEditModal.open{display:flex;}
-.lic-modal-card{background:var(--admin-card-bg,var(--surface));border-radius:14px;width:100%;max-width:460px;padding:24px 22px;box-shadow:0 16px 48px rgba(0,0,0,.2);}
+.lic-card{background:var(--admin-card-bg,var(--surface));border:1px solid var(--admin-table-border,var(--border));border-radius:var(--admin-card-radius,var(--card-radius));padding:20px 22px;margin-bottom:20px;}
+.lic-card-title{font-size:15px;font-weight:700;color:var(--admin-text,var(--text));margin-bottom:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.lic-detail-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;margin-bottom:18px;}
+.lic-detail-item b{display:block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--admin-text3,var(--text3));margin-bottom:3px;}
+.lic-detail-item span{font-size:13px;color:var(--admin-text,var(--text));}
+.lic-key-value{font-family:monospace;font-size:14px;font-weight:700;letter-spacing:.5px;background:var(--admin-surface2,var(--surface2));border:1px solid var(--admin-table-border,var(--border));border-radius:8px;padding:8px 12px;display:inline-block;}
+.lic-usage-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;margin-top:6px;}
+.lic-usage-bar{height:7px;border-radius:4px;background:var(--admin-surface2,var(--surface2));overflow:hidden;margin-top:6px;}
+.lic-usage-bar-fill{height:100%;border-radius:4px;}
 </style>
 
-<?php if ($newKey): ?>
-<div class="lic-key-banner">
-  <p style="font-weight:700;color:var(--success);margin-bottom:4px;"><?= icon('check',14) ?> Activation key generated</p>
-  <p style="font-size:12px;color:var(--text2);margin-bottom:4px;">Copy this now — it will only be shown once and cannot be retrieved again.</p>
-  <span class="lic-key-value" id="licNewKeyVal"><?= h($newKey) ?></span>
-  <button type="button" class="btn-admin-secondary btn-admin-sm" onclick="navigator.clipboard.writeText(document.getElementById('licNewKeyVal').textContent)">
-    <?= icon('copy',13) ?> Copy
-  </button>
-</div>
-<?php endif; ?>
+<!-- ══ Current License ══════════════════════════════════════════════════ -->
+<div class="lic-card">
+  <p class="lic-card-title">
+    Current License
+    <?php if ($planInfo): ?><span class="badge <?= planBadgeClass($planKey) ?>"><?= h($planInfo['label']) ?></span><?php endif; ?>
+    <span class="badge <?= $statusCls ?>"><?= h(ucwords(str_replace('_',' ', $status['state']))) ?></span>
+  </p>
 
-<div class="lic-toolbar">
-  <button type="button" class="admin-toolbar-btn admin-toolbar-btn--primary" onclick="openLicModal()">
-    <?= icon('plus',14) ?> Generate Activation Key
-  </button>
-  <form method="GET" action="index.php" class="lic-search-wrap">
-    <input type="hidden" name="page" value="license"/>
-    <?= icon('search',14) ?>
-    <input type="text" name="q" class="admin-input" placeholder="Search customer, project or key…" value="<?= h($search) ?>"/>
+  <?php if ($license): ?>
+  <div class="lic-detail-grid">
+    <div class="lic-detail-item"><b>Customer</b><span><?= h($license['customer_name']) ?></span></div>
+    <div class="lic-detail-item"><b>Project</b><span><?= h($license['project_name']) ?></span></div>
+    <div class="lic-detail-item"><b>Key</b><span class="lic-key-value"><?= h(maskLicenseKey($license['key_display'])) ?></span></div>
+    <div class="lic-detail-item"><b>Activated</b><span><?= $license['activation_date'] ? date('d M Y', $license['activation_date']) : '—' ?></span></div>
+    <div class="lic-detail-item"><b>Expiry</b><span><?= ((int)$license['is_lifetime']===1) ? 'Lifetime' : h(date('d M Y', strtotime($license['expiry_date']))) ?></span></div>
+    <div class="lic-detail-item"><b>Bound Domain</b><span><?= h($license['bound_domain'] ?: '—') ?></span></div>
+  </div>
+
+  <?php if ($_licUsage): ?>
+  <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--admin-text3,var(--text3));margin-bottom:4px;">Plan Usage</p>
+  <div class="lic-usage-grid">
+    <?php foreach ($_licUsage as $u):
+      $pct = $u['limit'] === null ? 100 : ($u['limit'] > 0 ? min(100, round(($u['used']/$u['limit'])*100)) : 100);
+      $tone = $u['limit'] === null ? 'ok' : ($pct >= 100 ? 'danger' : ($pct >= 80 ? 'warn' : 'ok'));
+      $barColor = ['ok'=>'var(--admin-accent,var(--accent))','warn'=>'#E8C468','danger'=>'var(--danger,#E84040)'][$tone];
+    ?>
+    <div>
+      <div style="display:flex;justify-content:space-between;font-size:11.5px;">
+        <span style="color:var(--admin-text2,var(--text2));font-weight:600;"><?= h($u['label']) ?></span>
+        <span style="font-family:monospace;font-weight:700;"><?= $u['used'] ?> / <?= $u['limit'] === null ? '∞' : $u['limit'] ?></span>
+      </div>
+      <div class="lic-usage-bar"><div class="lic-usage-bar-fill" style="width:<?= $pct ?>%;background:<?= $barColor ?>;"></div></div>
+    </div>
+    <?php endforeach; ?>
+  </div>
+  <?php endif; ?>
+
+  <div style="margin-top:20px;">
+    <form method="POST" action="index.php">
+      <input type="hidden" name="action" value="admin_delete_license"/>
+      <?= csrfField() ?>
+      <button type="submit" class="btn-admin-danger"
+              data-confirm="Delete the current license? This will immediately lock the application until a new key is activated.">
+        <?= icon('trash',14) ?> Delete License
+      </button>
+    </form>
+  </div>
+  <?php else: ?>
+  <p style="font-size:13px;color:var(--admin-text3,var(--text3));">No license is currently activated. Enter an activation key below.</p>
+  <?php endif; ?>
+</div>
+
+<!-- ══ Activate License ═════════════════════════════════════════════════ -->
+<div class="lic-card">
+  <p class="lic-card-title"><?= $license ? 'Replace License' : 'Activate License' ?></p>
+  <?php if ($license): ?>
+  <p style="font-size:12px;color:var(--admin-text3,var(--text3));margin-bottom:14px;">Activating a new key will replace the current license above.</p>
+  <?php endif; ?>
+  <form method="POST" action="index.php" style="max-width:420px;">
+    <input type="hidden" name="action" value="admin_activate_license"/>
+    <?= csrfField() ?>
+    <div style="margin-bottom:14px;">
+      <label class="admin-label">Activation Key</label>
+      <input type="text" name="activation_key" class="admin-input"
+             placeholder="XXXXX-XXXXX-XXXXX-XXXXX" required autocomplete="off"
+             style="font-family:monospace;letter-spacing:1px;text-transform:uppercase;"/>
+    </div>
+    <button type="submit" class="btn-admin-primary"><?= icon('check',15) ?> Activate</button>
   </form>
-  <?php if ($search): ?><a href="index.php?page=license" class="btn-admin-secondary btn-admin-sm">Clear</a><?php endif; ?>
-  <a href="index.php?page=license&export_licenses=1" class="admin-toolbar-btn admin-toolbar-btn--solid" style="margin-left:auto;">
-    <?= icon('download',14) ?> Export CSV
-  </a>
 </div>
-
-<div class="admin-table-wrap">
-  <table class="admin-table">
-    <thead>
-      <tr>
-        <th>Customer</th><th>Project</th><th>Key</th><th>Activated</th>
-        <th>Expiry</th><th>Type</th><th>Status</th><th>Domain</th><th>Actions</th>
-      </tr>
-    </thead>
-    <tbody>
-      <?php if (empty($licenses)): ?>
-      <tr><td colspan="9" class="admin-table-empty">No licenses found.</td></tr>
-      <?php else: foreach ($licenses as $l):
-        $isLifetime = (int)$l['is_lifetime'] === 1 || (int)date('Y', strtotime($l['expiry_date'])) >= LIFETIME_YEAR_THRESHOLD;
-        $statusCls = ['active'=>'badge-green','expired'=>'badge-gray','revoked'=>'badge-red'][$l['status']] ?? 'badge-gray';
-      ?>
-      <tr>
-        <td style="font-weight:600;"><?= h($l['customer_name']) ?></td>
-        <td><?= h($l['project_name']) ?></td>
-        <td style="font-family:monospace;font-size:12px;"><?= h(maskLicenseKey($l['key_display'])) ?></td>
-        <td style="font-size:11px;color:var(--text3);"><?= $l['activation_date'] ? date('d M Y', $l['activation_date']) : '—' ?></td>
-        <td style="font-size:12px;"><?= $isLifetime ? '<span class="badge badge-gold">Lifetime</span>' : h(date('d M Y', strtotime($l['expiry_date']))) ?></td>
-        <td><?= $isLifetime ? 'One-Time' : 'Term' ?></td>
-        <td><span class="badge <?= $statusCls ?>"><?= ucfirst($l['status']) ?></span></td>
-        <td style="font-size:11px;color:var(--text3);"><?= h($l['bound_domain'] ?: '—') ?></td>
-        <td>
-          <div style="display:flex;gap:5px;">
-            <button type="button" class="btn-admin-secondary btn-admin-sm"
-                    onclick="openLicEditModal(<?= (int)$l['id'] ?>, <?= json_encode($l['expiry_date']) ?>, <?= $isLifetime?'true':'false' ?>)"
-                    title="Edit expiry / convert to lifetime"><?= icon('edit',13) ?></button>
-            <?php if ($l['status'] === 'revoked'): ?>
-            <form method="POST" action="index.php" style="display:inline;">
-              <input type="hidden" name="action" value="reactivate_license"/>
-              <input type="hidden" name="license_id" value="<?= $l['id'] ?>"/>
-              <?= csrfField() ?>
-              <button type="submit" class="btn-admin-secondary btn-admin-sm" title="Reactivate"><?= icon('refresh',13) ?></button>
-            </form>
-            <?php else: ?>
-            <form method="POST" action="index.php" style="display:inline;">
-              <input type="hidden" name="action" value="revoke_license"/>
-              <input type="hidden" name="license_id" value="<?= $l['id'] ?>"/>
-              <?= csrfField() ?>
-              <button type="submit" class="btn-admin-danger btn-admin-sm" data-confirm="Revoke this activation key?"><?= icon('trash',13) ?></button>
-            </form>
-            <?php endif; ?>
-          </div>
-        </td>
-      </tr>
-      <?php endforeach; endif; ?>
-    </tbody>
-  </table>
-</div>
-
-<!-- Generate key modal -->
-<div id="licModal">
-  <div class="lic-modal-card">
-    <p style="font-size:16px;font-weight:700;margin-bottom:16px;">Generate Activation Key</p>
-    <form method="POST" action="index.php">
-      <input type="hidden" name="action" value="generate_license_key"/>
-      <?= csrfField() ?>
-      <div style="margin-bottom:14px;">
-        <label class="admin-label">Customer Name <span style="color:var(--danger);">*</span></label>
-        <input type="text" name="customer_name" class="admin-input" required/>
-      </div>
-      <div style="margin-bottom:14px;">
-        <label class="admin-label">Project Name <span style="color:var(--danger);">*</span></label>
-        <input type="text" name="project_name" class="admin-input" required/>
-      </div>
-      <div style="margin-bottom:14px;">
-        <label class="admin-label">Expiry Date <span style="color:var(--danger);">*</span></label>
-        <input type="date" name="expiry_date" class="admin-input" required/>
-        <p style="font-size:11px;color:var(--text3);margin-top:4px;">Use 2099-12-31 (or later) for a Lifetime / One-Time Activation license.</p>
-      </div>
-      <label class="admin-check-row" style="margin-bottom:16px;">
-        <input type="checkbox" name="is_lifetime" value="1"/>
-        <span style="font-size:13px;">Lifetime License (never expires)</span>
-      </label>
-      <div style="display:flex;gap:10px;">
-        <button type="submit" class="btn-admin-primary" style="flex:1;justify-content:center;"><?= icon('check',15) ?> Generate</button>
-        <button type="button" class="btn-admin-secondary" onclick="closeLicModal()">Cancel</button>
-      </div>
-    </form>
-  </div>
-</div>
-
-<!-- Edit expiry / convert to lifetime modal -->
-<div id="licEditModal">
-  <div class="lic-modal-card">
-    <p style="font-size:16px;font-weight:700;margin-bottom:16px;">Edit License</p>
-    <form method="POST" action="index.php">
-      <input type="hidden" name="action" value="update_license"/>
-      <input type="hidden" name="license_id" id="licEditId"/>
-      <?= csrfField() ?>
-      <div style="margin-bottom:14px;">
-        <label class="admin-label">Expiry Date</label>
-        <input type="date" name="expiry_date" id="licEditExpiry" class="admin-input" required/>
-      </div>
-      <label class="admin-check-row" style="margin-bottom:16px;">
-        <input type="checkbox" name="is_lifetime" id="licEditLifetime" value="1"/>
-        <span style="font-size:13px;">Convert to Lifetime License</span>
-      </label>
-      <div style="display:flex;gap:10px;">
-        <button type="submit" class="btn-admin-primary" style="flex:1;justify-content:center;"><?= icon('check',15) ?> Save</button>
-        <button type="button" class="btn-admin-secondary" onclick="closeLicEditModal()">Cancel</button>
-      </div>
-    </form>
-  </div>
-</div>
-
-<script>
-function openLicModal(){ document.getElementById('licModal').classList.add('open'); }
-function closeLicModal(){ document.getElementById('licModal').classList.remove('open'); }
-function openLicEditModal(id, expiry, isLifetime){
-  document.getElementById('licEditId').value = id;
-  document.getElementById('licEditExpiry').value = expiry;
-  document.getElementById('licEditLifetime').checked = !!isLifetime;
-  document.getElementById('licEditModal').classList.add('open');
-}
-function closeLicEditModal(){ document.getElementById('licEditModal').classList.remove('open'); }
-['licModal','licEditModal'].forEach(function(id){
-  document.getElementById(id).addEventListener('click', function(e){ if (e.target===this) this.classList.remove('open'); });
-});
-</script>
 
 <?php include __DIR__ . '/../_layout_bottom.php'; ?>

@@ -1,81 +1,123 @@
 <?php
-
-//define('BASE_PATH', dirname(__DIR__));
-// Must be defined before ANY code (including class ... extends \TCPDF
-// declarations, which resolve at file-load time, not call time) can
-// trigger TCPDF's autoconfig, or PDF generation breaks with
-// "unable to read file: helvetica.json".
 if (!defined('K_PATH_FONTS')) {
     define('K_PATH_FONTS', BASE_PATH . '/vendor/tecnickcom/tc-lib-pdf-font/target/fonts/');
 }
-/**
- * includes/catalog_pdf_engine.php
- * Fire 4 — full engine: all 5 layouts, watermark, header/footer, page numbers,
- * quality/compression, orientation, page size, fonts, colors.
- */
+$autoload = BASE_PATH . '/vendor/autoload.php';
 
-// ── Custom TCPDF subclass for header/footer callbacks ──────────────────────
+if (!class_exists('\TCPDF')) {
+    if (!file_exists($autoload)) {
+        throw new RuntimeException(
+            'TCPDF bootstrap failed: vendor/autoload.php not found.'
+        );
+    }
+    require_once $autoload;
+}
+
+if (!class_exists('\TCPDF')) {
+    throw new RuntimeException(
+        'TCPDF bootstrap failed: TCPDF class not found after loading vendor/autoload.php.'
+    );
+}
+
 class CatalogTCPDF extends \TCPDF {
     public array $cpeConfig = [];
     public array $cpeCatalog = [];
-    
-    public function Header() {
-     
+   public array $cpeSuppressPages = [];  
+  
+        public function Header() {
+          if (in_array($this->getPage(), $this->cpeSuppressPages, true)) return;
         $h = $this->cpeConfig['header'] ?? [];
-        if (empty($h['logo']) && empty($h['catalog_name']) && empty($h['page_title'])) return;
+        if (empty(array_filter($h))) return;
 
         $pageW = $this->getPageWidth();
-        $y = 8;
-        if (!empty($h['logo'])) {
-    $logo = _cpeResolveLogoImage();
-    if ($logo) {
-        try {
-            $this->Image($logo['path'], 15, $y, 24, 0, $logo['type'], '', '', true, 150, 'L');
-        } catch (\Throwable $e) {}
-        @unlink($logo['path']);
+        $font  = $this->cpeConfig['_font_family'] ?? 'helvetica';
+        $navyRgb = $this->cpeConfig['_colors_rgb']['text'] ?? [26, 40, 55];
+        $grayRgb = [130, 130, 130];
+        $lineRgb = [225, 225, 225];
+        $mL = 15; $contW = $pageW - 30;
+        $y = 10;
+
+            if (!empty($h['catalog_name'])) {
+            $companyName = mb_strtoupper(getSetting('company_short_name', '') ?: ($this->cpeCatalog['name'] ?? APP_NAME));
+            $this->SetFont($font, 'B', 11);
+            $this->SetTextColor(...$navyRgb);
+            $this->SetXY($mL, $y);
+            $this->Cell($contW / 2, 6, $companyName, 0, 0, 'L');
+        }
+        $this->SetFont($font, '', 10);
+        $this->SetTextColor(...$grayRgb);
+        $this->SetXY($mL + $contW / 2, $y);
+        $this->Cell($contW / 2, 6, date('d M Y'), 0, 0, 'R');
+        $y += 9;
+
+        $this->SetDrawColor(...$lineRgb);
+        $this->SetLineWidth(0.2);
+        $this->Line($mL, $y, $mL + $contW, $y);
+        $y += 6;
+
+        // "Prepared for {name}" banner — repurposes the 'page_title' header
+        // toggle since there was no dedicated option for this before.
+        $preparedFor = trim((string)($this->cpeConfig['cover']['prepared_for'] ?? ''));
+        if (!empty($h['page_title']) && $preparedFor !== '') {
+            $this->SetFont($font, 'B', 17);
+            $this->SetTextColor(...$navyRgb);
+            $this->SetXY($mL, $y);
+            $this->Cell($contW, 9, 'Prepared for ' . $preparedFor, 0, 1, 'L');
+            $y = $this->GetY() + 3;
+            $this->SetDrawColor(...$lineRgb);
+            $this->Line($mL, $y, $mL + $contW, $y);
+        }
+    }
+
+       public function Footer() {
+
+    $f = $this->cpeConfig['footer'] ?? [];
+    if (empty(array_filter($f))) return;
+
+    // IMPORTANT:
+    // Footer is positioned manually at the bottom of the page.
+    // Prevent TCPDF Cell() from triggering automatic page creation.
+    $this->SetAutoPageBreak(false, 0);
+
+    $pageW = $this->getPageWidth();
+    $pageH = $this->getPageHeight();
+    $font  = $this->cpeConfig['_font_family'] ?? 'helvetica';
+
+    $grayRgb = [130, 130, 130];
+    $lineRgb = [225, 225, 225];
+
+    $mL = 15;
+    $contW = $pageW - 30;
+
+    $y = $pageH - 18;
+
+    // Footer separator
+    $this->SetDrawColor(...$lineRgb);
+    $this->SetLineWidth(0.2);
+    $this->Line($mL, $y, $mL + $contW, $y);
+
+    // Footer text
+    $this->SetFont($font, '', 8.5);
+    $this->SetTextColor(...$grayRgb);
+
+    $colW = $contW / 3;
+
+    // LEFT — website
+    if (!empty($f['website'])) {
+        $this->SetXY($mL, $y + 3);
+        $this->Cell($colW, 6,  BASE_URL,      0,        0,        'L'    );    }
+
+    // CENTER — page number
+    if (!empty($f['page_number'])) {
+        $this->SetXY($mL + $colW, $y + 3);
+        $this->Cell($colW,6,'Page ' . $this->getAliasNumPage(),0,0,'C');
+    }
+
+        if (!empty($f['email'])) {
+        $this->SetXY($mL + $colW*2, $y + 3);
+        $this->Cell($colW,6,getSetting('company_email', ''),0,0,'R');
     }
 }
-        if (!empty($h['catalog_name'])) {
-            $this->SetXY(15, $y + 2);
-            $this->SetFont($this->cpeConfig['_font_family'] ?? 'helvetica', 'B', 9);
-            $this->SetTextColor(...($this->cpeConfig['_colors_rgb']['text'] ?? [30,30,30]));
-            $this->Cell($pageW - 30, 6, $this->cpeCatalog['name'] ?? APP_NAME, 0, 0, 'R');
-        }
-        $this->SetLineStyle(['width' => 0.2, 'color' => [220,220,220]]);
-        $this->Line(15, $y + 10, $pageW - 15, $y + 10);
-    }
-
-    public function Footer() {
-     
-        $f = $this->cpeConfig['footer'] ?? [];
-        $pos = $this->cpeConfig['page_number_position'] ?? 'bottom_center';
-        $pageW = $this->getPageWidth();
-        $pageH = $this->getPageHeight();
-        $y = $pageH - 15;
-
-        $this->SetFont($this->cpeConfig['_font_family'] ?? 'helvetica', '', 8);
-        $this->SetTextColor(120,120,120);
-
-        $parts = [];
-        if (!empty($f['website'])) $parts[] = BASE_URL;
-        if (!empty($f['email']))   $parts[] = getSetting('company_email', '');
-        if (!empty($f['phone']))   $parts[] = getSetting('company_support_phone', '');
-        if (!empty($f['generated_date'])) $parts[] = date('d M Y');
-        $leftText = implode('  ·  ', array_filter($parts));
-
-        if ($leftText !== '') {
-            $this->SetXY(15, $y);
-            $this->Cell($pageW - 30, 6, $leftText, 0, 0, 'L');
-        }
-
-        if (!empty($f['page_number'])) {
-            $pageNum = $this->getAliasNumPage() . ' / ' . $this->getAliasNbPages();
-            [$x, $y2, $align] = $this->_cpePageNumberPos($pos, $pageW, $pageH);
-            $this->SetXY($x, $y2);
-            $this->Cell(40, 6, $pageNum, 0, 0, $align);
-        }
-    }
-
     private function _cpePageNumberPos(string $pos, float $pageW, float $pageH): array {
         return match ($pos) {
             'bottom_left'   => [15, $pageH - 15, 'L'],
@@ -110,7 +152,16 @@ function generateCatalogPdf(int $catalogId): array {
     foreach ($st->fetchAll() as $r) $byId[$r['id']] = $r;
     $products = [];
     foreach ($productIds as $pid) if (isset($byId[$pid])) $products[] = $byId[$pid];
-
+ if (!empty($config['_selection_map']) && is_array($config['_selection_map'])) {
+        foreach ($products as &$selProduct) {
+            $sel = $config['_selection_map'][$selProduct['id']] ?? null;
+            if ($sel) {
+                $selProduct['quantity_required'] = $sel['quantity_required'] ?? '';
+                $selProduct['selection_area']    = $sel['selection_area']    ?? '';
+            }
+        }
+        unset($selProduct);
+    }
     try {
         // ── Orientation / page size ──────────────────────────────────────
         $orientation = ($config['orientation'] ?? 'portrait') === 'landscape' ? 'L' : 'P';
@@ -130,20 +181,23 @@ function generateCatalogPdf(int $catalogId): array {
         $pdf->SetCreator(APP_NAME);
         $pdf->SetTitle($cat['name']);
 
-        $headerOn = !empty(array_filter($config['header'] ?? []));
+                $headerOn = !empty(array_filter($config['header'] ?? []));
         $footerOn = !empty(array_filter($config['footer'] ?? []));
+        $preparedForShown = $headerOn && !empty($config['header']['page_title'])
+            && trim((string)($config['cover']['prepared_for'] ?? '')) !== '';
         $pdf->setPrintHeader($headerOn);
         $pdf->setPrintFooter($footerOn);
         $pdf->SetHeaderMargin(5);
         $pdf->SetFooterMargin(10);
-        $pdf->SetMargins(15, $headerOn ? 25 : 15, 15);
+        $pdf->SetMargins(15, $headerOn ? ($preparedForShown ? 40 : 25) : 15, 15);
         $pdf->SetAutoPageBreak(true, $footerOn ? 22 : 15);
 
         // ── Compression / quality 
         $pdf->SetCompression(($config['quality']['compression'] ?? 'compress') === 'compress');
 
-        // ── Font 
+                // ── Font 
         $fontFamily = _cpeResolveFont($config['font'] ?? 'helvetica');
+        _cpeRegisterCustomFont($pdf, $fontFamily);
         $config['_font_family'] = $fontFamily;
         $pdf->cpeConfig = $config;
 
@@ -151,11 +205,8 @@ function generateCatalogPdf(int $catalogId): array {
         $colorsRgb = [];
         foreach (($config['colors'] ?? []) as $k => $hex) $colorsRgb[$k] = _cpeHexToRgb($hex);
         $config['_colors_rgb'] = $colorsRgb;
-        $config['_suppress_hf'] = true; 
-       $pdf->cpeConfig = $config;
-		_cpeRenderCoverPage($pdf, $cat, $config);
-		$config['_suppress_hf'] = false;
-      $pdf->cpeConfig = $config;
+       _cpeRenderCoverPage($pdf, $cat, $config);
+        $pdf->cpeSuppressPages[] = $pdf->getPage(); 
 
         $layout = $config['layout'] ?? 'one_per_page';
         $gridLayouts = ['two_per_page', 'four_per_page', 'grid'];
@@ -172,12 +223,31 @@ function generateCatalogPdf(int $catalogId): array {
             // page (looks like "1 image per page then a stray text page").
             $pdf->SetAutoPageBreak(false, 0);
         }
-        switch ($layout) {
+               switch ($layout) {
             case 'two_per_page':  _cpeRenderLayoutN($pdf, $products, $config, 2); break;
             case 'four_per_page': _cpeRenderLayoutN($pdf, $products, $config, 4); break;
             case 'grid':          _cpeRenderLayoutGrid($pdf, $products, $config); break;
             case 'architect':     foreach ($products as $p) _cpeRenderLayoutArchitect($pdf, $p, $config); break;
-            default:               foreach ($products as $p) _cpeRenderLayoutOne($pdf, $p, $config); break;
+            default:
+                $totalSel = count($products);
+    // Product pages are manually controlled.
+    // Prevent TCPDF from creating unexpected blank pages.
+    $pdf->SetAutoPageBreak(false, 0);
+
+    foreach ($products as $i => $p) {
+        _cpeRenderLayoutOne(
+            $pdf,
+            $p,
+            $config,
+            $i + 1,
+            $totalSel
+        );
+    }
+    // Restore normal TCPDF behaviour after product pages.
+    $footerOn = !empty(array_filter($config['footer'] ?? []));
+    $pdf->SetAutoPageBreak(true, $footerOn ? 22 : 15);
+
+    break;
         }
         if (in_array($layout, $gridLayouts, true)) {
             $footerOn = !empty(array_filter($config['footer'] ?? []));
@@ -266,8 +336,9 @@ function _cpeResolveLogoImage(): ?array {
 
 function _cpeResolveFont(string $font): string {
     // Helvetica = TCPDF core font, no embed. Others fall back to helvetica
-    // unless embedded TTF font defs exist in storage/fonts/ (add later —
-    // safe no-op fallback keeps generation from breaking if fonts missing).
+    // unless embedded TTF font defs exist in storage/fonts/ (see
+    // tools/generate_font.php) — safe no-op fallback keeps generation from
+    // breaking if the font files haven't been generated yet.
     $map = [
         'helvetica' => 'helvetica', 'arial' => 'helvetica',
         'roboto' => 'helvetica', 'open_sans' => 'helvetica', 'noto_sans' => 'helvetica',
@@ -275,6 +346,25 @@ function _cpeResolveFont(string $font): string {
     $custom = BASE_PATH . '/storage/fonts/' . $font . '.php';
     if (file_exists($custom)) return $font; // embedded font def present
     return $map[$font] ?? 'helvetica';
+}
+
+// ── Register a custom embedded TCPDF font (if generated files exist) ──────
+// _cpeResolveFont() only decides which *name* to use; TCPDF still needs the
+// font registered via AddFont() before any SetFont() call can find it,
+// since custom fonts live in storage/fonts/ rather than TCPDF's built-in
+// K_PATH_FONTS folder.
+function _cpeRegisterCustomFont(\TCPDF $pdf, string $fontName): void {
+    static $done = [];
+    if ($fontName === 'helvetica' || isset($done[$fontName])) return;
+    $done[$fontName] = true;
+    $styleFiles = ['' => '', 'B' => 'b', 'I' => 'i', 'BI' => 'bi'];
+    foreach ($styleFiles as $style => $suffix) {
+        $def = BASE_PATH . '/storage/fonts/' . $fontName . $suffix . '.php';
+        if (file_exists($def)) {
+            try { $pdf->AddFont($fontName, $style, $def); }
+            catch (\Throwable $e) { error_log('_cpeRegisterCustomFont: ' . $e->getMessage()); }
+        }
+    }
 }
 
 function _cpeHexToRgb(string $hex): array {
@@ -345,6 +435,41 @@ function _cpeTempImage(string $fullPath, array $config): ?string {
     return _cpeRegisterTemp($tmpJpg);
 }
 
+// Near-lossless copy of the original photo for the one_per_page hero image
+// — bypasses _cpeTempImage()'s downscale/recompress path entirely. JPEG/PNG
+// sources are copied byte-for-byte; WEBP (which TCPDF can't read natively)
+// is converted to PNG at zero compression rather than a lossy JPEG.
+// Near-lossless copy of the original photo for the one_per_page hero image
+// — bypasses _cpeTempImage()'s downscale/recompress path entirely. JPEG/PNG
+// sources are copied byte-for-byte; WEBP (which TCPDF can't read natively)
+// is converted to PNG at zero compression rather than a lossy JPEG.
+function _cpeTempImageHQ(string $fullPath, array $config): ?string {
+    $info = @getimagesize($fullPath);
+    $tmp  = sys_get_temp_dir() . '/cpe_hq_' . uniqid('', true) . '_' . random_int(1000, 9999);
+
+    if ($info && $info[2] === IMAGETYPE_WEBP) {
+        $tmp .= '.png';
+        if (function_exists('imagecreatefromwebp')) {
+            $gd = @imagecreatefromwebp($fullPath);
+            if ($gd) {
+                imagepng($gd, $tmp, 0);
+                imagedestroy($gd);
+                return file_exists($tmp) ? _cpeRegisterTemp($tmp) : null;
+            }
+        }
+        error_log("catalog_pdf HQ: could not convert WEBP for $fullPath");
+        return null;
+    }
+
+    $ext = strtolower(pathinfo($fullPath, PATHINFO_EXTENSION)) ?: 'jpg';
+    $tmp .= '.' . $ext;
+    if (!copy($fullPath, $tmp)) {
+        error_log("catalog_pdf HQ: copy failed for $fullPath");
+        return null;
+    }
+    return _cpeRegisterTemp($tmp);
+}
+
 function _cpeProductPhotoFull(int $productId): ?string {
     $st = getDB()->prepare("SELECT filename FROM product_photos WHERE product_id=? ORDER BY sort_order LIMIT 1");
     $st->execute([$productId]);
@@ -366,16 +491,23 @@ function _cpeClampText(\TCPDF $pdf, string $text, float $maxW, string $font, str
     return $ell;
 }
 
-function _cpeFieldRows(array $p, array $fields): array {
+function _cpeFieldRows(array $p, array $fields, array $selectionMap = []): array {
     $labelMap = [
         'category'=>'Stone Type','subcategory'=>'Subcategory','color_subcategory'=>'Color',
         'thickness'=>'Thickness','origin'=>'Origin','finish'=>'Finish',
-        'quantity_available'=>'Available Qty','description'=>'Description',
-    ];
+        'quantity_available'=>'Available Qty','description'=>'Description','sizes'=>'Useable Size','cutter_size'=>'Italian Size', 'quantity_required'=>'Required Qty','selection_area'=>'Selected Area',];
     $slab = formatDimension($p['sizes_l'] ?? '', $p['sizes_h'] ?? '');
     $cut  = formatDimension($p['cutter_size_l'] ?? '', $p['cutter_size_h'] ?? '');
-    $extra = ['sizes' => $slab, 'cutter_size' => $cut];
+    $sel  = $selectionMap[$p['id']] ?? [];
+    $extra = [
+        'sizes' => $slab,
+        'cutter_size' => $cut,
+        'quantity_required' => (isset($sel['quantity_required']) && (float)$sel['quantity_required'] > 0)
+            ? number_format((float)$sel['quantity_required']) . ' sq.ft.' : '',
+        'selection_area' => trim((string)($sel['selection_area'] ?? '')),
+    ];
     $rows = [];
+    $fields = array_unique($fields);
     foreach ($fields as $fk) {
         if (in_array($fk, ['name','quarry_number'], true)) continue;
         $val = $extra[$fk] ?? ($p[$fk] ?? '');
@@ -391,119 +523,208 @@ function _cpeRenderCoverPage(\TCPDF $pdf, array $cat, array $config): void {
     $cover = $config['cover'] ?? [];
     $pdf->AddPage();
     $pageW = $pdf->getPageWidth();
-    $textRgb = $config['_colors_rgb']['text'] ?? [26,26,26];
-    $accentRgb = $config['_colors_rgb']['accent'] ?? [90,90,90];
+    $pageH = $pdf->getPageHeight();
+    $mL = 15; $contW = $pageW - 30;
     $font = $config['_font_family'] ?? 'helvetica';
-    $y = 40;
 
-   if (!empty($cover['logo'])) {
-    $logo = _cpeResolveLogoImage();
-    if ($logo) {
-        try {
-            $pdf->Image($logo['path'], ($pageW - 50) / 2, $y, 50, 0, $logo['type'], '', '', true, 150, 'C');
-            $y += 30;
-        } catch (\Throwable $e) {}
-        @unlink($logo['path']);
+    $navyRgb = $config['_colors_rgb']['text']  ?? [26, 40, 55];
+    $goldRgb = $config['_colors_rgb']['accent'] ?? [184, 151, 90];
+    $grayRgb = [130, 130, 130];
+    $lineRgb = [222, 222, 222];
+
+    // Thin top bar
+    $pdf->SetFillColor(...$lineRgb);
+    $pdf->Rect(0, 0, $pageW, 2, 'F');
+
+       $y = 44;
+
+    if (!empty($cover['logo'])) {
+        $logo = _cpeResolveLogoImage();
+        if ($logo) {
+            $logoW = 46;
+            $info  = @getimagesize($logo['path']);
+            $logoH = $info ? ($logoW * $info[1] / max($info[0], 1)) : $logoW * 0.6;
+            try {
+                $pdf->Image($logo['path'], ($pageW - $logoW) / 2, $y, $logoW, 0, $logo['type'], '', '', true, 150, 'C');
+                $y += $logoH + 14;
+            } catch (\Throwable $e) {}
+            @unlink($logo['path']);
+        }
     }
-}
 
-    $pdf->SetXY(15, $y + 15);
-    $pdf->SetFont($font, 'B', 26);
-    $pdf->SetTextColor(...$textRgb);
-    $pdf->MultiCell($pageW - 30, 12, $cover['title'] ?? APP_NAME, 0, 'C');
-    $y = $pdf->GetY() + 4;
+    // Title
+    $pdf->SetXY($mL, $y);
+    $pdf->SetFont($font, 'B', 28);
+    $pdf->SetTextColor(...$navyRgb);
+    $pdf->MultiCell($contW, 13, mb_strtoupper($cover['title'] ?? APP_NAME), 0, 'C');
+    $y = $pdf->GetY() + 3;
 
-    if (!empty($cover['subtitle'])) {
-        $pdf->SetXY(15, $y);
-        $pdf->SetFont($font, '', 14);
-        $pdf->SetTextColor(...$accentRgb);
-        $pdf->MultiCell($pageW - 30, 8, $cover['subtitle'], 0, 'C');
+    // Tagline — italic, gold. Falls back to the Company Tagline setting.
+    $tagline = trim((string)($cover['tagline'] ?? '')) ?: trim(getSetting('company_tagline', ''));
+    if ($tagline !== '') {
+        $pdf->SetXY($mL, $y);
+        $pdf->SetFont($font, 'I', 13);
+        $pdf->SetTextColor(...$goldRgb);
+        $pdf->MultiCell($contW, 8, $tagline, 0, 'C');
+        $y = $pdf->GetY() + 6;
+    }
+
+    // Gold divider
+    $pdf->SetDrawColor(...$goldRgb);
+    $pdf->SetLineWidth(0.5);
+    $pdf->Line($pageW / 2 - 22, $y, $pageW / 2 + 22, $y);
+    $y += 16;
+
+    // Section label, e.g. "STONE SELECTIONS"
+    $label = trim((string)($cover['label'] ?? ''));
+    if ($label !== '') {
+        $pdf->SetXY($mL, $y);
+        $pdf->SetFont($font, 'B', 15);
+        $pdf->SetTextColor(...$navyRgb);
+        $pdf->Cell($contW, 8, mb_strtoupper($label), 0, 1, 'C');
         $y = $pdf->GetY() + 4;
     }
 
-    if (!empty($cover['marketing_message'])) {
-        $pdf->SetXY(25, $y + 6);
-        $pdf->SetFont($font, 'I', 11);
-        $pdf->SetTextColor(120, 120, 120);
-        $pdf->MultiCell($pageW - 50, 6, $cover['marketing_message'], 0, 'C');
+    // "Prepared for" + recipient name
+    $preparedFor = trim((string)($cover['prepared_for'] ?? ''));
+    if ($preparedFor !== '') {
+        $pdf->SetXY($mL, $y);
+        $pdf->SetFont($font, '', 11);
+        $pdf->SetTextColor(...$grayRgb);
+        $pdf->Cell($contW, 6, 'Prepared for', 0, 1, 'C');
+        $y = $pdf->GetY() + 4;
+
+        $pdf->SetXY($mL, $y);
+        $pdf->SetFont($font, 'B', 30);
+        $pdf->SetTextColor(...$navyRgb);
+        $pdf->MultiCell($contW, 13, $preparedFor, 0, 'C');
+        $y = $pdf->GetY() + 16;
+    } else {
+        $y += 10;
     }
 
-    $pdf->SetY(-60);
-    $pdf->SetFont($font, '', 10);
-    $pdf->SetTextColor(60, 60, 60);
-    if (!empty($cover['show_date'])) $pdf->Cell($pageW - 30, 6, date($cover['date_format'] ?? 'd M Y'), 0, 1, 'C');
-    if (!empty($cover['version']))   $pdf->Cell($pageW - 30, 6, $cover['version'], 0, 1, 'C');
+    // Info table — Date / Version / Contact / Website
+    $infoRows = [];
+    if (!empty($cover['show_date']))  $infoRows[] = ['Date', date($cover['date_format'] ?? 'd M Y')];
+    if (!empty($cover['version']))    $infoRows[] = ['Version', $cover['version']];
     if (!empty($cover['contact_details'])) {
-        $phone = getSetting('company_support_phone', '');
-        $email = getSetting('company_email', '');
-        $line  = trim(implode('  ·  ', array_filter([$phone ? "Mobile No.: $phone" : '', $email])));
-        if ($line) $pdf->Cell($pageW - 30, 6, $line, 0, 1, 'C');
+        $contactLine = trim(implode('  |  ', array_filter([
+            getSetting('company_support_phone', ''),
+            getSetting('company_email', ''),
+        ])));
+        if ($contactLine !== '') $infoRows[] = ['Contact', $contactLine];
     }
-    if (!empty($cover['footer_text'])) {
-        $pdf->SetFont($font, 'I', 9);
-        $pdf->Cell($pageW - 30, 6, $cover['footer_text'], 0, 1, 'C');
-    }
-}
+    $infoRows[] = ['Website', BASE_URL];
 
+    if ($infoRows) {
+        $tableX = $pageW / 2 - 62;
+        $pdf->SetY($y);
+        foreach ($infoRows as $row) {
+            $pdf->SetX($tableX);
+            $pdf->SetFont($font, 'B', 10);
+            $pdf->SetTextColor(...$navyRgb);
+            $pdf->Cell(26, 7, $row[0], 0, 0, 'L');
+            $pdf->SetFont($font, '', 10);
+            $pdf->SetTextColor(70, 70, 70);
+            $pdf->Cell(96, 7, $row[1], 0, 1, 'L');
+        }
+    }
+
+    if (!empty($cover['footer_text'])) {
+        $pdf->SetY($pageH - 34);
+        $pdf->SetFont($font, 'I', 9);
+        $pdf->SetTextColor(...$grayRgb);
+        $pdf->Cell($contW, 6, $cover['footer_text'], 0, 1, 'C');
+    }
+
+}
 // ── Layout 1: one product per page ─────────────────────────────────────
-function _cpeRenderLayoutOne(\TCPDF $pdf, array $p, array $config): void {
+function _cpeRenderLayoutOne(\TCPDF $pdf, array $p, array $config, int $index = 0, int $total = 0): void {
     $fields = $config['fields'] ?? [];
-    $font = $config['_font_family'] ?? 'helvetica';
-    $pdf->AddPage();
+    $font   = $config['_font_family'] ?? 'helvetica';
+    $navyRgb = $config['_colors_rgb']['text']   ?? [26, 40, 55];
+    $goldRgb = $config['_colors_rgb']['accent'] ?? [184, 151, 90];
+    $grayRgb = [130, 130, 130];
+    $altRgb  = [247, 244, 239];
+       $pdf->AddPage();
     $pageW = $pdf->getPageWidth();
     $mL = 15; $contW = $pageW - 30;
     $y = $pdf->GetY();
 
+    // Eyebrow — "SELECTION i OF N"
+    if ($total > 0) {
+        $pdf->SetXY($mL, $y);
+        $pdf->SetFont($font, 'B', 9);
+        $pdf->SetTextColor(...$goldRgb);
+        $pdf->Cell($contW, 5, 'SELECTION ' . $index . ' OF ' . $total, 0, 1, 'L');
+        $y = $pdf->GetY() + 2;
+    }
+
+    // Product name
+    if (in_array('name', $fields, true)) {
+        $pdf->SetXY($mL, $y);
+        $pdf->SetFont($font, 'B', 19);
+        $pdf->SetTextColor(...$navyRgb);
+        $pdf->MultiCell($contW, 9, $p['name'] ?? '', 0, 'L');
+        $y = $pdf->GetY() + 1;
+    }
+
+    // Quarry number
+    if (in_array('quarry_number', $fields, true) && !empty($p['quarry_number'])) {
+        $pdf->SetXY($mL, $y);
+        $pdf->SetFont($font, '', 10.5);
+        $pdf->SetTextColor(...$grayRgb);
+        $pdf->Cell($contW, 6, 'Quarry No. ' . $p['quarry_number'], 0, 1, 'L');
+        $y = $pdf->GetY() + 6;
+    }
+
+    // Hero photo — rendered from a near-lossless copy of the original file
+    // (see _cpeTempImageHQ), not the downscaled/recompressed path other
+    // layouts use, so it stays as close to source quality as TCPDF allows.
+    $photoTopY = $y;
     $full = _cpeProductPhotoFull($p['id']);
     $rendered = false;
     if ($full && file_exists($full)) {
         $info = @getimagesize($full);
         if ($info) {
-            $maxW = $contW; $maxH = 130;
+            $maxW = $contW; $maxH = 150;
             $ratio = $info[0] / max($info[1], 1);
             $imgW = $maxW; $imgH = $maxW / $ratio;
             if ($imgH > $maxH) { $imgH = $maxH; $imgW = $maxH * $ratio; }
             $imgX = $mL + ($contW - $imgW) / 2;
-            $tmp = _cpeTempImage($full, $config);
+            $tmp = _cpeTempImageHQ($full, $config);
             if ($tmp) {
-                try { $pdf->Image($tmp, $imgX, $y, $imgW, $imgH, '', '', '', true, 150, 'C'); $rendered = true; }
-                catch (\Throwable $e) {}
-              
+                try {
+                    $pdf->Image($tmp, $imgX, $y, $imgW, $imgH, '', '', '', true, 300, 'C');
+                    $rendered = true;
+                } catch (\Throwable $e) {}
             }
-            if ($rendered) $y += $imgH + 8;
+            if ($rendered) $y += $imgH;
         }
     }
     if (!$rendered) $y += 20;
 
-    if (in_array('name', $fields, true)) {
-        $pdf->SetXY($mL, $y);
-        $pdf->SetFont($font, 'B', 18);
-        $pdf->SetTextColor(...($config['_colors_rgb']['text'] ?? [20,20,20]));
-        $pdf->MultiCell($contW, 9, $p['name'] ?? '', 0, 'L');
-        $y = $pdf->GetY() + 2;
-    }
-    if (in_array('quarry_number', $fields, true) && !empty($p['quarry_number'])) {
-        $pdf->SetXY($mL, $y);
-        $pdf->SetFont($font, '', 11);
-        $pdf->SetTextColor(100, 100, 100);
-        $pdf->Cell($contW, 6, 'Quarry No: ' . $p['quarry_number'], 0, 1, 'L');
-        $y = $pdf->GetY() + 2;
-    }
+     $y += 8;
 
-    $rows = _cpeFieldRows($p, $fields);
+    // Details table — alternating row backgrounds, bold navy labels
+     $rows = _cpeFieldRows($p, array_diff($fields, ['name']), $config['_selection_map'] ?? []);
     if ($rows) {
-        $colL = 55; $colV = $contW - $colL;
-        $borderRgb = $config['_colors_rgb']['border'] ?? [220,220,220];
-        $pdf->SetY($y + 4);
+        $rowH = 11; $colL = 62;
+        $alt = false;
         foreach ($rows as $row) {
-            $pdf->SetX($mL);
-            $pdf->SetDrawColor(...$borderRgb);
-            $pdf->SetFont($font, 'B', 9);
-            $pdf->SetTextColor(80,80,80);
-            $pdf->Cell($colL, 7, $row[0], 'B', 0, 'L');
-            $pdf->SetFont($font, '', 9);
-            $pdf->SetTextColor(...($config['_colors_rgb']['text'] ?? [20,20,20]));
-            $pdf->MultiCell($colV, 7, $row[1], 'B', 'L');
+            if ($alt) {
+                $pdf->SetFillColor(...$altRgb);
+                $pdf->Rect($mL, $y, $contW, $rowH, 'F');
+            }
+            $pdf->SetXY($mL, $y);
+            $pdf->SetFont($font, 'B', 11.5);
+            $pdf->SetTextColor(...$navyRgb);
+            $pdf->Cell($colL, $rowH, $row[0], 0, 0, 'L');
+            $pdf->SetFont($font, '', 11.5);
+            $pdf->SetTextColor(50, 50, 50);
+            $pdf->MultiCell($contW - $colL, $rowH, $row[1], 0, 'L', false, 1, $mL + $colL, $y);
+            $y += $rowH;
+            $alt = !$alt;
         }
     }
 }
@@ -595,7 +816,7 @@ if ($tmp) {
         }
 
         // Detail lines: quarry number first (if selected), then remaining checked fields
-        $rows = _cpeFieldRows($p, array_diff($fields, ['name']));
+        $rows = _cpeFieldRows($p, array_diff($fields, ['name']), $config['_selection_map'] ?? []);
         if ($showQuarry && !empty($p['quarry_number'])) {
             array_unshift($rows, ['Quarry No', (string)$p['quarry_number']]);
         }
@@ -711,73 +932,144 @@ if ($meta !== '') { $pdf->SetFont($font,'',9); $pdf->Cell($contW, 5, $meta, 0, 1
 }
 
 // ── Closing page ────────────────────────────────────────────────────────
+// ── Closing page ────────────────────────────────────────────────────────
 function _cpeRenderClosingPage(\TCPDF $pdf, array $config): void {
     $closing = $config['closing'] ?? [];
-    $font = $config['_font_family'] ?? 'helvetica';
+    $font    = $config['_font_family'] ?? 'helvetica';
+    $navyRgb = $config['_colors_rgb']['text']  ?? [26, 40, 55];
+    $goldRgb = $config['_colors_rgb']['accent'] ?? [184, 151, 90];
+    $textRgb = [50, 50, 50];
+
     $pdf->AddPage();
     $pageW = $pdf->getPageWidth();
-    $y = 50;
+    $pageH = $pdf->getPageHeight();
+    $mL = 15; $contW = $pageW - 30;
+    $y = 55;
 
-    $pdf->SetXY(15, $y);
-    $pdf->SetFont($font, 'B', 20);
-    $pdf->SetTextColor(...($config['_colors_rgb']['text'] ?? [20,20,20]));
-    $pdf->MultiCell($pageW - 30, 10, $closing['thank_you_text'] ?? ('Thank you for choosing ' . APP_NAME), 0, 'C');
-    $y = $pdf->GetY() + 10;
-
-    if (!empty($closing['contact_info'])) {
-        $pdf->SetXY(15, $y);
-        $pdf->SetFont($font, '', 11);
-        $pdf->SetTextColor(80,80,80);
-        $addr  = getSetting('company_address', '');
-        $phone = getSetting('company_support_phone', '');
-        $email = getSetting('company_email', '');
-        foreach (array_filter([$addr, $phone ? "Mobile: $phone" : '', $email ? "Email us at: $email" : '']) as $line) {
-            $pdf->Cell($pageW - 30, 12, $line, 0, 1, 'C');
-        }
-        $y = $pdf->GetY() + 6;
+    // Logo, centered
+    $logo = _cpeResolveLogoImage();
+    if ($logo) {
+        $logoW = 50;
+        $info  = @getimagesize($logo['path']);
+        $logoH = $info ? ($logoW * $info[1] / max($info[0], 1)) : $logoW * 0.6;
+        try {
+            $pdf->Image($logo['path'], ($pageW - $logoW) / 2, $y, $logoW, 0, $logo['type'], '', '', true, 150, 'C');
+            $y += $logoH + 18;
+        } catch (\Throwable $e) {}
+        @unlink($logo['path']);
     }
 
-    // QR codes (website / gmap) — TCPDF built-in 2D barcode, no external lib needed
-    $qrY = $y;
-    $qrSize = 30;
-    $qrX = 15;
+    // Title
+    $pdf->SetXY($mL, $y);
+    $pdf->SetFont($font, 'B', 19);
+    $pdf->SetTextColor(...$navyRgb);
+    $pdf->MultiCell($contW, 10, $closing['thank_you_text'] ?? ('Thank you for choosing ' . APP_NAME), 0, 'C');
+    $y = $pdf->GetY() + 8;
+
+    // Gold divider
+    $pdf->SetDrawColor(...$goldRgb);
+    $pdf->SetLineWidth(0.5);
+    $pdf->Line($pageW / 2 - 22, $y, $pageW / 2 + 22, $y);
+    $y += 16;
+
+    // Company name + address + contact — all centered
+    if (!empty($closing['contact_info'])) {
+        $companyName = trim(getSetting('company_name', APP_NAME));
+        $address     = trim(getSetting('company_address', ''));
+        $phone       = trim(getSetting('company_support_phone', ''));
+        $email       = trim(getSetting('company_email', ''));
+
+        if ($companyName !== '') {
+            $pdf->SetXY($mL, $y);
+            $pdf->SetFont($font, '', 13);
+            $pdf->SetTextColor(...$textRgb);
+            $pdf->Cell($contW, 7, $companyName, 0, 1, 'C');
+            $y = $pdf->GetY() + 2;
+        }
+
+        if ($address !== '') {
+            $pdf->SetFont($font, '', 11);
+            $pdf->SetTextColor(...$textRgb);
+            foreach (preg_split('/\r\n|\r|\n|,\s*/', $address) as $line) {
+                $line = trim($line);
+                if ($line === '') continue;
+                $pdf->SetX($mL);
+                $pdf->Cell($contW, 6.5, $line, 0, 1, 'C');
+            }
+            $y = $pdf->GetY() + 8;
+        }
+
+        if ($phone !== '') {
+            $pdf->SetXY($mL, $y);
+            $pdf->SetFont($font, '', 11);
+            $pdf->SetTextColor(...$textRgb);
+            $pdf->Cell($contW, 6.5, 'Mobile: ' . $phone, 0, 1, 'C');
+            $y = $pdf->GetY();
+        }
+        if ($email !== '') {
+            $pdf->SetXY($mL, $y);
+            $pdf->SetFont($font, '', 11);
+            $pdf->SetTextColor(...$textRgb);
+            $pdf->Cell($contW, 6.5, 'Email: ' . $email, 0, 1, 'C');
+            $y = $pdf->GetY();
+        }
+        $y += 14;
+    }
+
+    // QR code(s) — centered as a group. If both website + gmap are enabled,
+    // shown side by side; if only one, it's centered alone (matches the
+    // single-QR "Find Us" reference layout).
+    $qrSize = 32;
+    $qrItems = [];
     if (!empty($closing['website_qr'])) {
-        $pdf->write2DBarcode(BASE_URL, 'QRCODE,M', $qrX, $qrY, $qrSize, $qrSize, [], 'N');
-        $pdf->SetXY($qrX, $qrY + $qrSize + 1);
-        $pdf->SetFont($font, '', 7);
-        $pdf->Cell($qrSize, 4, 'Visit Website', 0, 0, 'C');
-        $qrX += $qrSize + 15;
+        $qrItems[] = ['url' => BASE_URL, 'label' => 'Visit Website'];
     }
     if (!empty($closing['gmap_qr'])) {
         $mapUrl = getSetting('company_location_url', '');
-        if ($mapUrl) {
-            $pdf->write2DBarcode($mapUrl, 'QRCODE,M', $qrX, $qrY, $qrSize, $qrSize, [], 'N');
-            $pdf->SetXY($qrX, $qrY + $qrSize + 1);
-            $pdf->SetFont($font, '', 7);
-            $pdf->Cell($qrSize, 4, 'Find Us', 0, 0, 'C');
-        }
+        if ($mapUrl !== '') $qrItems[] = ['url' => $mapUrl, 'label' => 'Find Us'];
     }
 
-    // Social media / sales team lists (simple text rows)
-    $y2 = $qrY + $qrSize + 12;
-    if (!empty($closing['social_media']) && !empty($closing['social_links'])) {
-        $pdf->SetXY(15, $y2);
-        $pdf->SetFont($font, 'B', 9);
-        $pdf->Cell($pageW-30, 6, 'Follow Us', 0, 1, 'C');
-        $pdf->SetFont($font, '', 8);
-        foreach ($closing['social_links'] as $sl) {
-            $pdf->Cell($pageW-30, 5, ($sl['platform'] ?? '') . ': ' . ($sl['url'] ?? ''), 0, 1, 'C');
+    if ($qrItems) {
+        $gap = 20;
+        $groupW = count($qrItems) * $qrSize + (count($qrItems) - 1) * $gap;
+        $qrX = ($pageW - $groupW) / 2;
+        foreach ($qrItems as $item) {
+            $pdf->write2DBarcode($item['url'], 'QRCODE,M', $qrX, $y, $qrSize, $qrSize, [], 'N');
+            $pdf->SetXY($qrX, $y + $qrSize + 3);
+            $pdf->SetFont($font, '', 8.5);
+            $pdf->SetTextColor(...[130, 130, 130]);
+            $pdf->Cell($qrSize, 5, $item['label'], 0, 0, 'C');
+            $qrX += $qrSize + $gap;
         }
-        $y2 = $pdf->GetY() + 4;
+        $y += $qrSize + 14;
+    }
+
+    // Social media / sales team lists — centered, kept optional as before
+    if (!empty($closing['social_media']) && !empty($closing['social_links'])) {
+        $pdf->SetXY($mL, $y);
+        $pdf->SetFont($font, 'B', 10);
+        $pdf->SetTextColor(...$navyRgb);
+        $pdf->Cell($contW, 6, 'Follow Us', 0, 1, 'C');
+        $pdf->SetFont($font, '', 9);
+        $pdf->SetTextColor(...$textRgb);
+        foreach ($closing['social_links'] as $sl) {
+            $pdf->SetX($mL);
+            $pdf->Cell($contW, 5.5, ($sl['platform'] ?? '') . ': ' . ($sl['url'] ?? ''), 0, 1, 'C');
+        }
+        $y = $pdf->GetY() + 6;
     }
     if (!empty($closing['sales_team']) && !empty($closing['sales_team_list'])) {
-        $pdf->SetXY(15, $y2);
-        $pdf->SetFont($font, 'B', 9);
-        $pdf->Cell($pageW-30, 6, 'Contact Our Team', 0, 1, 'C');
-        $pdf->SetFont($font, '', 8);
+        $pdf->SetXY($mL, $y);
+        $pdf->SetFont($font, 'B', 10);
+        $pdf->SetTextColor(...$navyRgb);
+        $pdf->Cell($contW, 6, 'Contact Our Team', 0, 1, 'C');
+        $pdf->SetFont($font, '', 9);
+        $pdf->SetTextColor(...$textRgb);
         foreach ($closing['sales_team_list'] as $member) {
             $line = trim(implode(' · ', array_filter([$member['name'] ?? '', $member['phone'] ?? '', $member['email'] ?? ''])));
-            if ($line) $pdf->Cell($pageW-30, 5, $line, 0, 1, 'C');
+            if ($line === '') continue;
+            $pdf->SetX($mL);
+            $pdf->Cell($contW, 5.5, $line, 0, 1, 'C');
         }
     }
 }

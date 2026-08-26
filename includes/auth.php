@@ -68,6 +68,9 @@ function generateRandomPassword(int $length = 10): string {
 }
  
 function createUserByAdmin(array $data): array {
+  if (licenseCapExceeded('users')) {
+        return ['success' => false, 'error' => licenseCapExceededMessage('users')];
+    }
     $db    = getDB();
     $name  = titleCase(trim($data['name']  ?? ''));
     $email = strtolower(trim($data['email'] ?? ''));
@@ -99,6 +102,10 @@ function createUserByAdmin(array $data): array {
 }
  
 function registerUser(array $data): array {
+    if (licenseCapExceeded('users')) {
+        return ['success' => false, 'error' => licenseCapExceededMessage('users')];
+    }
+  
     $db    = getDB();
     $email = strtolower(trim($data['email']));
     $check = $db->prepare("SELECT id FROM users WHERE email=?");
