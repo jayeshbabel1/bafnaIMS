@@ -12,7 +12,6 @@
   var searchEl   = document.getElementById('adminProductSearch');
   var clearBtn   = document.getElementById('adminSearchClear');
   var perPageEl  = document.getElementById('adminPerPage');
-  var catTabs    = document.getElementById('adminCatTabs');
   var loader     = document.getElementById('adminProductsLoader');
   var viewSwitch = document.getElementById('apvViewSwitch');
 
@@ -215,21 +214,7 @@
     });
   }
 
-  //  Category tabs 
-  if (catTabs) {
-    catTabs.querySelectorAll('[data-cat]').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        catTabs.querySelectorAll('[data-cat]').forEach(function (b) {
-          b.classList.remove('active');
-        });
-        btn.classList.add('active');
-        state.cat    = btn.dataset.cat;
-        state.page   = 1;
-        state.filter = '';   // clear health filter when switching category
-        loadProducts();
-      });
-    });
-  }
+  
 
   //  Confirm-delete rebind 
   function bindConfirm() {

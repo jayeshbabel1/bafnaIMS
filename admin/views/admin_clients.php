@@ -74,6 +74,17 @@ $totalPages = max(1, (int)ceil($total / $perPage));
     <input type="text" id="acSearch" class="admin-input" placeholder="Search client, mason, or user…" autocomplete="off"/>
     <button type="button" class="admin-clients-search-clear" id="acSearchClear"><?= icon('close', 11) ?></button>
   </div>
+  <select id="acCityFilter" class="admin-input" style="max-width:160px;">
+  <option value="">All Cities</option>
+  <?php foreach (getDistinctClientCities() as $c): ?>
+  <option value="<?= h($c) ?>"><?= h($c) ?></option>
+  <?php endforeach; ?>
+</select>
+<select id="acEmailFilter" class="admin-input" style="max-width:160px;">
+  <option value="">Email: All</option>
+  <option value="1">Email Available</option>
+  <option value="0">Email Not Available</option>
+</select>
   <div id="acCountEl" style="font-size:12px;color:var(--admin-text3,var(--text3));white-space:nowrap;margin-left:auto;">
     <?= $total ?> client<?= $total !== 1 ? 's' : '' ?>
   </div>

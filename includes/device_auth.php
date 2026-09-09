@@ -377,7 +377,10 @@ function attemptDeviceAutoLogin(string $panel): bool {
 // should be a plain logout or a Forced Logout (double-confirm + revoke).
 function getCurrentTrustedDevice(string $panel): ?array {
     $device = verifyTrustedDeviceCookie();
-    if (!$device) return null;
+    if (!$device) {
+      //  error_log('device_touch: verifyTrustedDeviceCookie() returned null (no cookie or hash mismatch), panel=' . $panel);
+        return null;
+    }
 
     if ($panel === 'user' && !empty($device['user_id'])
         && (int)$device['user_id'] === (int)($_SESSION['user_id'] ?? 0)) {
@@ -387,14 +390,31 @@ function getCurrentTrustedDevice(string $panel): ?array {
         && (int)$device['admin_id'] === (int)($_SESSION['admin_id'] ?? 0)) {
         return $device;
     }
+   // error_log('device_touch: cookie resolved to device_id=' . $device['id'] . ' but panel/owner mismatch — panel=' . $panel
+ //       . ' device_admin_id=' . ($device['admin_id'] ?? 'null') . ' device_user_id=' . ($device['user_id'] ?? 'null')
+ //       . ' session_admin_id=' . ($_SESSION['admin_id'] ?? 'null') . ' session_user_id=' . ($_SESSION['user_id'] ?? 'null'));
     return null;
 }
 
 function touchTrustedDeviceLastSeen(array $device): void {
     $now = time();
-    if (!empty($device['last_seen']) && ($now - (int)$device['last_seen']) < 43200) {
+    $age = !empty($device['last_seen']) ? ($now - (int)$device['last_seen']) : null;
+ //   error_log('device_touch: device_id=' . $device['id'] . ' admin_id=' . ($device['admin_id'] ?? 'null')
+   //     . ' session_admin_id=' . ($_SESSION['admin_id'] ?? 'null')
+   //     . ' last_seen=' . ($device['last_seen'] ?? 'null') . ' age=' . ($age ?? 'n/a'));
+    if ($age !== null && $age < 3600) {
+    //    error_log('device_touch: skipped (throttled)');
         return;
     }
-    getDB()->prepare("UPDATE trusted_devices SET last_seen=?, ip_last=?, updated_at=? WHERE id=?")
+    $ok = getDB()->prepare("UPDATE trusted_devices SET last_seen=?, ip_last=?, updated_at=? WHERE id=?")
            ->execute([$now, $_SERVER['REMOTE_ADDR'] ?? null, $now, (int)$device['id']]);
+  //  error_log('device_touch: UPDATE executed=' . ($ok ? 'yes' : 'no'));
 }
+
+
+
+
+
+
+
+

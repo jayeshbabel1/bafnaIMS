@@ -465,7 +465,7 @@ if (isset($_GET['pdf_download']) && isLoggedIn()) {
         exit;
     }
 
-    $result = generateProductPdf($pid);
+   $result = generateProductPdf($pid, $_SESSION['user_id'] ?? null, null);
     if (!$result['success']) {
         http_response_code(500);
         echo $result['error'] ?? 'PDF generation failed.';

@@ -18,6 +18,10 @@
       <div style="min-width:0;">
         <p style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px;"><?= h($c['client_name']) ?></p>
         <p style="font-size:11px;color:var(--admin-text3,var(--text3));"><?= h($c['client_mobile']) ?></p>
+        <?php if (!empty($c['city']) || !empty($c['email'])): ?>
+<p style="font-size:10px;color:var(--admin-text3,var(--text3));">
+  <?= h(trim(($c['city'] ?? '') . (!empty($c['city']) && !empty($c['email']) ? ' · ' : '') . ($c['email'] ?? ''))) ?>
+</p><?php endif; ?>
       </div>
     </div>
   </td>

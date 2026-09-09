@@ -436,7 +436,44 @@ if (adminCan('admins.view')) {
   </div>
 </div>
 <?php endif; ?>
- 
+ <?php
+$marketingSubItems = [];
+if (adminCan('marketing.contacts.view'))   $marketingSubItems[] = ['page'=>'marketing_contacts', 'label'=>'Contacts'];
+if (adminCan('marketing.groups.manage'))   $marketingSubItems[] = ['page'=>'marketing_groups',   'label'=>'Groups & Tags'];
+if (adminCan('marketing.campaigns.view'))   $marketingSubItems[] = ['page'=>'marketing_campaigns', 'label'=>'Campaigns'];
+if (adminCan('marketing.automation.manage')) $marketingSubItems[] = ['page'=>'marketing_automations', 'label'=>'Automations'];
+if (adminCan('marketing.reports.view'))     $marketingSubItems[] = ['page'=>'marketing_analytics', 'label'=>'Analytics'];
+if (adminCan('marketing.reports.view'))      $marketingSubItems[] = ['page'=>'marketing_queue_health', 'label'=>'Queue Health'];
+if (adminCan('marketing.templates.manage')) $marketingSubItems[] = ['page'=>'marketing_templates', 'label'=>'Templates'];
+if (adminCan('marketing.settings.manage')) $marketingSubItems[] = ['page'=>'marketing_settings_whatsapp', 'label'=>'WhatsApp API'];
+if (adminCan('marketing.settings.manage')) $marketingSubItems[] = ['page'=>'marketing_settings_email', 'label'=>'Email Settings'];
+$isMarketingActive = in_array($ap, ['marketing_contacts','marketing_groups','marketing_campaigns','marketing_campaign_wizard','marketing_analytics','marketing_contact_profile','marketing_templates','marketing_automations','marketing_automation_builder','marketing_queue_health','marketing_settings_whatsapp','marketing_settings_email']);
+?>
+<?php if (!empty($marketingSubItems)): ?>
+<!-- Marketing group -->
+<div class="admin-nav-group">
+  <button class="admin-nav-group-header <?= $isMarketingActive ? 'active' : '' ?>"
+          onclick="toggleMarketingMenu()" id="marketingMenuBtn" type="button">
+    <?= icon('msg', 18) ?>
+    <span>Marketing</span>
+    <svg class="admin-nav-group-chevron <?= $isMarketingActive ? 'open' : '' ?>"
+         id="marketingChevron" width="14" height="14" viewBox="0 0 24 24"
+         fill="none" stroke="currentColor" stroke-width="2"
+         stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="9 18 15 12 9 6"/>
+    </svg>
+  </button>
+  <div class="admin-nav-submenu <?= $isMarketingActive ? 'open' : '' ?>" id="marketingSubmenu">
+    <?php foreach ($marketingSubItems as $si): ?>
+    <a href="index.php?page=<?= $si['page'] ?>"
+       class="admin-nav-subitem <?= $ap === $si['page'] ? 'active' : '' ?>">
+      <span class="admin-nav-subitem-dot"></span> <?= h($si['label']) ?>
+    </a>
+    <?php endforeach; ?>
+  </div>
+</div>
+<?php endif; ?>
+
 <?php if (!empty($rolesSubItems)): ?>
 <!-- Roles & Permissions group -->
 <?php
@@ -643,6 +680,17 @@ function toggleRolesMenu() {
   var menu = document.getElementById('rolesSubmenu');
   var chev = document.getElementById('rolesChevron');
   var btn  = document.getElementById('rolesMenuBtn');
+  if (!menu) return;
+  var isOpen = menu.classList.contains('open');
+  menu.classList.toggle('open', !isOpen);
+  chev && chev.classList.toggle('open', !isOpen);
+  btn  && btn.classList.toggle('active', !isOpen);
+}
+  
+  function toggleMarketingMenu() {
+  var menu = document.getElementById('marketingSubmenu');
+  var chev = document.getElementById('marketingChevron');
+  var btn  = document.getElementById('marketingMenuBtn');
   if (!menu) return;
   var isOpen = menu.classList.contains('open');
   menu.classList.toggle('open', !isOpen);

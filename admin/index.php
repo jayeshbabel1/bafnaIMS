@@ -46,13 +46,27 @@ require_once __DIR__ . '/../includes/categories.php';
 require_once __DIR__ . '/../includes/translations.php';
 require_once __DIR__ . '/../includes/catalog_pdf.php';
 require_once __DIR__ . '/../includes/slab_calculator.php';
+require_once __DIR__ . '/../includes/marketing.php';
+require_once __DIR__ . '/../includes/marketing_contacts.php';
+require_once __DIR__ . '/../includes/marketing_whatsapp.php';
+require_once __DIR__ . '/../includes/marketing_email.php';
+require_once __DIR__ . '/../includes/marketing_variables.php';
+require_once __DIR__ . '/../includes/marketing_templates.php';
+require_once __DIR__ . '/../includes/marketing_campaigns.php';
+require_once __DIR__ . '/../includes/marketing_analytics.php';
+require_once __DIR__ . '/../includes/marketing_automation.php';
+require_once __DIR__ . '/../includes/marketing_catalog_integration.php';
+require_once __DIR__ . '/../includes/marketing_performance.php';
 ensureCatalogPdfPermissions();
 ensureCategoryPermissions();
 ensureWatermarkPermission();
 ensureProductViewPermission();
 ensureTranslationsPermission();
 ensureSlabCalculatorPermission();
-
+ensureMarketingTables();
+ensureMarketingPermissions();
+ensureMarketingTemplateVariableMapping();
+ensureMarketingPerformanceIndexes();
 // Handle POST 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
@@ -439,6 +453,478 @@ if ($action === 'delete_category') {
     $r['success']?flash('toast','Category deleted.'):flash('error',$r['error']);
     redirect('index.php?page=categories');
 }
+  
+  
+  // ── MARKETING: contacts ──────────────────────────────────────────────────
+if ($action === 'marketing_sync_users') {
+    requireAdmin(); requireAdminPermission('marketing.contacts.manage');
+    $stats = syncContactsFromUsers();
+    logMarketingAudit('sync_users', 'marketing_contacts', null, json_encode($stats));
+    flash('toast', "Synced from Users: {$stats['created']} added, {$stats['updated']} updated.");
+    redirect('index.php?page=marketing_contacts');
+}
+
+if ($action === 'marketing_sync_clients') {
+    requireAdmin(); requireAdminPermission('marketing.contacts.manage');
+    $stats = syncContactsFromClients();
+    logMarketingAudit('sync_clients', 'marketing_contacts', null, json_encode($stats));
+    flash('toast', "Synced from Clients: {$stats['created']} added, {$stats['updated']} updated.");
+    redirect('index.php?page=marketing_contacts');
+}
+
+if ($action === 'marketing_create_contact') {
+    requireAdmin(); requireAdminPermission('marketing.contacts.manage');
+    $r = createMarketingContact($_POST);
+    $r['success'] ? flash('toast', 'Contact added.') : flash('error', $r['error']);
+    if ($r['success']) logMarketingAudit('contact_created', 'marketing_contacts', $r['id'] ?? null);
+    redirect('index.php?page=marketing_contacts');
+}
+
+if ($action === 'marketing_update_contact') {
+    requireAdmin(); requireAdminPermission('marketing.contacts.manage');
+    $id = (int)($_POST['contact_id'] ?? 0);
+    $returnTo = !empty($_POST['return_to']) ? $_POST['return_to'] : 'index.php?page=marketing_contacts';
+    $r = updateMarketingContact($id, $_POST);
+    $r['success'] ? flash('toast', 'Contact updated.') : flash('error', $r['error']);
+    if ($r['success']) logMarketingAudit('contact_updated', 'marketing_contacts', $id);
+    redirect($returnTo);
+}
+
+if ($action === 'marketing_delete_contact') {
+    requireAdmin(); requireAdminPermission('marketing.contacts.manage');
+    $id = (int)($_POST['contact_id'] ?? 0);
+    deleteMarketingContact($id);
+    logMarketingAudit('contact_deleted', 'marketing_contacts', $id);
+    flash('toast', 'Contact deleted.');
+    redirect('index.php?page=marketing_contacts');
+}
+
+if ($action === 'marketing_bulk_action') {
+    requireAdmin(); requireAdminPermission('marketing.contacts.manage');
+    $ids = array_map('intval', (array)($_POST['contact_ids'] ?? []));
+    $bulkAction = $_POST['bulk_action'] ?? '';
+    if (empty($ids)) { flash('error', 'No contacts selected.'); redirect('index.php?page=marketing_contacts'); }
+    switch ($bulkAction) {
+        case 'add_tag':
+            bulkAddTagToContacts($ids, (int)($_POST['tag_id'] ?? 0));
+            flash('toast', count($ids) . ' contact(s) tagged.');
+            break;
+        case 'remove_tag':
+            bulkRemoveTagFromContacts($ids, (int)($_POST['tag_id'] ?? 0));
+            flash('toast', 'Tag removed from ' . count($ids) . ' contact(s).');
+            break;
+        case 'add_group':
+            bulkAddContactsToGroup($ids, (int)($_POST['group_id'] ?? 0));
+            flash('toast', count($ids) . ' contact(s) added to group.');
+            break;
+        case 'remove_group':
+            bulkRemoveContactsFromGroup($ids, (int)($_POST['group_id'] ?? 0));
+            flash('toast', count($ids) . ' contact(s) removed from group.');
+            break;
+        case 'delete':
+            $n = bulkDeleteContacts($ids);
+            flash('toast', "$n contact(s) deleted.");
+            break;
+        default:
+            flash('error', 'Unknown bulk action.');
+    }
+    logMarketingAudit('bulk_' . $bulkAction, 'marketing_contacts', null, json_encode($ids));
+    redirect('index.php?page=marketing_contacts');
+}
+
+if ($action === 'marketing_import_contacts') {
+    requireAdmin(); requireAdminPermission('marketing.contacts.manage');
+    if (empty($_FILES['contacts_file']['name'])) {
+        flash('error', 'Please choose a CSV file.');
+        redirect('index.php?page=marketing_contacts');
+    }
+    $ext = strtolower(pathinfo($_FILES['contacts_file']['name'], PATHINFO_EXTENSION));
+    if ($ext !== 'csv') {
+        flash('error', 'Only .csv files are supported.');
+        redirect('index.php?page=marketing_contacts');
+    }
+    $tmpPath = sys_get_temp_dir() . '/mkt_import_' . uniqid() . '.csv';
+    if (!move_uploaded_file($_FILES['contacts_file']['tmp_name'], $tmpPath)) {
+        flash('error', 'Could not read uploaded file.');
+        redirect('index.php?page=marketing_contacts');
+    }
+    $result = importMarketingContactsCsv($tmpPath);
+    @unlink($tmpPath);
+    if (!$result['success']) {
+        flash('error', $result['error']);
+    } else {
+        logMarketingAudit('contacts_imported', 'marketing_contacts', null,
+            "created={$result['created']} updated={$result['updated']} skipped={$result['skipped']}");
+        $summary = "Import complete: {$result['created']} added, {$result['updated']} updated, {$result['skipped']} skipped.";
+        if (!empty($result['errors'])) $summary .= ' ' . count($result['errors']) . ' row(s) had issues.';
+        flash('toast', $summary);
+    }
+    redirect('index.php?page=marketing_contacts');
+}
+
+// ── MARKETING: tags ───────────────────────────────────────────────────────
+if ($action === 'marketing_create_tag') {
+    requireAdmin(); requireAdminPermission('marketing.groups.manage');
+    $r = createMarketingTag($_POST['name'] ?? '', $_POST['color'] ?? '');
+    $r['success'] ? flash('toast', 'Tag created.') : flash('error', $r['error']);
+    redirect('index.php?page=marketing_contacts');
+}
+if ($action === 'marketing_update_tag') {
+    requireAdmin(); requireAdminPermission('marketing.groups.manage');
+    $r = updateMarketingTag((int)($_POST['tag_id'] ?? 0), $_POST['name'] ?? '', $_POST['color'] ?? '');
+    $r['success'] ? flash('toast', 'Tag updated.') : flash('error', $r['error']);
+    redirect('index.php?page=marketing_contacts');
+}
+if ($action === 'marketing_delete_tag') {
+    requireAdmin(); requireAdminPermission('marketing.groups.manage');
+    deleteMarketingTag((int)($_POST['tag_id'] ?? 0));
+    flash('toast', 'Tag deleted.');
+    redirect('index.php?page=marketing_contacts');
+}
+
+// ── MARKETING: groups ──────────────────────────────────────────────────────
+if ($action === 'marketing_create_group') {
+    requireAdmin(); requireAdminPermission('marketing.groups.manage');
+    $r = createMarketingGroup($_POST);
+    $r['success'] ? flash('toast', 'Group created.') : flash('error', $r['error']);
+    if ($r['success']) logMarketingAudit('group_created', 'marketing_groups', $r['id'] ?? null);
+    redirect('index.php?page=marketing_groups');
+}
+if ($action === 'marketing_update_group') {
+    requireAdmin(); requireAdminPermission('marketing.groups.manage');
+    $id = (int)($_POST['group_id'] ?? 0);
+    $r = updateMarketingGroup($id, $_POST);
+    $r['success'] ? flash('toast', 'Group updated.') : flash('error', $r['error']);
+    if ($r['success']) logMarketingAudit('group_updated', 'marketing_groups', $id);
+    redirect('index.php?page=marketing_groups');
+}
+if ($action === 'marketing_delete_group') {
+    requireAdmin(); requireAdminPermission('marketing.groups.manage');
+    $id = (int)($_POST['group_id'] ?? 0);
+    deleteMarketingGroup($id);
+    logMarketingAudit('group_deleted', 'marketing_groups', $id);
+    flash('toast', 'Group deleted.');
+    redirect('index.php?page=marketing_groups');
+}
+ 
+  // ── MARKETING: WhatsApp settings (Fire 4) ─────────────────────────────────
+if ($action === 'marketing_save_whatsapp_settings') {
+    requireAdmin(); requireAdminPermission('marketing.settings.manage');
+    saveMarketingWhatsAppSettings($_POST);
+    logMarketingAudit('whatsapp_settings_saved', 'marketing_provider_settings', null,
+        'phone_number_id=' . trim($_POST['phone_number_id'] ?? ''));
+    flash('toast', 'WhatsApp settings saved.');
+    redirect('index.php?page=marketing_settings_whatsapp');
+}
+
+if ($action === 'marketing_test_whatsapp_connection') {
+    header('Content-Type: application/json');
+    requireAdmin();
+    requireAdminPermissionJson('marketing.settings.manage');
+    csrfVerify(true);
+    if (!throttle('marketing_test_whatsapp', 10, 60)) {
+        echo json_encode(['valid' => false, 'error' => 'Too many test attempts. Please wait a moment.']);
+        exit;
+    }
+    $result = testMarketingWhatsAppConnection();
+    echo json_encode($result);
+    exit;
+}
+  
+  // ── MARKETING: Email settings 
+if ($action === 'marketing_save_email_settings') {
+    requireAdmin(); requireAdminPermission('marketing.settings.manage');
+    $r = saveMarketingEmailSettings($_POST);
+    $r['success'] ? flash('toast', 'Email marketing settings saved.') : flash('error', $r['error']);
+    if ($r['success']) logMarketingAudit('email_settings_saved', 'marketing_provider_settings');
+    redirect('index.php?page=marketing_settings_email');
+}
+
+if ($action === 'marketing_test_email_connection') {
+    header('Content-Type: application/json');
+    requireAdmin();
+    requireAdminPermissionJson('marketing.settings.manage');
+    csrfVerify(true);
+    if (!throttle('marketing_test_email', 5, 60)) {
+        echo json_encode(['success' => false, 'error' => 'Too many test emails sent. Please wait a moment.']);
+        exit;
+    }
+    $result = testMarketingEmailConnection(trim($_POST['test_email'] ?? ''));
+    echo json_encode($result);
+    exit;
+}
+  
+ // ── MARKETING: Templates (Fire 6) ─────────────────────────────────────────
+if ($action === 'marketing_create_template') {
+    requireAdmin(); requireAdminPermission('marketing.templates.manage');
+    $r = createMarketingTemplate($_POST);
+    $r['success'] ? flash('toast', 'Template created.') : flash('error', $r['error']);
+    if ($r['success']) logMarketingAudit('template_created', 'marketing_templates', $r['id'] ?? null);
+    redirect('index.php?page=marketing_templates');
+}
+
+if ($action === 'marketing_update_template') {
+    requireAdmin(); requireAdminPermission('marketing.templates.manage');
+    $id = (int)($_POST['template_id'] ?? 0);
+    $r = updateMarketingTemplate($id, $_POST);
+    $r['success'] ? flash('toast', 'Template updated.') : flash('error', $r['error']);
+    if ($r['success']) logMarketingAudit('template_updated', 'marketing_templates', $id);
+    redirect('index.php?page=marketing_templates');
+}
+
+if ($action === 'marketing_delete_template') {
+    requireAdmin(); requireAdminPermission('marketing.templates.manage');
+    $id = (int)($_POST['template_id'] ?? 0);
+    deleteMarketingTemplate($id);
+    logMarketingAudit('template_deleted', 'marketing_templates', $id);
+    flash('toast', 'Template deleted.');
+    redirect('index.php?page=marketing_templates');
+}
+
+if ($action === 'marketing_duplicate_template') {
+    requireAdmin(); requireAdminPermission('marketing.templates.manage');
+    $id = (int)($_POST['template_id'] ?? 0);
+    $r = duplicateMarketingTemplate($id);
+    $r['success'] ? flash('toast', 'Template duplicated.') : flash('error', $r['error']);
+    if ($r['success']) logMarketingAudit('template_duplicated', 'marketing_templates', $r['id'] ?? null, "source_id={$id}");
+    redirect('index.php?page=marketing_templates');
+}
+
+if ($action === 'marketing_sync_whatsapp_templates') {
+    requireAdmin(); requireAdminPermission('marketing.templates.manage');
+    $r = syncWhatsAppTemplatesFromMeta();
+    if ($r['success']) {
+        logMarketingAudit('templates_synced_from_meta', 'marketing_templates', null,
+            "created={$r['created']} updated={$r['updated']}");
+        flash('toast', "Synced from Meta: {$r['created']} added, {$r['updated']} updated.");
+    } else {
+        flash('error', $r['error']);
+    }
+    redirect('index.php?page=marketing_templates');
+}
+  
+  // ── MARKETING: Campaigns (Fire 7) ──────────────────────────────────────────
+if ($action === 'marketing_delete_campaign') {
+    requireAdmin(); requireAdminPermission('marketing.campaigns.create');
+    $id = (int)($_POST['campaign_id'] ?? 0);
+    $r = deleteMarketingCampaign($id);
+    $r['success'] ? flash('toast', 'Campaign deleted.') : flash('error', $r['error']);
+    if ($r['success']) logMarketingAudit('campaign_deleted', 'marketing_campaigns', $id);
+    redirect('index.php?page=marketing_campaigns');
+}
+
+if ($action === 'marketing_duplicate_campaign') {
+    requireAdmin(); requireAdminPermission('marketing.campaigns.create');
+    $id = (int)($_POST['campaign_id'] ?? 0);
+    $r = duplicateMarketingCampaign($id);
+    $r['success'] ? flash('toast', 'Campaign duplicated.') : flash('error', $r['error']);
+    if ($r['success']) {
+        logMarketingAudit('campaign_duplicated', 'marketing_campaigns', $r['id'] ?? null, "source_id={$id}");
+        redirect('index.php?page=marketing_campaign_wizard&id=' . $r['id']);
+    }
+    redirect('index.php?page=marketing_campaigns');
+}
+  
+if ($action === 'marketing_submit_campaign_approval') {
+    requireAdmin(); requireAdminPermission('marketing.campaigns.create');
+    $id = (int)($_POST['campaign_id'] ?? 0);
+    $r = submitCampaignForApproval($id);
+    $r['success'] ? flash('toast', 'Submitted for approval.') : flash('error', $r['error']);
+    if ($r['success']) logMarketingAudit('campaign_submitted', 'marketing_campaigns', $id);
+    redirect('index.php?page=marketing_campaigns');
+}
+
+if ($action === 'marketing_approve_campaign') {
+    requireAdmin(); requireAdminPermission('marketing.campaigns.approve');
+    $id = (int)($_POST['campaign_id'] ?? 0);
+    $r = approveCampaign($id);
+    $r['success'] ? flash('toast', 'Campaign approved.') : flash('error', $r['error']);
+    if ($r['success']) logMarketingAudit('campaign_approved', 'marketing_campaigns', $id);
+    redirect('index.php?page=marketing_campaigns');
+}
+
+if ($action === 'marketing_reject_campaign') {
+    requireAdmin(); requireAdminPermission('marketing.campaigns.approve');
+    $id = (int)($_POST['campaign_id'] ?? 0);
+    $r = rejectCampaign($id, $_POST['reason'] ?? '');
+    $r['success'] ? flash('toast', 'Campaign sent back to draft.') : flash('error', $r['error']);
+    redirect('index.php?page=marketing_campaigns');
+}
+
+if ($action === 'marketing_schedule_campaign') {
+    header('Content-Type: application/json');
+    requireAdmin();
+    requireAdminPermissionJson('marketing.campaigns.send');
+    $id = (int)($_POST['campaign_id'] ?? 0);
+    $result = scheduleCampaignForSending($id, $_POST);
+    echo json_encode($result);
+    exit;
+}
+
+if ($action === 'marketing_pause_campaign') {
+    requireAdmin(); requireAdminPermission('marketing.campaigns.send');
+    $id = (int)($_POST['campaign_id'] ?? 0);
+    pauseCampaign($id);
+    flash('toast', 'Campaign paused.');
+    redirect('index.php?page=marketing_campaigns');
+}
+
+if ($action === 'marketing_resume_campaign') {
+    requireAdmin(); requireAdminPermission('marketing.campaigns.send');
+    $id = (int)($_POST['campaign_id'] ?? 0);
+    resumeCampaign($id);
+    flash('toast', 'Campaign resumed.');
+    redirect('index.php?page=marketing_campaigns');
+}
+
+if ($action === 'marketing_cancel_campaign') {
+    requireAdmin(); requireAdminPermission('marketing.campaigns.send');
+    $id = (int)($_POST['campaign_id'] ?? 0);
+    cancelCampaign($id);
+    flash('toast', 'Campaign cancelled.');
+    redirect('index.php?page=marketing_campaigns');
+}
+  
+  // ── MARKETING: Contact profile actions (Fire 10) ───────────────────────────
+if ($action === 'marketing_toggle_suppression') {
+    requireAdmin(); requireAdminPermission('marketing.contacts.manage');
+    $id = (int)($_POST['contact_id'] ?? 0);
+    $channel = $_POST['channel'] ?? '';
+    $suppress = !empty($_POST['suppress']);
+    $r = toggleMarketingSuppression($id, $channel, $suppress);
+    $r['success'] ? flash('toast', $suppress ? 'Contact suppressed.' : 'Suppression removed.') : flash('error', $r['error']);
+    if ($r['success']) logMarketingAudit($suppress ? 'contact_suppressed' : 'contact_unsuppressed', 'marketing_contacts', $id, "channel={$channel}");
+    redirect('index.php?page=marketing_contact_profile&id=' . $id);
+}
+
+if ($action === 'marketing_contact_add_tag') {
+    requireAdmin(); requireAdminPermission('marketing.contacts.manage');
+    $id = (int)($_POST['contact_id'] ?? 0);
+    $tagId = (int)($_POST['tag_id'] ?? 0);
+    if ($tagId) { bulkAddTagToContacts([$id], $tagId); logMarketingAudit('contact_tag_added', 'marketing_contacts', $id, "tag_id={$tagId}"); }
+    redirect('index.php?page=marketing_contact_profile&id=' . $id);
+}
+
+if ($action === 'marketing_contact_remove_tag') {
+    requireAdmin(); requireAdminPermission('marketing.contacts.manage');
+    $id = (int)($_POST['contact_id'] ?? 0);
+    $tagId = (int)($_POST['tag_id'] ?? 0);
+    if ($tagId) { bulkRemoveTagFromContacts([$id], $tagId); logMarketingAudit('contact_tag_removed', 'marketing_contacts', $id, "tag_id={$tagId}"); }
+    redirect('index.php?page=marketing_contact_profile&id=' . $id);
+}
+
+if ($action === 'marketing_contact_add_group') {
+    requireAdmin(); requireAdminPermission('marketing.contacts.manage');
+    $id = (int)($_POST['contact_id'] ?? 0);
+    $groupId = (int)($_POST['group_id'] ?? 0);
+    if ($groupId) { bulkAddContactsToGroup([$id], $groupId); logMarketingAudit('contact_group_added', 'marketing_contacts', $id, "group_id={$groupId}"); }
+    redirect('index.php?page=marketing_contact_profile&id=' . $id);
+}
+
+if ($action === 'marketing_contact_remove_group') {
+    requireAdmin(); requireAdminPermission('marketing.contacts.manage');
+    $id = (int)($_POST['contact_id'] ?? 0);
+    $groupId = (int)($_POST['group_id'] ?? 0);
+    if ($groupId) { bulkRemoveContactsFromGroup([$id], $groupId); logMarketingAudit('contact_group_removed', 'marketing_contacts', $id, "group_id={$groupId}"); }
+    redirect('index.php?page=marketing_contact_profile&id=' . $id);
+}
+  
+  // ── MARKETING: Automations (Fire 11) ───────────────────────────────────────
+if ($action === 'marketing_create_automation') {
+    requireAdmin(); requireAdminPermission('marketing.automation.manage');
+    $r = createMarketingAutomation($_POST);
+    if ($r['success']) {
+        logMarketingAudit('automation_created', 'marketing_automations', $r['id']);
+        redirect('index.php?page=marketing_automation_builder&id=' . $r['id']);
+    }
+    flash('error', $r['error']);
+    redirect('index.php?page=marketing_automations');
+}
+
+if ($action === 'marketing_update_automation') {
+    requireAdmin(); requireAdminPermission('marketing.automation.manage');
+    $id = (int)($_POST['automation_id'] ?? 0);
+    $r = updateMarketingAutomation($id, $_POST);
+    $r['success'] ? flash('toast', 'Automation saved.') : flash('error', $r['error']);
+    if ($r['success']) logMarketingAudit('automation_updated', 'marketing_automations', $id);
+    redirect('index.php?page=marketing_automation_builder&id=' . $id);
+}
+
+if ($action === 'marketing_toggle_automation') {
+    requireAdmin(); requireAdminPermission('marketing.automation.manage');
+    $id = (int)($_POST['automation_id'] ?? 0);
+    $r = toggleMarketingAutomationActive($id, !empty($_POST['active']) && $_POST['active'] === '1');
+    $r['success'] ? flash('toast', 'Automation status updated.') : flash('error', $r['error']);
+    if ($r['success']) logMarketingAudit('automation_toggled', 'marketing_automations', $id, "active={$_POST['active']}");
+    redirect('index.php?page=marketing_automations');
+}
+
+if ($action === 'marketing_delete_automation') {
+    requireAdmin(); requireAdminPermission('marketing.automation.manage');
+    $id = (int)($_POST['automation_id'] ?? 0);
+    deleteMarketingAutomation($id);
+    logMarketingAudit('automation_deleted', 'marketing_automations', $id);
+    flash('toast', 'Automation deleted.');
+    redirect('index.php?page=marketing_automations');
+}
+
+if ($action === 'marketing_automation_add_step') {
+    requireAdmin(); requireAdminPermission('marketing.automation.manage');
+    $automationId = (int)($_POST['automation_id'] ?? 0);
+    $stepType = $_POST['step_type'] ?? '';
+    $config = $_POST;
+    unset($config['action'], $config['automation_id'], $config['step_type'], $config['step_id'], $config['csrf_token']);
+    $r = addAutomationStep($automationId, $stepType, $config);
+    $r['success'] ? flash('toast', 'Step added.') : flash('error', $r['error']);
+    if ($r['success']) logMarketingAudit('automation_step_added', 'marketing_automations', $automationId, "type={$stepType}");
+    redirect('index.php?page=marketing_automation_builder&id=' . $automationId);
+}
+
+if ($action === 'marketing_automation_update_step') {
+    requireAdmin(); requireAdminPermission('marketing.automation.manage');
+    $automationId = (int)($_POST['automation_id'] ?? 0);
+    $stepId = (int)($_POST['step_id'] ?? 0);
+    $config = $_POST;
+    unset($config['action'], $config['automation_id'], $config['step_type'], $config['step_id'], $config['csrf_token']);
+    updateAutomationStep($stepId, $config);
+    flash('toast', 'Step updated.');
+    logMarketingAudit('automation_step_updated', 'marketing_automations', $automationId, "step_id={$stepId}");
+    redirect('index.php?page=marketing_automation_builder&id=' . $automationId);
+}
+
+if ($action === 'marketing_automation_delete_step') {
+    requireAdmin(); requireAdminPermission('marketing.automation.manage');
+    $automationId = (int)($_POST['automation_id'] ?? 0);
+    $stepId = (int)($_POST['step_id'] ?? 0);
+    deleteAutomationStep($stepId);
+    flash('toast', 'Step deleted.');
+    logMarketingAudit('automation_step_deleted', 'marketing_automations', $automationId, "step_id={$stepId}");
+    redirect('index.php?page=marketing_automation_builder&id=' . $automationId);
+}
+
+if ($action === 'marketing_automation_move_step') {
+    requireAdmin(); requireAdminPermission('marketing.automation.manage');
+    $automationId = (int)($_POST['automation_id'] ?? 0);
+    moveAutomationStep((int)($_POST['step_id'] ?? 0), $_POST['direction'] ?? 'up');
+    redirect('index.php?page=marketing_automation_builder&id=' . $automationId);
+}
+  
+  // ── MARKETING: Ad-hoc selection catalog send (Fire 12) ────────────────────
+if ($action === 'marketing_send_selection_catalog') {
+    requireAdmin(); requireAdminPermission('marketing.contacts.manage');
+    $contactId = (int)($_POST['contact_id'] ?? 0);
+    $channel = $_POST['channel'] ?? '';
+    $templateId = (int)($_POST['template_id'] ?? 0);
+    $r = sendAdHocSelectionCatalog($contactId, $channel, $templateId);
+    $r['success'] ? flash('toast', 'Selection catalog sent.') : flash('error', $r['error']);
+    redirect('index.php?page=marketing_contact_profile&id=' . $contactId);
+}
+  
+  
+  
+  
+  
+  
   
   //  ADMIN: CREATE CLIENT 
 if ($action === 'admin_create_client') {
@@ -1192,7 +1678,7 @@ if (isset($_GET['pdf_download']) && isAdmin()) {
         exit;
     }
 
-    $result = generateProductPdf($pid);
+   $result = generateProductPdf($pid, null, $_SESSION['admin_id'] ?? null);
 
     if (!$result['success']) {
         http_response_code(500);
@@ -1224,6 +1710,28 @@ if (isset($_GET['pdf_download']) && isAdmin()) {
     @unlink($result['path']);
     exit;
 }
+
+// ── Marketing contacts CSV export ──────────────────────────────────────
+if (isset($_GET['marketing_export_contacts']) && isAdmin()) {
+    requireAdminPermission('marketing.contacts.view');
+    require_once __DIR__ . '/../includes/marketing_contacts.php';
+    header('Content-Type: text/csv; charset=utf-8');
+    header('Content-Disposition: attachment; filename="marketing_contacts_' . date('Ymd') . '.csv"');
+    $out = fopen('php://output', 'w');
+    fputcsv($out, ['Name','Mobile','WhatsApp','Email','City','Source','Status','WhatsApp Opt-in','Email Opt-in']);
+    $result = getMarketingContacts(['limit' => 100000, 'offset' => 0]);
+    foreach ($result['rows'] as $c) {
+        fputcsv($out, [
+            $c['name'], $c['mobile'], $c['whatsapp_number'], $c['email'], $c['city'],
+            $c['source_type'], $c['status'],
+            $c['whatsapp_opt_in'] ? 'Yes' : 'No', $c['email_opt_in'] ? 'Yes' : 'No',
+        ]);
+    }
+    fclose($out);
+    exit;
+}
+
+
 //  Routing 
 $page = preg_replace('/[^a-z_]/', '', $_GET['page'] ?? 'dashboard');
 
@@ -2456,7 +2964,7 @@ function syncDnaReports(): array {
 
 $pages = ['dashboard','products','product_edit','colors','users','inquiries','sync',
               'notifications','logo','user_clients','smtp',
-              'admin_clients','admin_client_form','admin_client_selections',             'roles','admin_accounts','room_templates','license','product_view_settings','devices','product_categories','translations','catalog_pdf_settings','catalog_pdf_history', 'catalog_pdf_wizard','catalog_pdf_templates'];
+              'admin_clients','admin_client_form','admin_client_selections',             'roles','admin_accounts','room_templates','license','product_view_settings','devices','product_categories','translations','catalog_pdf_settings','catalog_pdf_history', 'catalog_pdf_wizard','catalog_pdf_templates','marketing_contacts','marketing_groups','marketing_settings_whatsapp','marketing_settings_email','marketing_templates','marketing_campaigns','marketing_campaign_wizard','marketing_analytics','marketing_contact_profile','marketing_automations','marketing_automation_builder','marketing_queue_health'];
 
 // Unknown ?page= value in admin panel → 404 instead of silently falling
 // back to the dashboard.
@@ -2494,6 +3002,18 @@ $file = __DIR__ . '/views/' . $page . '.php';
       'catalog_pdf_history'  => 'catalog.history',
         'catalog_pdf_wizard'   => 'catalog.create',
       'catalog_pdf_templates'=> 'catalog.template.manage',
+       'marketing_contacts'   => 'marketing.contacts.view',
+      'marketing_groups'     => 'marketing.groups.manage',
+        'marketing_settings_whatsapp' => 'marketing.settings.manage',
+      'marketing_settings_email'    => 'marketing.settings.manage',
+       'marketing_templates'         => 'marketing.templates.manage',
+       'marketing_campaigns'         => 'marketing.campaigns.view',
+      'marketing_campaign_wizard'   => 'marketing.campaigns.create',
+      'marketing_analytics'         => 'marketing.reports.view',
+      'marketing_contact_profile'   => 'marketing.contacts.view',
+      'marketing_automations'          => 'marketing.automation.manage',
+      'marketing_automation_builder'   => 'marketing.automation.manage',
+       'marketing_queue_health'         => 'marketing.reports.view',
     ];
     if (isset($routePermissions[$page])) {
         requireAdminPermission($routePermissions[$page]);

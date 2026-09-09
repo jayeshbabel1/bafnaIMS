@@ -103,6 +103,13 @@ if ($isAjax) {
         <a href="tel:<?= h($client['client_mobile']) ?>" style="font-size:13px;color:var(--text3);display:flex;align-items:center;gap:4px;">
           <?= icon('phone', 12) ?> <?= h($client['client_mobile']) ?>
         </a>
+        <?php if (!empty($client['city']) || !empty($client['email'])): ?>
+<div style="flex:1;min-width:160px;">
+  <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--text4);margin-bottom:3px;">Contact</p>
+  <?php if (!empty($client['email'])): ?><p style="font-size:12px;color:var(--text2);"><?= h($client['email']) ?></p><?php endif; ?>
+  <?php if (!empty($client['city'])): ?><p style="font-size:12px;color:var(--text3);"><?= h($client['city']) ?></p><?php endif; ?>
+</div>
+<?php endif; ?>
       </div>
     </div>
     <?php if ($client['mansoner_name']): ?>

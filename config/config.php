@@ -1,4 +1,5 @@
 <?php
+date_default_timezone_set('Asia/Kolkata');
 $_envFile = dirname(__DIR__) . '/.env';
 if (file_exists($_envFile)) {
     foreach (file($_envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $_line) {
@@ -9,8 +10,8 @@ if (file_exists($_envFile)) {
 }
 
 define('APP_NAME',    'Bafna Marble');
-define('APP_VERSION', '3.0.0');
-define('BASE_PATH',   dirname(__DIR__));
+define('APP_VERSION', '3.1.1');
+if (!defined('BASE_PATH')) define('BASE_PATH',   dirname(__DIR__));
 define('BASE_URL',    (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS']==='on' ? 'https' : 'http').'://'.($_SERVER['HTTP_HOST'] ?? 'localhost'));
 
 // MySQL Database 
@@ -29,6 +30,7 @@ define('DNA_DIR',         BASE_PATH . '/assets/uploads/dna_reports');
 define('EXCEL_DIR',       BASE_PATH . '/assets/uploads/excel');
 define('VIDEOS_DIR', BASE_PATH . '/assets/uploads/videos');
 define('VIDEOS_URL', 'assets/uploads/videos');
+
 // ── Room Visualizer settings ─────────────────────────────────────
 define('ROOM_TEMPLATES_DIR', BASE_PATH . '/assets/uploads/room_templates');
 define('ROOM_PREVIEWS_DIR',  BASE_PATH . '/storage/room_previews');
@@ -52,7 +54,6 @@ define('ROOM_TYPES', [
 foreach ([ROOM_TEMPLATES_DIR, ROOM_PREVIEWS_DIR] as $_rvDir) {
     if (!is_dir($_rvDir)) @mkdir($_rvDir, 0755, true);
 }
-
 
 define('SESSION_TTL',  86400 * 2); // 2 days
 // SMTP SETTINGS
@@ -90,9 +91,9 @@ if (!headers_sent()) {
     "Content-Security-Policy: " .
     "default-src 'self'; " .
     "img-src 'self' data: blob: https:; " .
-    "script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com https://www.youtube.com https://player.vimeo.com https://cdn.jsdelivr.net; " .
+    "script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com https://www.youtube.com https://player.vimeo.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; " .
     "connect-src 'self' https://cloudflareinsights.com https://www.youtube.com https://player.vimeo.com https://vimeo.com; " .
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " .
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com ; " .
     "font-src 'self' https://fonts.gstatic.com; " .
     "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com; " .
     "media-src 'self' https: blob:;"

@@ -123,7 +123,7 @@ function catalogPdfDefaultConfig(): array {
         'orientation' => 'portrait',
         'page_size' => 'A4',
         'custom_w_mm' => 210, 'custom_h_mm' => 297,
-        'font' => 'bodoni72',
+        'font' => 'bodoni72book',
         'colors' => [
             'primary' => '#2C6E8A', 'secondary' => '#1A4D65', 'accent' => '#B8975A',
             'background' => '#FFFFFF', 'text' => '#1A2837', 'button' => '#2C6E8A', 'border' => '#DDE4EB',
@@ -311,7 +311,8 @@ function generateClientSelectionCatalog(int $clientId, ?int $adminId = null, ?in
     $config['_selection_map'] = $selectionMap;
    $config['cover']['label']        = 'Stone Selections';
     $config['cover']['prepared_for'] = $client['client_name'];
-   
+   $contactBits = array_filter([$client['client_mobile'] ?? '', $client['email'] ?? '', $client['city'] ?? '']);
+   $config['cover']['client_contact'] = implode('  ·  ', $contactBits);
 
     $draft = createCatalogDraft([
         'name'             => $client['client_name'] . ' — Selections — ' . date('d M Y'),

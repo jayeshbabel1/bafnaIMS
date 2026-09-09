@@ -90,6 +90,8 @@
           $wa_msg .= "*Client:* " . $client['client_name'] . "\n";
 		  $wa_msg .= "*Client Belongs To :* " . h($client['owner_name']) . "\n";
           $wa_msg .= "*Mobile:* " . $client['client_mobile'] . "\n";
+		  if (!empty($client['email'])) $wa_msg .= "*Email:* " . $client['email'] . "\n";
+          if (!empty($client['city']))  $wa_msg .= "*City:* " . $client['city'] . "\n";
           if ($client['mansoner_name']) {
               $wa_msg .= "*Mason:* " . $client['mansoner_name'] . "\n";
               if ($client['mansoner_mobile']) {

@@ -64,7 +64,19 @@ $g = fn($k) => h($c[$k] ?? '');
           <p class="input-hint">10-digit Indian mobile number</p>
         </div>
       </div>
-
+<div class="input-group">
+  <label class="input-label">Email Address</label>
+  <input type="email" name="email" class="input-field"
+         placeholder="client@example.com"
+         value="<?= $g('email') ?>"/>
+  <p class="input-hint">Optional — used to send catalogs directly.</p>
+</div>
+<div class="input-group">
+  <label class="input-label">City</label>
+  <input type="text" name="city" class="input-field"
+         placeholder="e.g. Mumbai"
+         value="<?= $g('city') ?>"/>
+</div>
       <hr class="divider" style="margin:4px 0 20px;"/>
 
       <!-- Mason section -->
@@ -133,6 +145,11 @@ document.getElementById('clientForm').addEventListener('submit', function (e) {
   if (masonMob && (masonMob.length !== 10 || !/^[6-9]/.test(masonMob))) {
     e.preventDefault();
     alert('Please enter a valid 10-digit mason mobile number.');
+  }
+  const emailVal = this.querySelector('[name="email"]').value.trim();
+  if (emailVal && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailVal)) {
+    e.preventDefault();
+    alert('Please enter a valid email address.');
   }
 });
 </script>

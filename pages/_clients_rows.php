@@ -47,6 +47,13 @@ if (!isset($clients)) {
             <?= icon('phone', 11) ?>&nbsp;<?= h($c['client_mobile']) ?>
           </a>
         </p>
+        <?php if (!empty($c['city']) || !empty($c['email'])): ?>
+<p class="client-card-mobile" style="margin-top:2px;">
+  <?php if (!empty($c['city'])): ?><?= icon('verified',11) ?>&nbsp;<?= h($c['city']) ?><?php endif; ?>
+  <?php if (!empty($c['city']) && !empty($c['email'])): ?> &nbsp;·&nbsp; <?php endif; ?>
+  <?php if (!empty($c['email'])): ?><?= icon('mail',11) ?>&nbsp;<?= h($c['email']) ?><?php endif; ?>
+</p>
+<?php endif; ?>
       </div>
       <span class="badge badge-black" style="flex-shrink:0;"><?= $c['selection_count'] ?> items</span>
     </div>

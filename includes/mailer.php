@@ -6,7 +6,7 @@
  * ─────────────────────────────────────────────────────────────────────────
  */
 
-function sendMail(string $to, string $subject, string $html, string $text = '', string $toName = '', array $attachments = [], string $cc = '', string $bcc = ''): array {
+function sendMail(string $to, string $subject, string $html, string $text = '', string $toName = '', array $attachments = [], string $cc = '', string $bcc = '', ?string $fromNameOverride = null, ?string $fromEmailOverride = null, ?string $replyTo = null): array {
     $settings = getSmtpSettings();
 
     if ($text === '') {
@@ -14,12 +14,12 @@ function sendMail(string $to, string $subject, string $html, string $text = '', 
     }
 
     if ($settings['smtp_enabled']) {
-        return sendMailSmtp($to, $toName, $subject, $html, $text, $settings, $attachments, $cc, $bcc);
+        return sendMailSmtp($to, $toName, $subject, $html, $text, $settings, $attachments, $cc, $bcc, $fromNameOverride, $fromEmailOverride, $replyTo);
     }
 
     if (!empty($attachments)) error_log('sendMail: attachments require SMTP; native mail() sent without attachment.');
     if ($cc !== '' || $bcc !== '') error_log('sendMail: CC/BCC require SMTP; native mail() sent without CC/BCC.');
-    return sendMailNative($to, $toName, $subject, $html, $text, $settings);
+    return sendMailNative($to, $toName, $subject, $html, $text, $settings, $fromNameOverride, $fromEmailOverride, $replyTo);
 }
 
 /**
@@ -55,21 +55,21 @@ function getSmtpSettings(): array {
     return $cache;
 }
 
-function sendMailSmtp(string $to, string $toName, string $subject, string $html, string $text, array $s, array $attachments = [], string $cc = '', string $bcc = ''): array {
+function sendMailSmtp(string $to, string $toName, string $subject, string $html, string $text, array $s, array $attachments = [], string $cc = '', string $bcc = '', ?string $fromNameOverride = null, ?string $fromEmailOverride = null, ?string $replyTo = null): array {
     // Try to use PHPMailer if available (composer dependency already installed)
     $autoload = BASE_PATH . '/vendor/autoload.php';
     if (file_exists($autoload)) {
-        return sendMailPhpMailer($to, $toName, $subject, $html, $text, $s, $attachments, $cc, $bcc);
+        return sendMailPhpMailer($to, $toName, $subject, $html, $text, $s, $attachments, $cc, $bcc, $fromNameOverride, $fromEmailOverride, $replyTo);
     }
 
     // Fallback to native if no library
-    return sendMailNative($to, $toName, $subject, $html, $text, $s);
+    return sendMailNative($to, $toName, $subject, $html, $text, $s, $fromNameOverride, $fromEmailOverride, $replyTo);
 }
 
 /**
  * Send via PHPMailer (available via composer).
  */
-function sendMailPhpMailer(string $to, string $toName, string $subject, string $html, string $text, array $s, array $attachments = [], string $cc = '', string $bcc = ''): array {
+function sendMailPhpMailer(string $to, string $toName, string $subject, string $html, string $text, array $s, array $attachments = [], string $cc = '', string $bcc = '', ?string $fromNameOverride = null, ?string $fromEmailOverride = null, ?string $replyTo = null): array {
     try {
         if (!class_exists('PHPMailer\PHPMailer\PHPMailer')) {
             require_once BASE_PATH . '/vendor/autoload.php';
@@ -108,8 +108,11 @@ function sendMailPhpMailer(string $to, string $toName, string $subject, string $
             $mail->SMTPAutoTLS = false; // admin explicitly chose "None" — don't opportunistically upgrade
         }
         $mail->CharSet    = 'UTF-8';
-       $mail->setFrom($s['smtp_from_email'], $s['smtp_from_name']);
+        $mail->setFrom($fromEmailOverride ?: $s['smtp_from_email'], $fromNameOverride ?: $s['smtp_from_name']);
         $mail->addAddress($to, $toName ?: $to);
+        if ($replyTo && filter_var($replyTo, FILTER_VALIDATE_EMAIL)) {
+            $mail->addReplyTo($replyTo);
+        }
 
         // CC / BCC — accept comma-separated lists, validate each address,
         // silently skip invalid ones (caller is responsible for surfacing
@@ -145,15 +148,19 @@ function sendMailPhpMailer(string $to, string $toName, string $subject, string $
 /**
  * Fallback: PHP mail() with HTML headers.
  */
-function sendMailNative(string $to, string $toName, string $subject, string $html, string $text, array $s): array {
-    $from    = $s['smtp_from_email'];
-    $fromName = $s['smtp_from_name'];
+function sendMailNative(string $to, string $toName, string $subject, string $html, string $text, array $s, ?string $fromNameOverride = null, ?string $fromEmailOverride = null, ?string $replyTo = null): array {
+    $from    = $fromEmailOverride ?: $s['smtp_from_email'];
+    // Fire 13: strip CR/LF before header interpolation. Low realistic risk
+    // today (this value is admin-set via marketing settings, not directly
+    // contact-controlled) but cheap defense-in-depth against header
+    // injection in the non-PHPMailer fallback path.
+    $fromName = preg_replace('/[\r\n]+/', ' ', $fromNameOverride ?: $s['smtp_from_name']);
     $boundary = md5(uniqid(rand(), true));
 
     $headers  = "MIME-Version: 1.0\r\n";
     $headers .= "Content-Type: multipart/alternative; boundary=\"{$boundary}\"\r\n";
     $headers .= "From: {$fromName} <{$from}>\r\n";
-    $headers .= "Reply-To: {$from}\r\n";
+    $headers .= "Reply-To: " . (($replyTo && filter_var($replyTo, FILTER_VALIDATE_EMAIL)) ? $replyTo : $from) . "\r\n";
     $headers .= "X-Mailer: BafnaMailer/1.0\r\n";
 
     $body  = "--{$boundary}\r\n";

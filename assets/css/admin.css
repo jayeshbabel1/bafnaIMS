@@ -1057,13 +1057,63 @@ a.btn-admin-secondary.btn-admin-sm.btn-admin-labeled {
 }
 /* Responsive */
 @media (max-width: 768px)  {
-    
-  .users-toolbar  {
+ .users-toolbar  {
      flex-direction: column; align-items: stretch; }
-
-
   #userSearchWrap, .users-search-wrap  {
      max-width: 100%; }
 
+}
+/* Mobile: collapse secondary toolbar actions behind an "Actions" toggle */
+#toolbarActionsToggle {
+  display: none;
+}
 
+@media (max-width: 640px) {
+  #toolbarActionsToggle {
+    display: inline-flex;
+    align-items: center;
+    width: 100%;
+    justify-content: center;
+  }
+  #toolbarActionsToggle.active {
+    background: var(--admin-accent-light, var(--accent-light));
+    border-color: var(--admin-accent, var(--accent));
+    color: var(--admin-accent, var(--accent));
+  }
+  .toolbar-actions-extra {
+    display: none;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+  }
+  .toolbar-actions-extra.open {
+    display: flex;
+  }
+  .toolbar-actions-extra .products-toolbar-divider {
+    display: none;
+  }
+  .toolbar-actions-extra .products-toolbar-data,
+  .toolbar-actions-extra .products-toolbar-sync {
+    width: 100%;
+    flex-direction: column;
+  }
+  .toolbar-actions-extra .admin-toolbar-form,
+  .toolbar-actions-extra .admin-toolbar-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+
+@media (min-width: 641px) {
+  .toolbar-actions-extra {
+    display: flex !important;
+    flex-wrap: wrap;
+    align-items: stretch;  
+    gap: 8px;
+  }
+  .toolbar-actions-extra .products-toolbar-divider {
+    display: block;
+    align-self: stretch;
+  }
 }

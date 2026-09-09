@@ -84,6 +84,16 @@ $selectedUserId = (int)($c['user_id'] ?? 0);
           </div>
           <p style="font-size:11px;color:var(--admin-text3,var(--text3));margin-top:5px;">10-digit Indian mobile number</p>
         </div>
+        <div>
+  <label class="admin-label">Email Address</label>
+  <input type="email" name="email" class="admin-input" id="acfClientEmail"
+         placeholder="client@example.com" value="<?= $g('email') ?>"/>
+</div>
+<div>
+  <label class="admin-label">City</label>
+  <input type="text" name="city" class="admin-input" id="acfClientCity"
+         placeholder="e.g. Mumbai" value="<?= $g('city') ?>"/>
+</div>
       </div>
     </div>
 
@@ -159,6 +169,11 @@ document.getElementById('adminClientForm').addEventListener('submit', function (
   if (masonMob && (masonMob.length !== 10 || !/^[6-9]/.test(masonMob))) {
     e.preventDefault();
     alert('Please enter a valid 10-digit mason mobile number.');
+  }
+   const emailVal = this.querySelector('[name="email"]').value.trim();
+  if (emailVal && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailVal)) {
+    e.preventDefault();
+    alert('Please enter a valid email address.');
   }
 });
 </script>

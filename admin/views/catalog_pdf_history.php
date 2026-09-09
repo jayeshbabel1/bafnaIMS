@@ -113,7 +113,7 @@ $totalPages = max(1, (int)ceil($total / $perPage));
 
 <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px;flex-wrap:wrap;gap:10px;">
   <p class="admin-products-count" id="cphFooterCount"><?= $total ?> catalog<?= $total !== 1 ? 's' : '' ?></p>
-  <div id="cphPagWrap"></div>
+  <div id="cphPagWrap" class="admin-pagination"></div>
 </div>
 
 <!-- Email modal -->
@@ -177,8 +177,10 @@ $totalPages = max(1, (int)ceil($total / $perPage));
   var searchEl= document.getElementById('cphSearch');
   var loader  = document.getElementById('cphLoader');
 
-  var state = { q: '', page: 1 };
+  var state = { q: <?= json_encode($search) ?>, page: <?= (int)$currentPage ?> };
   var timer = null;
+  var totalPages = <?= (int)$totalPages ?>;
+  var pager = null;
 
   function load() {
     if (loader) loader.style.display = 'flex';
@@ -190,7 +192,11 @@ $totalPages = max(1, (int)ceil($total / $perPage));
       .then(function (r) { return r.json(); })
       .then(function (d) {
         if (tbody) { tbody.innerHTML = d.html; tbody.style.opacity = '1'; }
-        bindPagination(d.pages, d.current);
+        totalPages = d.pages;
+        if (pager) {
+          pager.setWrapEl(document.getElementById('cphPagWrap'));
+          pager.render(d.current, d.pages);
+        }
         var txt = d.total + ' catalog' + (d.total !== 1 ? 's' : '');
         if (countEl) countEl.textContent = txt;
         if (footEl)  footEl.textContent  = txt;
@@ -198,27 +204,6 @@ $totalPages = max(1, (int)ceil($total / $perPage));
       })
       .catch(function () { if (tbody) tbody.style.opacity = '1'; })
       .finally(function () { if (loader) loader.style.display = 'none'; });
-  }
-
-  function bindPagination(totalPages, current) {
-    if (!pagWrap) return;
-    if (totalPages <= 1) { pagWrap.innerHTML = ''; return; }
-    var range = 2, s = Math.max(1, current - range), e = Math.min(totalPages, current + range);
-    var html = '<div class="admin-pagination">';
-    html += '<button class="apag-btn' + (current<=1?' disabled':'') + '" data-page="' + (current-1) + '">&lsaquo;</button>';
-    if (s > 1) { html += '<button class="apag-btn" data-page="1">1</button>'; if (s>2) html += '<span class="apag-ellipsis">…</span>'; }
-    for (var i = s; i <= e; i++) html += '<button class="apag-btn' + (i===current?' active':'') + '" data-page="' + i + '">' + i + '</button>';
-    if (e < totalPages) { if (e < totalPages-1) html += '<span class="apag-ellipsis">…</span>'; html += '<button class="apag-btn" data-page="' + totalPages + '">' + totalPages + '</button>'; }
-    html += '<button class="apag-btn' + (current>=totalPages?' disabled':'') + '" data-page="' + (current+1) + '">&rsaquo;</button>';
-    html += '</div>';
-    pagWrap.innerHTML = html;
-    pagWrap.querySelectorAll('.apag-btn').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        if (btn.classList.contains('disabled') || btn.classList.contains('active')) return;
-        var pg = parseInt(btn.dataset.page, 10);
-        if (!isNaN(pg)) { state.page = pg; load(); }
-      });
-    });
   }
 
   function bindRowActions() {
@@ -249,6 +234,17 @@ $totalPages = max(1, (int)ceil($total / $perPage));
 
   window._cphReload = load;
   bindRowActions();
+
+  document.addEventListener('DOMContentLoaded', function () {
+    pager = initPagination({
+  wrapEl: document.getElementById('cphPagWrap'),
+  btnClass: 'apag-btn',
+  prevText: '‹ Previous',
+  nextText: 'Next ›',
+  onPage: function (page) { state.page = page; load(); }
+});
+pager.render(state.page, totalPages);
+  });
 })();
 
 function cphOpenEmail(id, name) {

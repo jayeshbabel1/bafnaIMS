@@ -1,14 +1,10 @@
 <?php
-/**
- * admin/views/products.php — Fire 3: Grid / List / Table views,
- * field visibility & order driven by Settings → Product Views (admin panel).
- */
+
 requireAdminPermission('products.view');
 require_once BASE_PATH . '/includes/product_views.php';
 require_once BASE_PATH . '/includes/categories.php';
 ensureProductViewTables();
 
-// ── Short header/card labels (table headers stay compact; config labels are longer) ─
 function pvShortLabel(string $key, string $fallback): string {
     $short = [
         'photo' => 'Photo', 'quantity_available' => 'Qty Avail.', 'quantity_on_hold' => 'Qty Hold',
@@ -18,7 +14,6 @@ function pvShortLabel(string $key, string $fallback): string {
     return $short[$key] ?? $fallback;
 }
 
-// ── Render one field's value for a product row (shared by all 3 views) ──────
 function pvAdminFieldHtml(array $p, string $key): string {
     switch ($key) {
        case 'photo':
@@ -26,15 +21,15 @@ function pvAdminFieldHtml(array $p, string $key): string {
     if ($p['primary_photo'] && file_exists(PHOTOS_DIR.'/'.$p['primary_photo'])) {
          $thumbSrc = '../' . getPhotoThumbUrl($p['primary_photo']);
     }
-     $outOfStock = !$p['in_stock'] || (float)$p['quantity_available'] <= 0;
-    $oosBadge   = $outOfStock ? '<span class="apv-oos-badge">Out of Stock</span>' : '';
+      $outOfStock = !$p['in_stock'] || (float)$p['quantity_available'] <= 0;
+    $oosOverlay = $outOfStock ? '<div class="apv-oos-overlay"><span class="badge badge-gray">Out of Stock</span></div>' : '';
 
      if ($thumbSrc) {
-       return $oosBadge . '<img src="'.h($thumbSrc).'" alt="'.h($p['name']).'" loading="lazy" decoding="async" width="100%" height="100%"/>';
+       return '<img src="'.h($thumbSrc).'" alt="'.h($p['name']).'" loading="lazy" decoding="async" width="100%" height="100%"/>' . $oosOverlay;
     }
 
     $pal = json_decode($p['palette'] ?? '[]', true) ?: ['F2F0EC','D8CFC4','BFB0A0'];
-     return $oosBadge . marbleSVG($pal, 60, 60, 'apv'.$p['id']);
+     return marbleSVG($pal, 60, 60, 'apv'.$p['id']) . $oosOverlay;
         case 'name':
             return (adminCan('products.edit') || adminCan('products.view_details'))
         ? '<a href="index.php?page=product_edit&id='.$p['id'].'" style="color:var(--admin-text,var(--text));font-weight:600;">'.h($p['name']).'</a>'
@@ -53,8 +48,6 @@ function pvAdminFieldHtml(array $p, string $key): string {
         case 'in_stock':
             $outStock = !$p['in_stock'] || (float)$p['quantity_available'] <= 0;
             return $outStock ? '<span class="badge badge-gray">Out of Stock</span>' : '<span class="badge badge-green">In Stock</span>';
-       // case 'featured':
-        //    return $p['featured'] ? '<span class="badge badge-gold">✦ Yes</span>' : '<span style="color:var(--admin-text3,var(--text3));font-size:12px;">—</span>';
         case 'actions':
             return pvAdminActionButtons($p);
         default: return '';
@@ -84,7 +77,7 @@ function pvAdminActionButtons(array $p): string {
     return $h;
 }
 
-// ── TABLE view ────────────────────────────────────────────────────────────
+// ── TABLE view 
 function renderAdminProductsTable(array $products, array $fields, string $sortCol, string $sortDir): string {
     if (empty($products)) return '<div class="admin-table-wrap"><div class="admin-table-empty">No products found.</div></div>';
     $sortable = ['name','quarry_number','quantity_available','quantity_on_hold','in_stock'];
@@ -242,7 +235,7 @@ if ($finish !== '')    { $where .= " AND p.finish LIKE ?"; $params[] = "%{$finis
         default:      $bodyHtml = renderAdminProductsTable($products, $fieldConfig, $sortCol, $sortDir); break;
     }
 
-    // ── Pagination ──────────────────────────────────────────────────────────
+    // ── Pagination 
     ob_start();
     if ($totalPages > 1):
         $range = 2; $s = max(1, $currentPage - $range); $e = min($totalPages, $currentPage + $range);
@@ -288,15 +281,15 @@ $serverDefaultView = getDefaultView('admin');
 <style>
   /* Out-of-stock banner — sits above the product image in Grid/List/Table */
 .tbl-thumb, .apv-card-photo, .apv-list-thumb { position:relative; }
-.apv-oos-badge {
-  position:absolute; top:0; left:0; right:0; z-index:2;
-  background:rgba(20,20,20,.8); color:#fff;
-  font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.4px;
-  text-align:center; padding:3px 4px; line-height:1.2;
+.apv-oos-overlay {
+  position:absolute; inset:0; z-index:2;
+  background:rgba(255,255,255,.7);
+  display:flex; align-items:center; justify-content:center;
   pointer-events:none;
 }
-.tbl-thumb .apv-oos-badge     { font-size:6.5px; padding:1px 2px; letter-spacing:0; }
-.apv-list-thumb .apv-oos-badge{ font-size:7.5px; padding:2px 3px; }
+/* Scale the badge pill down for the smaller admin thumb sizes */
+.apv-list-thumb .apv-oos-overlay .badge { font-size:9px; padding:2px 6px; }
+.tbl-thumb .apv-oos-overlay .badge      { font-size:7px; padding:1px 4px; white-space:nowrap; }
 .sortable-th { cursor:pointer;user-select:none;white-space:nowrap; }
 .sortable-th:hover { color:var(--accent); }
 .sort-icon { display:inline-flex;flex-direction:column;gap:1px;vertical-align:middle;margin-left:4px;opacity:.35; }
@@ -323,7 +316,7 @@ $serverDefaultView = getDefaultView('admin');
 .admin-cat-tabs .tag-pill.active { background:var(--nav-bg,var(--accent));border-color:var(--nav-bg,var(--accent));color:#fff; }
 .filter-banner { display:flex;align-items:center;gap:10px;padding:8px 14px;background:var(--gold-bg);border:1px solid var(--gold);border-radius:8px;margin-bottom:12px;font-size:12px;font-weight:600;color:var(--gold);flex-wrap:wrap; }
 
-/* ── View switcher (sticky) ─────────────────────────────────────────── */
+/* ── View switcher (sticky)  */
 .apv-toolbar-sticky {
   position:sticky; top:0; z-index:40; background:var(--admin-bg,var(--bg));
   padding:8px 0; margin:-8px 0 12px; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
@@ -333,7 +326,7 @@ $serverDefaultView = getDefaultView('admin');
 .apv-view-btn + .apv-view-btn { border-left:1px solid var(--admin-table-border,var(--border)); }
 .apv-view-btn.active { background:var(--admin-accent,var(--accent)); color:#fff; }
 
-/* ── Table (horizontal scroll only in table view) ────────────────────── */
+/* ── Table (horizontal scroll only in table view)  */
 .admin-table-scroll { overflow-x:auto; background:var(--admin-card-bg,var(--surface)); border:1px solid var(--admin-card-border,var(--border)); border-radius:var(--admin-card-radius,var(--card-radius)); }
 .admin-table-scroll .admin-table { min-width:640px; }
 
@@ -353,7 +346,7 @@ $serverDefaultView = getDefaultView('admin');
 .apv-card-val { text-align:right; color:var(--admin-text,var(--text)); }
 .apv-card-actions { margin-top:8px; padding-top:8px; border-top:1px solid var(--admin-table-border,var(--border)); }
 
-/* ── List view ────────────────────────────────────────────────────────── */
+/* ── List view  */
 .apv-list { display:flex; flex-direction:column; gap:8px; }
 .apv-list-row { display:flex; align-items:center; gap:12px; background:var(--admin-card-bg,var(--surface)); border:1px solid var(--admin-card-border,var(--border)); border-radius:10px; padding:10px 12px; flex-wrap:wrap; }
 .apv-list-thumb { width:56px; height:56px; border-radius:8px; overflow:hidden; background:var(--admin-surface2,var(--surface2)); flex-shrink:0; }
@@ -369,6 +362,7 @@ tr.apv-row-clickable:hover td { background:var(--admin-table-row-hover,var(--sur
 @media (max-width:768px) { .admin-table-actions .btn-admin-sm { width:30px; } }
 </style>
 
+<!-- ═══ TOOLBAR  -->
 <!-- ═══ TOOLBAR ══════════════════════════════════════════════════════════════ -->
 <div class="products-toolbar">
 
@@ -380,71 +374,81 @@ tr.apv-row-clickable:hover td { background:var(--admin-table-row-hover,var(--sur
   </div>
   <?php endif; ?>
 
-  <?php if (adminCan('products.export') || adminCan('products.import')): ?>
-  <div class="products-toolbar-divider"></div>
-  <div class="products-toolbar-data">
-    <?php if (adminCan('products.export')): ?>
-    <form method="post" class="admin-toolbar-form">
-      <input type="hidden" name="action" value="export"/>
-      <?= csrfField() ?>
-      <button type="submit" class="admin-toolbar-btn admin-toolbar-btn--solid" title="Export all products to Excel">
-        <?= icon('download',14) ?> Export Excel
-      </button>
-    </form>
-    <?php endif; ?>
-    <?php if (adminCan('products.import')): ?>
-    <form method="POST" action="index.php" enctype="multipart/form-data" class="admin-toolbar-form">
-      <input type="hidden" name="action" value="import"/>
-      <?= csrfField() ?>
-      <label class="admin-toolbar-btn admin-toolbar-btn--solid" title="Import products from Excel file">
-        <?= icon('upload',14) ?> Import Excel
-        <input type="file" name="xls_file" onchange="this.form.submit()"/>
-      </label>
-    </form>
-    <?php endif; ?>
-  </div>
-  <?php endif; ?>
+  <!-- Mobile-only toggle -->
+  <button type="button" id="toolbarActionsToggle" class="admin-toolbar-btn admin-toolbar-btn--solid toolbar-actions-toggle">
+    <?= icon('grid',14) ?> Actions
+    <svg id="toolbarActionsChevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-left:2px;transition:transform .2s;"><polyline points="6 9 12 15 18 9"/></svg>
+  </button>
 
-  <?php if (adminCan('products.sync_photos') || adminCan('products.sync_docs') || adminCan('products.upload_photos')): ?>
-  <div class="products-toolbar-divider"></div>
-  <div class="products-toolbar-sync">
-    <?php if (adminCan('products.sync_photos')): ?>
-    <form method="POST" action="index.php" class="admin-toolbar-form">
-      <input type="hidden" name="action" value="sync_photos"/>
-      <?= csrfField() ?>
-      <button type="submit" class="admin-toolbar-btn admin-toolbar-btn--dashed" title="Sync photos folder">
-        <?= icon('image',14) ?> Sync Photos
-      </button>
-    </form>
+  <div id="toolbarActionsExtra" class="toolbar-actions-extra">
+
+    <?php if (adminCan('products.export') || adminCan('products.import')): ?>
+    <div class="products-toolbar-divider"></div>
+    <div class="products-toolbar-data">
+      <?php if (adminCan('products.export')): ?>
+      <form method="post" class="admin-toolbar-form">
+        <input type="hidden" name="action" value="export"/>
+        <?= csrfField() ?>
+        <button type="submit" class="admin-toolbar-btn admin-toolbar-btn--solid" title="Export all products to Excel">
+          <?= icon('download',14) ?> Export Excel
+        </button>
+      </form>
+      <?php endif; ?>
+      <?php if (adminCan('products.import')): ?>
+      <form method="POST" action="index.php" enctype="multipart/form-data" class="admin-toolbar-form">
+        <input type="hidden" name="action" value="import"/>
+        <?= csrfField() ?>
+        <label class="admin-toolbar-btn admin-toolbar-btn--solid" title="Import products from Excel file">
+          <?= icon('upload',14) ?> Import Excel
+          <input type="file" name="xls_file" onchange="this.form.submit()"/>
+        </label>
+      </form>
+      <?php endif; ?>
+    </div>
     <?php endif; ?>
-    <?php if (adminCan('products.sync_docs')): ?>
-    <form method="POST" action="index.php" class="admin-toolbar-form">
-      <input type="hidden" name="action" value="sync_measurements"/>
-      <?= csrfField() ?>
-      <button type="submit" class="admin-toolbar-btn admin-toolbar-btn--dashed">
-        <?= icon('file',14) ?> Sync Sheets
-      </button>
-    </form>
-    <form method="POST" action="index.php" class="admin-toolbar-form">
-      <input type="hidden" name="action" value="sync_dna"/>
-      <?= csrfField() ?>
-      <button type="submit" class="admin-toolbar-btn admin-toolbar-btn--dashed">
-        <?= icon('file',14) ?> Sync DNA
-      </button>
-    </form>
+
+    <?php if (adminCan('products.sync_photos') || adminCan('products.sync_docs') || adminCan('products.upload_photos')): ?>
+    <div class="products-toolbar-divider"></div>
+    <div class="products-toolbar-sync">
+      <?php if (adminCan('products.sync_photos')): ?>
+      <form method="POST" action="index.php" class="admin-toolbar-form">
+        <input type="hidden" name="action" value="sync_photos"/>
+        <?= csrfField() ?>
+        <button type="submit" class="admin-toolbar-btn admin-toolbar-btn--dashed" title="Sync photos folder">
+          <?= icon('image',14) ?> Sync Photos
+        </button>
+      </form>
+      <?php endif; ?>
+      <?php if (adminCan('products.sync_docs')): ?>
+      <form method="POST" action="index.php" class="admin-toolbar-form">
+        <input type="hidden" name="action" value="sync_measurements"/>
+        <?= csrfField() ?>
+        <button type="submit" class="admin-toolbar-btn admin-toolbar-btn--dashed">
+          <?= icon('file',14) ?> Sync Sheets
+        </button>
+      </form>
+      <form method="POST" action="index.php" class="admin-toolbar-form">
+        <input type="hidden" name="action" value="sync_dna"/>
+        <?= csrfField() ?>
+        <button type="submit" class="admin-toolbar-btn admin-toolbar-btn--dashed">
+          <?= icon('file',14) ?> Sync DNA
+        </button>
+      </form>
+      <?php endif; ?>
+      <?php if (adminCan('products.upload_photos')): ?>
+      <form method="POST" action="index.php" enctype="multipart/form-data" class="admin-toolbar-form">
+        <input type="hidden" name="action" value="import_photos"/>
+        <?= csrfField() ?>
+        <label class="admin-toolbar-btn admin-toolbar-btn--upload" title="Upload photo files directly">
+          <?= icon('image',14) ?> Upload Photos
+          <input type="file" name="photo_zip[]" accept=".zip,image/*" multiple onchange="this.form.submit()"/>
+        </label>
+      </form>
+      <?php endif; ?>
+    </div>
     <?php endif; ?>
-    <?php if (adminCan('products.upload_photos')): ?>
-    <form method="POST" action="index.php" enctype="multipart/form-data" class="admin-toolbar-form">
-      <input type="hidden" name="action" value="import_photos"/>
-      <?= csrfField() ?>
-      <label class="admin-toolbar-btn admin-toolbar-btn--upload" title="Upload photo files directly">
-        <?= icon('image',14) ?> Upload Photos
-        <input type="file" name="photo_zip[]" accept=".zip,image/*" multiple onchange="this.form.submit()"/>
-      </label>
-    </form>
-    <?php endif; ?>
-  </div>
-  <?php endif; ?>
+
+  </div><!-- /#toolbarActionsExtra -->
 
 </div>
 
@@ -456,17 +460,14 @@ tr.apv-row-clickable:hover td { background:var(--admin-table-row-hover,var(--sur
 </div>
 <?php endif; ?>
 
-<!-- Category tabs -->
-<div class="admin-cat-tabs" id="adminCatTabs">
-  <button class="tag-pill active" data-cat="" type="button">All</button>
-  <?php foreach (getCategoryNames() as $c): ?>
-  <button class="tag-pill" data-cat="<?= h($c) ?>" type="button"><?= h($c) ?></button>
-  <?php endforeach; ?>
-</div>
-
 <!-- Search + Per-page + View switcher (sticky) -->
 <div class="apv-toolbar-sticky">
+  
   <div class="admin-products-searchbar" style="margin-bottom:0;flex:1;">
+    <button type="button" id="apfOpenBtn" class="admin-toolbar-btn admin-toolbar-btn--solid" style="position:relative;">
+  <?= icon('filter',14) ?> Filters
+  <span id="apfBadgeDot" style="display:none;position:absolute;top:-3px;right:-3px;width:8px;height:8px;border-radius:50%;background:var(--gold,#B8975A);border:2px solid var(--admin-bg,#fff);"></span>
+</button>
     <div class="admin-search-wrap">
       <?= icon('search', 14) ?>
       <input type="text" id="adminProductSearch" class="admin-input admin-search-input"
@@ -489,10 +490,7 @@ tr.apv-row-clickable:hover td { background:var(--admin-table-row-hover,var(--sur
     <button type="button" class="apv-view-btn" data-view="list" title="List view"><?= icon('filter',14) ?> List</button>
     <button type="button" class="apv-view-btn" data-view="table" title="Table view"><?= icon('file',14) ?> Table</button>
   </div>
-  <button type="button" id="apfOpenBtn" class="admin-toolbar-btn admin-toolbar-btn--solid" style="position:relative;">
-  <?= icon('filter',14) ?> Filters
-  <span id="apfBadgeDot" style="display:none;position:absolute;top:-3px;right:-3px;width:8px;height:8px;border-radius:50%;background:var(--gold,#B8975A);border:2px solid var(--admin-bg,#fff);"></span>
-</button>
+  
 </div>
 
 <div class="admin-products-loader" id="adminProductsLoader">
@@ -513,15 +511,27 @@ tr.apv-row-clickable:hover td { background:var(--admin-table-row-hover,var(--sur
 <script>
 window.ADMIN_PRODUCT_DEFAULT_VIEW = <?= json_encode($serverDefaultView) ?>;
 </script>
-<div id="apfModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9300;align-items:center;justify-content:center;padding:16px;">
-  <div class="acs-modal-card" style="max-width:520px;">
-    <div class="acs-modal-header">
-      <p style="font-size:16px;font-weight:700;color:var(--admin-text,var(--text));">Filter Products</p>
-      <button type="button" id="apfCloseBtn" style="color:var(--admin-text3,var(--text3));cursor:pointer;background:none;border:none;"><?= icon('close',18) ?></button>
+<div id="apfModal" class="apf-overlay">
+  <div class="apf-card">
+    <div class="apf-head">
+      <p class="apf-title"><?= icon('filter',15) ?> Filter Products</p>
+      <button type="button" id="apfCloseBtn" class="apf-close-btn"><?= icon('close',18) ?></button>
     </div>
-    <div class="acs-modal-body">
+
+    <div class="apf-body">
       <div class="apf-grid">
-        <div>
+
+        <div class="apf-field">
+          <label class="admin-label">Stone Type</label>
+          <select id="apfCat" class="admin-input admin-select">
+            <option value="">All Types</option>
+            <?php foreach (getCategoryNames() as $c): ?>
+            <option value="<?= h($c) ?>"><?= h($c) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+
+        <div class="apf-field">
           <label class="admin-label">Color</label>
           <select id="apfColor" class="admin-input admin-select">
             <option value="">All Colors</option>
@@ -530,7 +540,8 @@ window.ADMIN_PRODUCT_DEFAULT_VIEW = <?= json_encode($serverDefaultView) ?>;
             <?php endforeach; ?>
           </select>
         </div>
-        <div>
+
+        <div class="apf-field">
           <label class="admin-label">Stock Status</label>
           <select id="apfStock" class="admin-input admin-select">
             <option value="">All</option>
@@ -538,46 +549,150 @@ window.ADMIN_PRODUCT_DEFAULT_VIEW = <?= json_encode($serverDefaultView) ?>;
             <option value="out">Out of Stock</option>
           </select>
         </div>
-        <div>
+
+        <div class="apf-field">
           <label class="admin-label">Thickness</label>
           <input type="text" id="apfThickness" class="admin-input" placeholder="e.g. 18"/>
         </div>
-        <div>
+
+        <div class="apf-field">
           <label class="admin-label">Origin</label>
           <input type="text" id="apfOrigin" class="admin-input" placeholder="e.g. Italy"/>
         </div>
-        <div>
+
+        <div class="apf-field">
           <label class="admin-label">Finish</label>
           <input type="text" id="apfFinish" class="admin-input" placeholder="e.g. Polished"/>
         </div>
-        <div>
+
+        <div class="apf-field">
           <label class="admin-label">Available Qty — Min</label>
           <input type="number" id="apfQtyMin" class="admin-input" min="0" placeholder="0"/>
         </div>
-        <div>
+
+        <div class="apf-field">
           <label class="admin-label">Available Qty — Max</label>
           <input type="number" id="apfQtyMax" class="admin-input" min="0" placeholder="∞"/>
         </div>
-        <div style="display:flex;align-items:flex-end;">
-          <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;cursor:pointer;padding-bottom:9px;">
-            <input type="checkbox" id="apfFeatured" style="width:16px;height:16px;accent-color:var(--admin-accent,var(--accent));"/>
-            ✦ Featured only
+
+        <div class="apf-field apf-field--check">
+          <label class="apf-check-label">
+            <input type="checkbox" id="apfFeatured"/>
+            <span>✦ Featured only</span>
           </label>
         </div>
+
       </div>
-      <div style="display:flex;gap:10px;margin-top:20px;">
-        <button type="button" id="apfApplyBtn" class="btn-admin-primary" style="flex:1;justify-content:center;"><?= icon('check',15) ?> Apply Filters</button>
-        <button type="button" id="apfClearBtn" class="btn-admin-secondary">Clear All</button>
-      </div>
+    </div>
+
+    <div class="apf-foot">
+      <button type="button" id="apfClearBtn" class="btn-admin-secondary">Clear All</button>
+      <button type="button" id="apfApplyBtn" class="btn-admin-primary"><?= icon('check',15) ?> Apply Filters</button>
     </div>
   </div>
 </div>
 
 <style>
-.apf-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
-@media (max-width:479px){.apf-grid{grid-template-columns:1fr;}}
-</style>
+/* ── Filter modal — overlay + card  */
+.apf-overlay{
+  display:none;position:fixed;inset:0;background:rgba(15,18,22,.55);
+  z-index:9300;align-items:center;justify-content:center;padding:16px;
+  backdrop-filter:blur(1px);
+}
+.apf-overlay.open{display:flex;animation:apfFadeIn .15s ease;}
+@keyframes apfFadeIn{from{opacity:0;}to{opacity:1;}}
 
+.apf-card{
+  background:var(--admin-card-bg,var(--surface));
+  border-radius:16px;
+  width:100%;
+  max-width:560px;
+  max-height:min(88vh,720px);
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  box-shadow:0 24px 64px rgba(0,0,0,.28);
+  animation:apfSlideUp .18s ease;
+}
+@keyframes apfSlideUp{from{opacity:0;transform:translateY(14px) scale(.98);}to{opacity:1;transform:translateY(0) scale(1);}}
+
+.apf-head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px 20px;
+  border-bottom:1px solid var(--admin-table-border,var(--border));
+  flex-shrink:0;
+  background:var(--admin-surface2,var(--surface2));
+}
+.apf-title{
+  display:flex;align-items:center;gap:8px;
+  font-size:15px;font-weight:700;color:var(--admin-text,var(--text));
+  margin:0;
+}
+.apf-close-btn{
+  display:flex;align-items:center;justify-content:center;
+  width:32px;height:32px;border-radius:8px;flex-shrink:0;
+  color:var(--admin-text3,var(--text3));background:none;border:none;cursor:pointer;
+  transition:background .15s,color .15s;
+}
+.apf-close-btn:hover{background:var(--admin-surface3,var(--surface3));color:var(--admin-text,var(--text));}
+
+.apf-body{
+  padding:20px;
+  overflow-y:auto;
+  flex:1 1 auto;
+  min-height:0;
+}
+
+.apf-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.apf-field{display:flex;flex-direction:column;min-width:0;}
+.apf-field--check{justify-content:flex-end;}
+
+.apf-check-label{
+  display:flex;align-items:center;gap:9px;
+  font-size:13px;font-weight:600;color:var(--admin-text,var(--text));
+  cursor:pointer;padding:10px 12px;
+  border:1.5px solid var(--admin-table-border,var(--border));
+  border-radius:8px;background:var(--admin-surface,var(--surface));
+  transition:border-color .15s,background .15s;
+}
+.apf-check-label:hover{border-color:var(--admin-accent,var(--accent));}
+.apf-check-label input{width:16px;height:16px;flex-shrink:0;accent-color:var(--admin-accent,var(--accent));cursor:pointer;}
+
+.apf-foot{
+  display:flex;gap:10px;
+  padding:14px 20px;
+  border-top:1px solid var(--admin-table-border,var(--border));
+  background:var(--admin-surface2,var(--surface2));
+  flex-shrink:0;
+}
+.apf-foot .btn-admin-secondary{flex:0 0 auto;}
+.apf-foot .btn-admin-primary{flex:1;justify-content:center;}
+
+/* ── Responsive  */
+@media (max-width:560px){
+  .apf-card{max-height:92vh;border-radius:14px 14px 0 0;align-self:flex-end;margin-top:auto;}
+  .apf-overlay{align-items:flex-end;padding:0;}
+  .apf-grid{grid-template-columns:1fr;gap:12px;}
+  .apf-foot{flex-direction:column-reverse;}
+  .apf-foot .btn-admin-secondary,.apf-foot .btn-admin-primary{width:100%;}
+}
+@media (min-width:561px) and (max-width:900px){
+  .apf-card{max-width:520px;}
+}
+</style>
+<script>
+(function () {
+  var btn   = document.getElementById('toolbarActionsToggle');
+  var extra = document.getElementById('toolbarActionsExtra');
+  var chev  = document.getElementById('toolbarActionsChevron');
+  if (!btn || !extra) return;
+  btn.addEventListener('click', function () {
+    var open = extra.classList.toggle('open');
+    btn.classList.toggle('active', open);
+    if (chev) chev.style.transform = open ? 'rotate(180deg)' : '';
+  });
+})();
+</script>
 <script>
 (function () {
   var modal = document.getElementById('apfModal');
@@ -586,9 +701,11 @@ window.ADMIN_PRODUCT_DEFAULT_VIEW = <?= json_encode($serverDefaultView) ?>;
   var applyBtn = document.getElementById('apfApplyBtn');
   var clearBtn = document.getElementById('apfClearBtn');
   var badge = document.getElementById('apfBadgeDot');
-
+  
+  
   function fields() {
     return {
+      cat: document.getElementById('apfCat').value,
       color: document.getElementById('apfColor').value,
       stock: document.getElementById('apfStock').value,
       thickness: document.getElementById('apfThickness').value.trim(),
@@ -602,19 +719,31 @@ window.ADMIN_PRODUCT_DEFAULT_VIEW = <?= json_encode($serverDefaultView) ?>;
   function anyActive(f) {
     return Object.keys(f).some(function (k) { return f[k] !== ''; });
   }
+  function openModal() {
+    modal.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeModal() {
+    modal.classList.remove('open');
+    document.body.style.overflow = '';
+  }
 
-  openBtn.addEventListener('click', function () { modal.style.display = 'flex'; });
-  closeBtn.addEventListener('click', function () { modal.style.display = 'none'; });
-  modal.addEventListener('click', function (e) { if (e.target === modal) modal.style.display = 'none'; });
+  openBtn.addEventListener('click', openModal);
+  closeBtn.addEventListener('click', closeModal);
+  modal.addEventListener('click', function (e) { if (e.target === modal) closeModal(); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && modal.classList.contains('open')) closeModal();
+  });
 
   applyBtn.addEventListener('click', function () {
     var f = fields();
     if (window.adminProductsApplyFilters) window.adminProductsApplyFilters(f);
     badge.style.display = anyActive(f) ? 'block' : 'none';
-    modal.style.display = 'none';
+    closeModal();
   });
 
   clearBtn.addEventListener('click', function () {
+    document.getElementById('apfCat').value = '';
     document.getElementById('apfColor').value = '';
     document.getElementById('apfStock').value = '';
     document.getElementById('apfThickness').value = '';
@@ -625,12 +754,11 @@ window.ADMIN_PRODUCT_DEFAULT_VIEW = <?= json_encode($serverDefaultView) ?>;
     document.getElementById('apfFeatured').checked = false;
     if (window.adminProductsApplyFilters) window.adminProductsApplyFilters(fields());
     badge.style.display = 'none';
-    modal.style.display = 'none';
+    closeModal();
   });
 })();
 </script>
 <?php if (adminCan('products.whatsapp')): ?>
 <?php include __DIR__ . '/_wa_share_modal.php'; ?>
 <?php endif; ?>
-
 <?php include __DIR__ . '/../_layout_bottom.php'; ?>

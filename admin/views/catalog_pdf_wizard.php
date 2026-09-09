@@ -435,7 +435,7 @@ $categories = getCategoryNames();
   <div class="cpw-cust-panel" id="cpwCust-fontcolor">
     <div class="cpw-cust-row"><span class="cpw-cust-label">Font Family</span><div class="cpw-cust-control">
       <select id="cFont" class="admin-input admin-select">
-            <?php foreach (['helvetica'=>'Helvetica','arial'=>'Arial','roboto'=>'Roboto','open_sans'=>'Open Sans','noto_sans'=>'Noto Sans','bodoni72'=>'bodoni 72'] as $fk=>$fl): ?>
+            <?php foreach (['helvetica'=>'Helvetica','arial'=>'Arial','roboto'=>'Roboto','open_sans'=>'Open Sans','noto_sans'=>'Noto Sans','bodoni72book'=>'Bodoni 72 Book'] as $fk=>$fl): ?>
         <option value="<?= $fk ?>" <?= $cfg['font']===$fk?'selected':'' ?>><?= $fl ?></option>
         <?php endforeach; ?>
       </select>

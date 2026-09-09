@@ -16,7 +16,7 @@ if (!empty($_GET['ajax']) || !empty($_GET['ajax_product_search']) || !empty($_GE
 
 // ── AJAX: selection rows (search + pagination) ──────────────────────────────
 if (!empty($_GET['ajax'])) {
-    $perPage     = 15;
+    $perPage     = 10;
     $currentPage = max(1, (int)($_GET['p'] ?? 1));
     $search      = trim($_GET['q'] ?? '');
 
@@ -30,9 +30,18 @@ if (!empty($_GET['ajax'])) {
     $totalPages = max(1, (int)ceil($total / $perPage));
 
     ob_start();
-   $ajaxPagination = true;
+    $ajaxPagination = true;
     include __DIR__ . '/_admin_selection_rows.php';
-    $html = ob_get_clean(); 
+    $html = ob_get_clean();
+
+    header('Content-Type: application/json');
+    echo json_encode([
+        'html'    => $html,
+        'total'   => $total,
+        'pages'   => $totalPages,
+        'current' => $currentPage,
+    ]);
+    exit;
 }
 
 // ── AJAX: product search for the "Add Product" picker ───────────────────────
@@ -63,7 +72,7 @@ if (!empty($_GET['ajax_latest_catalog'])) {
 if (!empty($_GET['ajax_history'])) {
     require_once BASE_PATH . '/includes/selection_history.php';
     header('Content-Type: application/json');
-    $hPerPage = 15;
+    $hPerPage = 10;
     $hPage    = max(1, (int)($_GET['p'] ?? 1));
     $hResult  = getSelectionHistory($clientId, ['limit' => $hPerPage, 'offset' => ($hPage - 1) * $hPerPage]);
     $hTotal   = $hResult['total'];
@@ -81,7 +90,7 @@ if (!empty($_GET['ajax_history'])) {
 $adminTitle = 'Selections — ' . $client['client_name'];
 include __DIR__ . '/../_layout_top.php';
 
-$perPage     = 15;
+$perPage     = 10;
 $currentPage = max(1, (int)($_GET['p'] ?? 1));
 $search      = trim($_GET['q'] ?? '');
 
@@ -149,6 +158,13 @@ $canDownload     = adminCan('catalog.download');
       <div>
         <p style="font-weight:700;font-size:15px;color:var(--admin-text,var(--text));"><?= h($client['client_name']) ?></p>
         <p style="font-size:13px;color:var(--admin-text3,var(--text3));"><?= h($client['client_mobile']) ?></p>
+        <?php if (!empty($client['city']) || !empty($client['email'])): ?>
+<div style="flex:1;min-width:160px;">
+  <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--text4);margin-bottom:3px;">Contact</p>
+  <?php if (!empty($client['email'])): ?><p style="font-size:12px;color:var(--text2);"><?= h($client['email']) ?></p><?php endif; ?>
+  <?php if (!empty($client['city'])): ?><p style="font-size:12px;color:var(--text3);"><?= h($client['city']) ?></p><?php endif; ?>
+</div>
+<?php endif; ?>
       </div>
     </div>
     <?php if ($client['mansoner_name']): ?>

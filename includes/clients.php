@@ -15,6 +15,17 @@ function validateMobile(string $mobile): bool {
 function sanitizeMobile(string $mobile): string {
     return preg_replace('/[\s\-\(\)\.]+/', '', $mobile);
 }
+function validateClientEmail(string $email): bool {
+    $email = trim($email);
+    if ($email === '') return true; // optional
+    return (bool)filter_var($email, FILTER_VALIDATE_EMAIL) && mb_strlen($email) <= 190;
+}
+function sanitizeClientEmail(string $email): string {
+    return mb_strtolower(trim($email));
+}
+function sanitizeClientCity(string $city): string {
+    return mb_substr(trim($city), 0, 120);
+}
 
 // ── Client CRUD ────────────────────────────────────────────────────────────────
 
@@ -28,10 +39,10 @@ function getClients(int $userId, array $opts = []): array {
     $params = [$userId];
 
     if ($search !== '') {
-        $where   .= " AND (c.client_name LIKE ? OR c.client_mobile LIKE ? OR c.mansoner_name LIKE ?)";
-        $like     = "%{$search}%";
-        $params[] = $like; $params[] = $like; $params[] = $like;
-    }
+    $where   .= " AND (c.client_name LIKE ? OR c.client_mobile LIKE ? OR c.mansoner_name LIKE ? OR c.email LIKE ? OR c.city LIKE ?)";
+    $like     = "%{$search}%";
+    $params[] = $like; $params[] = $like; $params[] = $like; $params[] = $like; $params[] = $like;
+}
 
     $countSt = $db->prepare("SELECT COUNT(*) FROM clients c $where");
     $countSt->execute($params);
@@ -69,16 +80,19 @@ function createClient(int $userId, array $data): array {
     $mName   = titleCase($data['mansoner_name'] ?? '');
     $mMobile = sanitizeMobile($data['mansoner_mobile'] ?? '');
     $addr    = mb_substr(trim($data['site_address'] ?? ''), 0, 500);
-
+    $email   = sanitizeClientEmail($data['email'] ?? '');
+    $city    = titleCase(sanitizeClientCity($data['city'] ?? '')); 
+  
     if (!$name)               return ['success' => false, 'error' => 'Client name is required.'];
     if (!$mobile)             return ['success' => false, 'error' => 'Client mobile is required.'];
     if (!validateMobile($mobile)) return ['success' => false, 'error' => 'Enter a valid 10-digit mobile number.'];
     if ($mMobile && !validateMobile($mMobile)) return ['success' => false, 'error' => 'Enter a valid mason mobile number.'];
+      if (!validateClientEmail($email)) return ['success' => false, 'error' => 'Please enter a valid email address.'];
+  
+    $db->prepare("INSERT INTO clients (user_id, client_name, client_mobile, email, city, mansoner_name, mansoner_mobile, site_address, created_at, updated_at)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+       ->execute([$userId, $name, $mobile, $email ?: null, $city ?: null, $mName, $mMobile, $addr, time(), time()]);
 
-    $db = getDB();
-    $db->prepare("INSERT INTO clients (user_id, client_name, client_mobile, mansoner_name, mansoner_mobile, site_address, created_at, updated_at)
-                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
-       ->execute([$userId, $name, $mobile, $mName, $mMobile, $addr, time(), time()]);
 
     return ['success' => true, 'id' => (int)$db->lastInsertId()];
 }
@@ -89,14 +103,17 @@ function updateClient(int $id, int $userId, array $data): array {
     $mName   = titleCase($data['mansoner_name'] ?? '');
     $mMobile = sanitizeMobile($data['mansoner_mobile'] ?? '');
     $addr    = mb_substr(trim($data['site_address'] ?? ''), 0, 500);
-
+    $email   = sanitizeClientEmail($data['email'] ?? '');
+    $city    = titleCase(sanitizeClientCity($data['city'] ?? ''));  
+  
     if (!$name)               return ['success' => false, 'error' => 'Client name is required.'];
     if (!$mobile)             return ['success' => false, 'error' => 'Client mobile is required.'];
     if (!validateMobile($mobile)) return ['success' => false, 'error' => 'Enter a valid 10-digit mobile number.'];
     if ($mMobile && !validateMobile($mMobile)) return ['success' => false, 'error' => 'Enter a valid mason mobile number.'];
+    if (!validateClientEmail($email)) return ['success' => false, 'error' => 'Please enter a valid email address.'];
+    getDB()->prepare("UPDATE clients SET client_name=?, client_mobile=?, email=?, city=?, mansoner_name=?, mansoner_mobile=?, site_address=?, updated_at=? WHERE id=? AND user_id=?")
+           ->execute([$name, $mobile, $email ?: null, $city ?: null, $mName, $mMobile, $addr, time(), $id, $userId]);
 
-    getDB()->prepare("UPDATE clients SET client_name=?, client_mobile=?, mansoner_name=?, mansoner_mobile=?, site_address=?, updated_at=? WHERE id=? AND user_id=?")
-           ->execute([$name, $mobile, $mName, $mMobile, $addr, time(), $id, $userId]);
 
     return ['success' => true];
 }
@@ -302,10 +319,10 @@ function adminGetClients(int $userId, array $opts = []): array {
     $params = [$userId];
 
     if ($search !== '') {
-        $where   .= " AND (c.client_name LIKE ? OR c.client_mobile LIKE ? OR c.mansoner_name LIKE ?)";
-        $like     = "%{$search}%";
-        $params[] = $like; $params[] = $like; $params[] = $like;
-    }
+    $where   .= " AND (c.client_name LIKE ? OR c.client_mobile LIKE ? OR c.mansoner_name LIKE ? OR c.email LIKE ? OR c.city LIKE ?)";
+    $like     = "%{$search}%";
+    $params[] = $like; $params[] = $like; $params[] = $like; $params[] = $like; $params[] = $like;
+}
 
     $countSt = $db->prepare("SELECT COUNT(*) FROM clients c $where");
     $countSt->execute($params);
@@ -388,10 +405,10 @@ function adminListAllClients(array $opts = []): array {
     $params = [];
  
     if ($search !== '') {
-        $where   .= " AND (c.client_name LIKE ? OR c.client_mobile LIKE ? OR c.mansoner_name LIKE ? OR u.name LIKE ? OR u.firm LIKE ?)";
-        $like     = "%{$search}%";
-        $params   = [$like, $like, $like, $like, $like];
-    }
+    $where   .= " AND (c.client_name LIKE ? OR c.client_mobile LIKE ? OR c.mansoner_name LIKE ? OR c.email LIKE ? OR c.city LIKE ? OR u.name LIKE ? OR u.firm LIKE ?)";
+    $like     = "%{$search}%";
+    $params   = [$like, $like, $like, $like, $like, $like, $like];
+}
  
     $countSt = $db->prepare("SELECT COUNT(*) FROM clients c JOIN users u ON u.id = c.user_id $where");
     $countSt->execute($params);
@@ -437,16 +454,19 @@ function adminCreateClient(int $userId, array $data): array {
     $mName   = titleCase($data['mansoner_name'] ?? '');
     $mMobile = sanitizeMobile($data['mansoner_mobile'] ?? '');
     $addr    = mb_substr(trim($data['site_address'] ?? ''), 0, 500);
- 
+    $email   = sanitizeClientEmail($data['email'] ?? '');
+    $city    = titleCase(sanitizeClientCity($data['city'] ?? ''));
+  
     if (!$name)                   return ['success' => false, 'error' => 'Client name is required.'];
     if (!$mobile)                 return ['success' => false, 'error' => 'Client mobile is required.'];
     if (!validateMobile($mobile)) return ['success' => false, 'error' => 'Enter a valid 10-digit client mobile number.'];
     if ($mMobile && !validateMobile($mMobile)) return ['success' => false, 'error' => 'Enter a valid 10-digit mason mobile number.'];
- 
+    if (!validateClientEmail($email)) return ['success' => false, 'error' => 'Please enter a valid email address.'];
+  
     $db = getDB();
-    $db->prepare("INSERT INTO clients (user_id, client_name, client_mobile, mansoner_name, mansoner_mobile, site_address, created_at, updated_at)
-                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
-       ->execute([$userId, $name, $mobile, $mName, $mMobile, $addr, time(), time()]);
+    $db->prepare("INSERT INTO clients (user_id, client_name, client_mobile, email, city, mansoner_name, mansoner_mobile, site_address, created_at, updated_at)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+       ->execute([$userId, $name, $mobile, $email ?: null, $city ?: null, $mName, $mMobile, $addr, time(), time()]);
  
     return ['success' => true, 'id' => (int)$db->lastInsertId()];
 }
@@ -454,28 +474,31 @@ function adminCreateClient(int $userId, array $data): array {
 // ── Admin: update a client (and optionally reassign owner) ──────────────────
 function adminUpdateClient(int $clientId, int $userId, array $data): array {
     if (!$userId) return ['success' => false, 'error' => 'Please select a user.'];
- 
+
     $uchk = getDB()->prepare("SELECT id FROM users WHERE id=?");
     $uchk->execute([$userId]);
     if (!$uchk->fetch()) return ['success' => false, 'error' => 'Selected user not found.'];
- 
+
     $name    = titleCase($data['client_name']   ?? '');
     $mobile  = sanitizeMobile($data['client_mobile']  ?? '');
     $mName   = titleCase($data['mansoner_name'] ?? '');
     $mMobile = sanitizeMobile($data['mansoner_mobile'] ?? '');
     $addr    = mb_substr(trim($data['site_address'] ?? ''), 0, 500);
- 
+    $email   = sanitizeClientEmail($data['email'] ?? '');
+    $city    = titleCase(sanitizeClientCity($data['city'] ?? ''));
+
     if (!$name)                   return ['success' => false, 'error' => 'Client name is required.'];
     if (!$mobile)                 return ['success' => false, 'error' => 'Client mobile is required.'];
     if (!validateMobile($mobile)) return ['success' => false, 'error' => 'Enter a valid 10-digit client mobile number.'];
     if ($mMobile && !validateMobile($mMobile)) return ['success' => false, 'error' => 'Enter a valid 10-digit mason mobile number.'];
- 
+    if (!validateClientEmail($email)) return ['success' => false, 'error' => 'Please enter a valid email address.'];
+
     $db = getDB();
     $db->prepare("UPDATE clients
-                  SET user_id=?, client_name=?, client_mobile=?, mansoner_name=?, mansoner_mobile=?, site_address=?, updated_at=?
+                  SET user_id=?, client_name=?, client_mobile=?, email=?, city=?, mansoner_name=?, mansoner_mobile=?, site_address=?, updated_at=?
                   WHERE id=?")
-       ->execute([$userId, $name, $mobile, $mName, $mMobile, $addr, time(), $clientId]);
- 
+       ->execute([$userId, $name, $mobile, $email ?: null, $city ?: null, $mName, $mMobile, $addr, time(), $clientId]);
+
     return ['success' => true];
 }
  
@@ -626,3 +649,30 @@ function adminSearchProducts(string $q, int $limit = 20): array {
     $st->execute($params);
     return $st->fetchAll();
 }
+
+function applyClientFilters(string $where, array &$params, array $opts): string {
+    if (!empty($opts['city'])) {
+        $where .= " AND c.city = ?";
+        $params[] = $opts['city'];
+    }
+    if (($opts['has_email'] ?? '') === '1') {
+        $where .= " AND c.email IS NOT NULL AND c.email <> ''";
+    } elseif (($opts['has_email'] ?? '') === '0') {
+        $where .= " AND (c.email IS NULL OR c.email = '')";
+    }
+    return $where;
+}
+
+// Distinct city list for filter dropdowns (DB-level, no full scan of client blobs)
+function getDistinctClientCities(?int $userId = null): array {
+    $db = getDB();
+    if ($userId) {
+        $st = $db->prepare("SELECT DISTINCT city FROM clients WHERE user_id=? AND city IS NOT NULL AND city<>'' ORDER BY city ASC");
+        $st->execute([$userId]);
+    } else {
+        $st = $db->query("SELECT DISTINCT city FROM clients WHERE city IS NOT NULL AND city<>'' ORDER BY city ASC");
+    }
+    return $st->fetchAll(PDO::FETCH_COLUMN);
+}
+
+

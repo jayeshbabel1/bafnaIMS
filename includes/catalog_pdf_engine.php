@@ -48,25 +48,22 @@ class CatalogTCPDF extends \TCPDF {
         $this->SetTextColor(...$grayRgb);
         $this->SetXY($mL + $contW / 2, $y);
         $this->Cell($contW / 2, 6, date('d M Y'), 0, 0, 'R');
-        $y += 9;
-
-        $this->SetDrawColor(...$lineRgb);
-        $this->SetLineWidth(0.2);
-        $this->Line($mL, $y, $mL + $contW, $y);
-        $y += 6;
+        $y += 12;
 
         // "Prepared for {name}" banner — repurposes the 'page_title' header
         // toggle since there was no dedicated option for this before.
         $preparedFor = trim((string)($this->cpeConfig['cover']['prepared_for'] ?? ''));
         if (!empty($h['page_title']) && $preparedFor !== '') {
-            $this->SetFont($font, 'B', 17);
+            $this->SetFont($font, 'B', 20);
             $this->SetTextColor(...$navyRgb);
             $this->SetXY($mL, $y);
             $this->Cell($contW, 9, 'Prepared for ' . $preparedFor, 0, 1, 'L');
-            $y = $this->GetY() + 3;
-            $this->SetDrawColor(...$lineRgb);
-            $this->Line($mL, $y, $mL + $contW, $y);
+            $y = $this->GetY() + 4;
         }
+
+        $this->SetDrawColor(...$lineRgb);
+        $this->SetLineWidth(0.3);
+        $this->Line($mL, $y, $mL + $contW, $y);
     }
 
        public function Footer() {
@@ -196,8 +193,7 @@ function generateCatalogPdf(int $catalogId): array {
         $pdf->SetCompression(($config['quality']['compression'] ?? 'compress') === 'compress');
 
                 // ── Font 
-        $fontFamily = _cpeResolveFont($config['font'] ?? 'helvetica');
-        _cpeRegisterCustomFont($pdf, $fontFamily);
+       $fontFamily = _cpeResolveFont($pdf, $config['font'] ?? 'helvetica');
         $config['_font_family'] = $fontFamily;
         $pdf->cpeConfig = $config;
 
@@ -211,16 +207,9 @@ function generateCatalogPdf(int $catalogId): array {
         $layout = $config['layout'] ?? 'one_per_page';
         $gridLayouts = ['two_per_page', 'four_per_page', 'grid'];
         if (in_array($layout, $gridLayouts, true)) {
-            // Capture the real bottom margin BEFORE disabling auto-break —
-            // SetAutoPageBreak() resets TCPDF's internal bMargin to the
-            // value passed in, which corrupts getMargins()['bottom'] for
-            // any code that reads it afterward (our grid cell-height math).
+           
             $config['_footer_reserve'] = $footerOn ? 22 : 15;
             $pdf->cpeConfig = $config;
-            // Manual absolute-position grids cannot tolerate TCPDF's
-            // auto page-break — it inserts pages mid-cell and desyncs
-            // the slot math, causing images/text to land on the wrong
-            // page (looks like "1 image per page then a stray text page").
             $pdf->SetAutoPageBreak(false, 0);
         }
                switch ($layout) {
@@ -334,36 +323,28 @@ function _cpeResolveLogoImage(): ?array {
     return ['path' => $tmp, 'type' => 'PNG'];
 }
 
-function _cpeResolveFont(string $font): string {
-    // Helvetica = TCPDF core font, no embed. Others fall back to helvetica
-    // unless embedded TTF font defs exist in storage/fonts/ (see
-    // tools/generate_font.php) — safe no-op fallback keeps generation from
-    // breaking if the font files haven't been generated yet.
-    $map = [
-        'helvetica' => 'helvetica', 'arial' => 'helvetica',
-        'roboto' => 'helvetica', 'open_sans' => 'helvetica', 'noto_sans' => 'helvetica',
-    ];
-    $custom = BASE_PATH . '/storage/fonts/' . $font . '.php';
-    if (file_exists($custom)) return $font; // embedded font def present
-    return $map[$font] ?? 'helvetica';
-}
+/**
+ * Resolve a font family for TCPDF 7.x / tc-lib-pdf.
+ *
+ * TCPDF 7 is a compatibility facade over tc-lib-pdf. Legacy TCPDF
+ * font definition files (*.php / *.z / *.ctg.z) are not supported.
+ * Custom fonts must use tc-lib-pdf-font JSON definitions.
+ */
+function _cpeResolveFont(\TCPDF $pdf, string $font): string {
+    if ($font === '' || $font === 'helvetica') return 'helvetica';
 
-// ── Register a custom embedded TCPDF font (if generated files exist) ──────
-// _cpeResolveFont() only decides which *name* to use; TCPDF still needs the
-// font registered via AddFont() before any SetFont() call can find it,
-// since custom fonts live in storage/fonts/ rather than TCPDF's built-in
-// K_PATH_FONTS folder.
-function _cpeRegisterCustomFont(\TCPDF $pdf, string $fontName): void {
-    static $done = [];
-    if ($fontName === 'helvetica' || isset($done[$fontName])) return;
-    $done[$fontName] = true;
-    $styleFiles = ['' => '', 'B' => 'b', 'I' => 'i', 'BI' => 'bi'];
-    foreach ($styleFiles as $style => $suffix) {
-        $def = BASE_PATH . '/storage/fonts/' . $fontName . $suffix . '.php';
-        if (file_exists($def)) {
-            try { $pdf->AddFont($fontName, $style, $def); }
-            catch (\Throwable $e) { error_log('_cpeRegisterCustomFont: ' . $e->getMessage()); }
-        }
+    $coreAliases = [
+        'arial' => 'helvetica', 'roboto' => 'helvetica',
+        'open_sans' => 'helvetica', 'noto_sans' => 'helvetica',
+    ];
+    if (isset($coreAliases[$font])) return $coreAliases[$font];
+
+    try {
+        $pdf->SetFont($font, '', 10);
+        return $font;
+    } catch (\Throwable $e) {
+        error_log("catalog_pdf: font '{$font}' failed to load (K_PATH_FONTS=" . K_PATH_FONTS . "), falling back to helvetica — " . $e->getMessage());
+        return 'helvetica';
     }
 }
 
@@ -435,14 +416,6 @@ function _cpeTempImage(string $fullPath, array $config): ?string {
     return _cpeRegisterTemp($tmpJpg);
 }
 
-// Near-lossless copy of the original photo for the one_per_page hero image
-// — bypasses _cpeTempImage()'s downscale/recompress path entirely. JPEG/PNG
-// sources are copied byte-for-byte; WEBP (which TCPDF can't read natively)
-// is converted to PNG at zero compression rather than a lossy JPEG.
-// Near-lossless copy of the original photo for the one_per_page hero image
-// — bypasses _cpeTempImage()'s downscale/recompress path entirely. JPEG/PNG
-// sources are copied byte-for-byte; WEBP (which TCPDF can't read natively)
-// is converted to PNG at zero compression rather than a lossy JPEG.
 function _cpeTempImageHQ(string $fullPath, array $config): ?string {
     $info = @getimagesize($fullPath);
     $tmp  = sys_get_temp_dir() . '/cpe_hq_' . uniqid('', true) . '_' . random_int(1000, 9999);
@@ -495,7 +468,7 @@ function _cpeFieldRows(array $p, array $fields, array $selectionMap = []): array
     $labelMap = [
         'category'=>'Stone Type','subcategory'=>'Subcategory','color_subcategory'=>'Color',
         'thickness'=>'Thickness','origin'=>'Origin','finish'=>'Finish',
-        'quantity_available'=>'Available Qty','description'=>'Description','sizes'=>'Useable Size','cutter_size'=>'Italian Size', 'quantity_required'=>'Required Qty','selection_area'=>'Selected Area',];
+        'quantity_available'=>'Available Qty','description'=>'Description','sizes'=>'Useable Size','cutter_size'=>'Italian Size', 'quantity_required'=>'Required Qty','selection_area'=>'Selected Area','quantity_on_hold'=>'On Hold Qty','pieces'=>'No. of Pieces',];
     $slab = formatDimension($p['sizes_l'] ?? '', $p['sizes_h'] ?? '');
     $cut  = formatDimension($p['cutter_size_l'] ?? '', $p['cutter_size_h'] ?? '');
     $sel  = $selectionMap[$p['id']] ?? [];
@@ -511,7 +484,8 @@ function _cpeFieldRows(array $p, array $fields, array $selectionMap = []): array
     foreach ($fields as $fk) {
         if (in_array($fk, ['name','quarry_number'], true)) continue;
         $val = $extra[$fk] ?? ($p[$fk] ?? '');
-        if ($fk === 'quantity_available') $val = $val ? number_format((float)$val) . ' sq.ft.' : '';
+        if ($fk === 'quantity_available' || $fk === 'quantity_on_hold') $val = $val ? number_format((float)$val) . ' sq.ft.' : '';
+        if ($fk === 'pieces') $val = ((int)$val > 0) ? (string)(int)$val : '';
         if ($val === '' || $val === null) continue;
         $rows[] = [$labelMap[$fk] ?? ucfirst(str_replace('_',' ',$fk)), (string)$val];
     }
@@ -602,7 +576,14 @@ function _cpeRenderCoverPage(\TCPDF $pdf, array $cat, array $config): void {
     } else {
         $y += 10;
     }
-
+    $clientContact = trim((string)($cover['client_contact'] ?? ''));
+if ($clientContact !== '') {
+    $pdf->SetXY($mL, $y);
+    $pdf->SetFont($font, '', 10);
+    $pdf->SetTextColor(...$grayRgb);
+    $pdf->Cell($contW, 6, $clientContact, 0, 1, 'C');
+    $y = $pdf->GetY() + 4;
+}
     // Info table — Date / Version / Contact / Website
     $infoRows = [];
     if (!empty($cover['show_date']))  $infoRows[] = ['Date', date($cover['date_format'] ?? 'd M Y')];
@@ -709,7 +690,7 @@ function _cpeRenderLayoutOne(\TCPDF $pdf, array $p, array $config, int $index = 
     // Details table — alternating row backgrounds, bold navy labels
      $rows = _cpeFieldRows($p, array_diff($fields, ['name']), $config['_selection_map'] ?? []);
     if ($rows) {
-        $rowH = 11; $colL = 62;
+        $rowH = 9; $colL = 62;
         $alt = false;
         foreach ($rows as $row) {
             if ($alt) {
@@ -717,10 +698,10 @@ function _cpeRenderLayoutOne(\TCPDF $pdf, array $p, array $config, int $index = 
                 $pdf->Rect($mL, $y, $contW, $rowH, 'F');
             }
             $pdf->SetXY($mL, $y);
-            $pdf->SetFont($font, 'B', 11.5);
+            $pdf->SetFont($font, 'B', 11);
             $pdf->SetTextColor(...$navyRgb);
             $pdf->Cell($colL, $rowH, $row[0], 0, 0, 'L');
-            $pdf->SetFont($font, '', 11.5);
+            $pdf->SetFont($font, '', 11);
             $pdf->SetTextColor(50, 50, 50);
             $pdf->MultiCell($contW - $colL, $rowH, $row[1], 0, 'L', false, 1, $mL + $colL, $y);
             $y += $rowH;
@@ -729,10 +710,6 @@ function _cpeRenderLayoutOne(\TCPDF $pdf, array $p, array $config, int $index = 
     }
 }
 
-// ── Layout N: 2 or 4 products per page (shared grid-cell renderer) ─────
-// Fixed-height zones per cell: image zone + name zone (only if selected)
-// + detail zone (clamped lines, includes quarry number if selected) —
-// guarantees no cell ever exceeds its allotted cellH.
 function _cpeRenderLayoutN(\TCPDF $pdf, array $products, array $config, int $perPage): void {
     $font = $config['_font_family'] ?? 'helvetica';
     $fields = $config['fields'] ?? [];
@@ -774,8 +751,8 @@ function _cpeRenderLayoutN(\TCPDF $pdf, array $products, array $config, int $per
         $pdf->Rect($x + 3, $y + 3, $cellW - 6, $cellH - 6, 'D');
 
         $full = _cpeProductPhotoFull($p['id']);
-$imgH = $baseImgH; // reset every product — never carry over shrink from prior card
-$drawX = null; $drawY = null; // reset draw markers too (see text-position fix below)
+$imgH = $baseImgH; 
+$drawX = null; $drawY = null; 
 if ($full && file_exists($full)) {
     $info = @getimagesize($full);
     if ($info) {
@@ -815,7 +792,7 @@ if ($tmp) {
             $ty += $nameZoneH + 1;
         }
 
-        // Detail lines: quarry number first (if selected), then remaining checked fields
+        
         $rows = _cpeFieldRows($p, array_diff($fields, ['name']), $config['_selection_map'] ?? []);
         if ($showQuarry && !empty($p['quarry_number'])) {
             array_unshift($rows, ['Quarry No', (string)$p['quarry_number']]);
@@ -829,20 +806,20 @@ if ($tmp) {
             $pdf->SetXY($x + $pad, $ty);
             $pdf->Cell($innerW, $detailLineH, $lineTxt, 0, 0, 'L');
             $ty += $detailLineH;
-            if ($ty > $y + $cellH - 4) break; // hard stop — never exceed cell bottom
+            if ($ty > $y + $cellH - 4) break; 
         }
 
         $i++;
     }
 }
 
-// ── Grid layout: many products, thumbnails only (3-col grid) ───────────
+
 function _cpeRenderLayoutGrid(\TCPDF $pdf, array $products, array $config): void {
     $font = $config['_font_family'] ?? 'helvetica';
     $cols = 3; $rowsPerPage = 4; $perPage = $cols * $rowsPerPage;
     $pageW = $pdf->getPageWidth(); $pageH = $pdf->getPageHeight();
     $mL = 15; $mT = $pdf->getMargins()['top'];
-    $mB = $config['_footer_reserve'] ?? 15; // fixed value — getMargins()['bottom'] unreliable after SetAutoPageBreak(false,0)
+    $mB = $config['_footer_reserve'] ?? 15; 
     $cellW = ($pageW - 30) / $cols;
     $cellH = ($pageH - $mT - $mB) / $rowsPerPage;
     $innerW = $cellW - 6;
@@ -891,7 +868,7 @@ function _cpeRenderLayoutGrid(\TCPDF $pdf, array $products, array $config): void
     }
 }
 
-// ── Architect layout: minimal, full-bleed-ish large photo, tiny caption ─
+
 function _cpeRenderLayoutArchitect(\TCPDF $pdf, array $p, array $config): void {
     $font = $config['_font_family'] ?? 'helvetica';
     $pdf->AddPage();
@@ -899,7 +876,7 @@ function _cpeRenderLayoutArchitect(\TCPDF $pdf, array $p, array $config): void {
     $mL = 15; $contW = $pageW - 30;
     $full = _cpeProductPhotoFull($p['id']);
     $y = $pdf->GetY();
-    // _cpeRenderLayoutArchitect()
+   
 $fields = $config['fields'] ?? [];
 if (in_array('name', $fields, true)) { $pdf->Cell($contW, 7, $p['name'] ?? '', 0, 1, 'C'); }
 $metaParts = [];
@@ -931,7 +908,6 @@ if ($meta !== '') { $pdf->SetFont($font,'',9); $pdf->Cell($contW, 5, $meta, 0, 1
     $pdf->Cell($contW, 5, $meta, 0, 1, 'C');
 }
 
-// ── Closing page ────────────────────────────────────────────────────────
 // ── Closing page ────────────────────────────────────────────────────────
 function _cpeRenderClosingPage(\TCPDF $pdf, array $config): void {
     $closing = $config['closing'] ?? [];
@@ -1016,9 +992,7 @@ function _cpeRenderClosingPage(\TCPDF $pdf, array $config): void {
         $y += 14;
     }
 
-    // QR code(s) — centered as a group. If both website + gmap are enabled,
-    // shown side by side; if only one, it's centered alone (matches the
-    // single-QR "Find Us" reference layout).
+    
     $qrSize = 32;
     $qrItems = [];
     if (!empty($closing['website_qr'])) {
