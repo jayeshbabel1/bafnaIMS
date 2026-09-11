@@ -5,18 +5,6 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity .5s'; }, 3200);
   }
   
-  /*  Language dropdown toggle  */
-const langBtn  = document.getElementById('langSwitchBtn');
-const langDrop = document.getElementById('langSwitchDropdown');
-if (langBtn && langDrop) {
-  langBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    langDrop.classList.toggle('open');
-  });
-  document.addEventListener('click', (e) => {
-    if (!langDrop.contains(e.target) && e.target !== langBtn) langDrop.classList.remove('open');
-  });
-}
   /*  Password toggle  */
   document.querySelectorAll('.pwd-toggle').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -61,33 +49,9 @@ if (langBtn && langDrop) {
     });
   });
 
-  /* ── Close mobile menu on outside click  */
-  document.addEventListener('click', e => {
-    const menu = document.getElementById('mobileMenu');
-    const btn  = document.getElementById('hamburgerBtn');
-    if (menu && menu.classList.contains('open') && !menu.contains(e.target) && btn && !btn.contains(e.target)) {
-      closeMobileMenu();
-    }
-  });
 });
 
-/*  Mobile menu  */
-function toggleMobileMenu() {
-  const menu = document.getElementById('mobileMenu');
-  const btn  = document.getElementById('hamburgerBtn');
-  if (!menu) return;
-  const open = menu.classList.toggle('open');
-  if (btn) btn.classList.toggle('open', open);
-  document.body.style.overflow = open ? 'hidden' : '';
-}
-
-function closeMobileMenu() {
-  const menu = document.getElementById('mobileMenu');
-  const btn  = document.getElementById('hamburgerBtn');
-  if (menu) menu.classList.remove('open');
-  if (btn)  btn.classList.remove('open');
-  document.body.style.overflow = '';
-}
+/* Mobile menu is now a Bootstrap Offcanvas - open/close handled natively */
 
 /*  Quick chip for inquiry form  */
 function addChip(btn, text) {

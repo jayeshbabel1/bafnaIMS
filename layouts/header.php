@@ -64,138 +64,155 @@ $_trustedDeviceUser = isLoggedIn() ? getCurrentTrustedDevice('user') : null;
   } catch (Throwable $_e) {}
 ?>
 
-<nav class="navbar">
-  <!-- Brand -->
-  <a href="index.php?page=catalog" class="navbar-brand">
-    <div class="navbar-logo">
-      <?php if (!empty($_authLogo)): ?>
-        <img src="<?= h($_authLogo) ?>" alt="<?= h(APP_NAME) ?>"/>
-      <?php else: ?>
-        <img src="https://i0.wp.com/www.bafnamarble.com/wp-content/uploads/2023/11/cropped-logo-01.png?fit=317%2C250&ssl=1"
-             alt="<?= h(APP_NAME) ?>" style="object-fit:contain;"/>
-      <?php endif; ?>
-    </div>
-    <span class="navbar-name"><?= APP_NAME ?></span>
-  </a>
+<nav class="navbar navbar-expand-md fixed-top" style="background:var(--navbar-bg);border-bottom:1px solid var(--navbar-border);height:var(--nav-h);z-index:500;">
+  <div class="container-fluid h-100 align-items-center px-3 px-md-5">
 
-  <!-- Desktop nav links -->
-  <nav class="navbar-nav">
-    <a href="index.php?page=catalog" class="<?= $curPage==='catalog'?'active':'' ?>">
-      <?= icon('grid',15) ?> <?= h(ui('nav_catalog','Catalog')) ?>
+    <a href="index.php?page=catalog" class="navbar-brand d-flex align-items-center gap-2 me-3">
+      <div class="navbar-logo">
+        <?php if (!empty($_authLogo)): ?>
+          <img src="<?= h($_authLogo) ?>" alt="<?= h(APP_NAME) ?>"/>
+        <?php else: ?>
+          <img src="https://i0.wp.com/www.bafnamarble.com/wp-content/uploads/2023/11/cropped-logo-01.png?fit=317%2C250&ssl=1"
+               alt="<?= h(APP_NAME) ?>" style="object-fit:contain;"/>
+        <?php endif; ?>
+      </div>
+      <span class="navbar-name d-none d-sm-inline-block"><?= APP_NAME ?></span>
     </a>
-    <a href="index.php?page=shortlist" class="<?= $curPage==='shortlist'?'active':'' ?>" style="position:relative;">
-      <?= icon('heart',15) ?> <?= h(ui('nav_shortlist','Shortlist')) ?>
-      <?php if ($sc): ?><span class="navbar-badge"><?= $sc ?></span><?php endif; ?>
-    </a>
-    <a href="index.php?page=clients" class="<?= in_array($curPage,['clients','client_form','client_selections'])?'active':'' ?>" style="position:relative;">
-      <?= icon('users',15) ?> <?= h(ui('nav_clients','Clients')) ?>
-      <?php if ($clientCount): ?><span class="navbar-badge"><?= $clientCount ?></span><?php endif; ?>
-    </a>
-    <a href="index.php?page=notifications" class="<?= $curPage==='notifications'?'active':'' ?>" style="position:relative;">
-      <?= icon('bell',15) ?> <?= h(ui('nav_updates','Updates')) ?>
-      <?php if ($notifCount): ?><span class="navbar-badge"><?= $notifCount ?></span><?php endif; ?>
-    </a>
-    <a href="index.php?page=support" class="<?= $curPage==='support'?'active':'' ?>">
-      <?= icon('info',15) ?> <?= h(ui('nav_support','Support')) ?>
-    </a>
-  </nav>
 
-  <!-- Right actions -->
-  <div class="navbar-right">
-       
-    <!-- Shortlist icon (mobile) -->
-    <a href="index.php?page=shortlist" class="navbar-icon-btn" title="Shortlist">
-      <?= icon('heart',17) ?>
-      <?php if ($sc): ?><span class="navbar-badge"><?= $sc ?></span><?php endif; ?>
-    </a>
-    <!-- Profile -->
-    <a href="index.php?page=profile" class="navbar-user-btn" style="text-decoration:none;">
-      <div class="navbar-avatar"><?= h($initials) ?></div>
-      <span class="navbar-user-name"><?= h(explode(' ', $user['name'] ?? 'User')[0]) ?></span>
-    </a>
-    <?php if ($_trustedDeviceUser): ?>
-<button type="button" class="navbar-signout" onclick="openForceLogoutConfirm()">
-  <?= icon('logout',14) ?> Sign Out
-</button>
-<?php else: ?>
-<form method="POST" action="index.php" class="navbar-signout-form" style="display:contents;">
-  <input type="hidden" name="action" value="logout"/>
-  <?= csrfField() ?>
-  <button type="submit" class="navbar-signout">
-    <?= icon('logout',14) ?> <?= h(ui('btn_sign_out','Sign Out')) ?>
-  </button>
-</form>
-<?php endif; ?>
-    
-    <!-- Language switcher -->
-<div class="lang-switch-wrap" id="langSwitchWrap">
-  <button class="navbar-icon-btn" id="langSwitchBtn" type="button" title="Language">
-    <span style="font-size:11px;font-weight:700;"><?= strtoupper(currentLang()) ?></span>
-  </button>
-  <div class="lang-switch-dropdown" id="langSwitchDropdown">
-    <?php foreach (LANG_LABELS as $code => $label): ?>
-    <form method="POST" action="index.php">
-      <input type="hidden" name="action" value="switch_language"/>
-      <input type="hidden" name="lang" value="<?= h($code) ?>"/>
-      <input type="hidden" name="return_url" value="index.php?page=<?= h($curPage) ?>"/>
-      <?= csrfField() ?>
-      <button type="submit" class="lang-switch-item <?= currentLang()===$code?'active':'' ?>">
-        <?= h($label) ?>
+    <ul class="navbar-nav flex-row d-none d-md-flex me-auto gap-1">
+      <li class="nav-item">
+        <a href="index.php?page=catalog" class="nav-link <?= $curPage==='catalog'?'active':'' ?>">
+          <?= icon('grid',15) ?> <?= h(ui('nav_catalog','Catalog')) ?>
+        </a>
+      </li>
+      <li class="nav-item position-relative">
+        <a href="index.php?page=shortlist" class="nav-link <?= $curPage==='shortlist'?'active':'' ?>">
+          <?= icon('heart',15) ?> <?= h(ui('nav_shortlist','Shortlist')) ?>
+          <?php if ($sc): ?><span class="navbar-badge"><?= $sc ?></span><?php endif; ?>
+        </a>
+      </li>
+      <li class="nav-item position-relative">
+        <a href="index.php?page=clients" class="nav-link <?= in_array($curPage,['clients','client_form','client_selections'])?'active':'' ?>">
+          <?= icon('users',15) ?> <?= h(ui('nav_clients','Clients')) ?>
+          <?php if ($clientCount): ?><span class="navbar-badge"><?= $clientCount ?></span><?php endif; ?>
+        </a>
+      </li>
+      <li class="nav-item position-relative">
+        <a href="index.php?page=notifications" class="nav-link <?= $curPage==='notifications'?'active':'' ?>">
+          <?= icon('bell',15) ?> <?= h(ui('nav_updates','Updates')) ?>
+          <?php if ($notifCount): ?><span class="navbar-badge"><?= $notifCount ?></span><?php endif; ?>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a href="index.php?page=support" class="nav-link <?= $curPage==='support'?'active':'' ?>">
+          <?= icon('info',15) ?> <?= h(ui('nav_support','Support')) ?>
+        </a>
+      </li>
+    </ul>
+
+    <div class="d-flex align-items-center gap-2 ms-auto">
+
+      <a href="index.php?page=shortlist" class="navbar-icon-btn d-md-none position-relative" title="Shortlist">
+        <?= icon('heart',17) ?>
+        <?php if ($sc): ?><span class="navbar-badge"><?= $sc ?></span><?php endif; ?>
+      </a>
+
+      <a href="index.php?page=profile" class="navbar-user-btn d-none d-md-flex text-decoration-none">
+        <div class="navbar-avatar"><?= h($initials) ?></div>
+        <span class="navbar-user-name"><?= h(explode(' ', $user['name'] ?? 'User')[0]) ?></span>
+      </a>
+
+      <?php if ($_trustedDeviceUser): ?>
+      <button type="button" class="navbar-signout d-none d-md-inline-flex" onclick="openForceLogoutConfirm()">
+        <?= icon('logout',14) ?> Sign Out
       </button>
-    </form>
-    <?php endforeach; ?>
-  </div>
-</div>
-    <!-- Hamburger -->
-    <div class="navbar-hamburger" id="hamburgerBtn" onclick="toggleMobileMenu()">
-      <div class="hamburger-line"></div>
-      <div class="hamburger-line"></div>
-      <div class="hamburger-line"></div>
+      <?php else: ?>
+      <form method="POST" action="index.php" class="d-none d-md-block">
+        <input type="hidden" name="action" value="logout"/>
+        <?= csrfField() ?>
+        <button type="submit" class="navbar-signout d-none d-md-inline-flex">
+          <?= icon('logout',14) ?> <?= h(ui('btn_sign_out','Sign Out')) ?>
+        </button>
+      </form>
+      <?php endif; ?>
+
+      <div class="dropdown">
+        <button class="navbar-icon-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Language">
+          <span style="font-size:11px;font-weight:700;"><?= strtoupper(currentLang()) ?></span>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end p-1" style="min-width:140px;">
+          <?php foreach (LANG_LABELS as $code => $label): ?>
+          <li>
+            <form method="POST" action="index.php" class="m-0">
+              <input type="hidden" name="action" value="switch_language"/>
+              <input type="hidden" name="lang" value="<?= h($code) ?>"/>
+              <input type="hidden" name="return_url" value="index.php?page=<?= h($curPage) ?>"/>
+              <?= csrfField() ?>
+              <button type="submit" class="dropdown-item lang-switch-item <?= currentLang()===$code?'active':'' ?>">
+                <?= h($label) ?>
+              </button>
+            </form>
+          </li>
+          <?php endforeach; ?>
+        </ul>
+      </div>
+
+      <button class="navbar-toggler d-md-none border-0 p-1" type="button"
+              data-bs-toggle="offcanvas" data-bs-target="#mobileMenu" aria-controls="mobileMenu"
+              aria-label="Open menu">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+
     </div>
   </div>
 </nav>
 
-<!-- Mobile menu drawer -->
-<div class="mobile-menu" id="mobileMenu">
-  <div class="mobile-menu-inner">
-    <a href="index.php?page=catalog" class="<?= $curPage==='catalog'?'active':'' ?>" onclick="closeMobileMenu()">
-      <?= icon('grid',18) ?> <?= h(ui('nav_catalog','Catalog')) ?>
-    </a>
-    <a href="index.php?page=shortlist" class="<?= $curPage==='shortlist'?'active':'' ?>" onclick="closeMobileMenu()" style="position:relative;">
-      <?= icon('heart',18) ?> <?= h(ui('nav_shortlist','Shortlist')) ?>
-      <?php if ($sc): ?><span style="margin-left:auto;" class="badge badge-black"><?= $sc ?></span><?php endif; ?>
-    </a>
-    <a href="index.php?page=clients"
-       class="<?= in_array($curPage,['clients','client_form','client_selections'])?'active':'' ?>"
-       onclick="closeMobileMenu()">
-      <?= icon('users',18) ?> <?= h(ui('nav_clients','Clients')) ?>
-      <?php if ($clientCount): ?><span style="margin-left:auto;" class="badge badge-black"><?= $clientCount ?></span><?php endif; ?>
-    </a>
-    <a href="index.php?page=notifications" class="<?= $curPage==='notifications'?'active':'' ?>" onclick="closeMobileMenu()">
-      <?= icon('bell',18) ?> <?= h(ui('nav_updates','Updates')) ?>
-      <?php if ($notifCount): ?><span style="margin-left:auto;" class="badge badge-black"><?= $notifCount ?></span><?php endif; ?>
-    </a>
-    <a href="index.php?page=support" class="<?= $curPage==='support'?'active':'' ?>" onclick="closeMobileMenu()">
-      <?= icon('info',18) ?> <?= h(ui('nav_support','Support')) ?>
-    </a>
-    <a href="index.php?page=profile" class="<?= $curPage==='profile'?'active':'' ?>" onclick="closeMobileMenu()">
-      <?= icon('user',18) ?> Profile
-    </a>
+<div class="offcanvas offcanvas-end" tabindex="-1" id="mobileMenu" aria-labelledby="mobileMenuLabel">
+  <div class="offcanvas-header border-bottom">
+    <span id="mobileMenuLabel" class="fw-bold"><?= APP_NAME ?></span>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
   </div>
-  <div class="mobile-menu-footer">
-    <?php if ($_trustedDeviceUser): ?>
-<button type="button" class="btn btn-danger btn-block" style="border-radius:12px;" onclick="openForceLogoutConfirm()">
-  <?= icon('logout',16) ?> <?= h(ui('btn_sign_out','Sign Out')) ?>
-</button>
-<?php else: ?>
-<form method="POST" action="index.php">
-  <input type="hidden" name="action" value="logout"/>
-  <?= csrfField() ?>
-  <button type="submit" class="btn btn-danger btn-block" style="border-radius:12px;">
-    <?= icon('logout',16) ?> <?= h(ui('btn_sign_out','Sign Out')) ?>
-  </button>
-</form>
-<?php endif; ?>
+  <div class="offcanvas-body d-flex flex-column p-0">
+    <div class="mobile-menu-inner flex-grow-1">
+      <a href="index.php?page=catalog" class="<?= $curPage==='catalog'?'active':'' ?>" data-bs-dismiss="offcanvas">
+        <?= icon('grid',18) ?> <?= h(ui('nav_catalog','Catalog')) ?>
+      </a>
+      <a href="index.php?page=shortlist" class="<?= $curPage==='shortlist'?'active':'' ?>" data-bs-dismiss="offcanvas" style="position:relative;">
+        <?= icon('heart',18) ?> <?= h(ui('nav_shortlist','Shortlist')) ?>
+        <?php if ($sc): ?><span style="margin-left:auto;" class="badge badge-black"><?= $sc ?></span><?php endif; ?>
+      </a>
+      <a href="index.php?page=clients"
+         class="<?= in_array($curPage,['clients','client_form','client_selections'])?'active':'' ?>"
+         data-bs-dismiss="offcanvas">
+        <?= icon('users',18) ?> <?= h(ui('nav_clients','Clients')) ?>
+        <?php if ($clientCount): ?><span style="margin-left:auto;" class="badge badge-black"><?= $clientCount ?></span><?php endif; ?>
+      </a>
+      <a href="index.php?page=notifications" class="<?= $curPage==='notifications'?'active':'' ?>" data-bs-dismiss="offcanvas">
+        <?= icon('bell',18) ?> <?= h(ui('nav_updates','Updates')) ?>
+        <?php if ($notifCount): ?><span style="margin-left:auto;" class="badge badge-black"><?= $notifCount ?></span><?php endif; ?>
+      </a>
+      <a href="index.php?page=support" class="<?= $curPage==='support'?'active':'' ?>" data-bs-dismiss="offcanvas">
+        <?= icon('info',18) ?> <?= h(ui('nav_support','Support')) ?>
+      </a>
+      <a href="index.php?page=profile" class="<?= $curPage==='profile'?'active':'' ?>" data-bs-dismiss="offcanvas">
+        <?= icon('user',18) ?> Profile
+      </a>
+    </div>
+    <div class="mobile-menu-footer">
+      <?php if ($_trustedDeviceUser): ?>
+      <button type="button" class="btn btn-danger btn-block" style="border-radius:12px;" onclick="openForceLogoutConfirm()">
+        <?= icon('logout',16) ?> <?= h(ui('btn_sign_out','Sign Out')) ?>
+      </button>
+      <?php else: ?>
+      <form method="POST" action="index.php">
+        <input type="hidden" name="action" value="logout"/>
+        <?= csrfField() ?>
+        <button type="submit" class="btn btn-danger btn-block" style="border-radius:12px;">
+          <?= icon('logout',16) ?> <?= h(ui('btn_sign_out','Sign Out')) ?>
+        </button>
+      </form>
+      <?php endif; ?>
+    </div>
   </div>
 </div>
 
