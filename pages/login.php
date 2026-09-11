@@ -35,22 +35,22 @@ $tagline = getSetting('company_tagline', 'Premium Stone Catalog Platform');
       <p class="auth-card-sub">Sign in to access the inventory.</p>
 
       <?php if ($err): ?>
-      <div class="alert alert-error"><?= h($err) ?></div>
+      <div class="alert alert-danger"><?= h($err) ?></div>
       <?php endif; ?>
 
       <form method="POST" action="index.php?page=login" novalidate>
         <input type="hidden" name="action" value="login"/>
          <?= csrfField() ?>
-        <div class="input-group">
-          <label class="input-label">Email Address</label>
-          <input type="email" name="email" class="input-field"
+        <div class="form-group">
+          <label class="form-label">Email Address</label>
+          <input type="email" name="email" class="form-control"
                  value="<?= h($_POST['email'] ?? '') ?>"
                  autocomplete="email" required/>
         </div>
-        <div class="input-group" style="margin-bottom:10px;">
-          <label class="input-label">Password</label>
+        <div class="form-group" style="margin-bottom:10px;">
+          <label class="form-label">Password</label>
           <div class="password-wrap">
-            <input type="password" name="password" id="loginPwd" class="input-field"
+            <input type="password" name="password" id="loginPwd" class="form-control"
                    autocomplete="current-password" required/>
             <button type="button" class="pwd-toggle" data-target="loginPwd"><?= icon('eye',16) ?></button>
           </div>

@@ -174,6 +174,22 @@ function _bsHexToRgbTriplet(string $hex): string {
     return hexdec(substr($hex,0,2)) . ',' . hexdec(substr($hex,2,2)) . ',' . hexdec(substr($hex,4,2));
 }
 
+// Linearly mixes two hex colors ($ratio = weight of $hex1, 0..1). Used to derive
+// Bootstrap's "-bg-subtle" / "-border-subtle" / "-text-emphasis" variants from a
+// single brand color - Bootstrap 5.3 computes those at Sass-compile time (fixed
+// into the CDN CSS), not from --bs-danger etc. at runtime, so without this,
+// alerts/badges silently ignore the theme override.
+function _bsMixHex(string $hex1, string $hex2, float $ratio): string {
+    $ratio = max(0, min(1, $ratio));
+    $rgb1 = explode(',', _bsHexToRgbTriplet($hex1));
+    $rgb2 = explode(',', _bsHexToRgbTriplet($hex2));
+    $out = [];
+    for ($i = 0; $i < 3; $i++) {
+        $out[] = (int)round(((int)$rgb1[$i]) * $ratio + ((int)$rgb2[$i]) * (1 - $ratio));
+    }
+    return sprintf('#%02x%02x%02x', $out[0], $out[1], $out[2]);
+}
+
 function getCSSVariables(bool $isAdmin = false): string {
 
     $file = __DIR__ . '/../config/colors.php';
@@ -279,6 +295,11 @@ if ($langFont) {
         foreach ($bsColorMap as $bk => $bv) {
             $css .= "{$bk}:{$bv};\n";
             $css .= "{$bk}-rgb:" . _bsHexToRgbTriplet($bv) . ";\n";
+            // Subtle variants - used by .alert-*, .text-bg-*, and other
+            // components that don't read --bs-{color} directly.
+            $css .= "{$bk}-bg-subtle:"     . _bsMixHex($bv, '#FFFFFF', 0.15) . ";\n";
+            $css .= "{$bk}-border-subtle:" . _bsMixHex($bv, '#FFFFFF', 0.35) . ";\n";
+            $css .= "{$bk}-text-emphasis:" . _bsMixHex($bv, '#000000', 0.75) . ";\n";
         }
         $bsOther = [
             '--bs-body-bg'          => $vars['--bg']          ?? '#F2F5F9',

@@ -36,7 +36,7 @@ $old  = $_SESSION['reg_data'] ?? [];
       </div>
 
       <?php if ($err): ?>
-      <div class="alert alert-error"><?= h($err) ?></div>
+      <div class="alert alert-danger"><?= h($err) ?></div>
       <?php endif; ?>
 
       <?php if ($step === 1): ?>
@@ -46,35 +46,35 @@ $old  = $_SESSION['reg_data'] ?? [];
       <form method="POST" action="index.php?page=register&step=1" novalidate>
         <input type="hidden" name="action" value="register_step1"/>
          <?= csrfField() ?>
-        <div class="input-group">
-          <label class="input-label">Full Name *</label>
-          <input type="text" name="name" class="input-field" placeholder="Rahul Sharma"
+        <div class="form-group">
+          <label class="form-label">Full Name *</label>
+          <input type="text" name="name" class="form-control" placeholder="Rahul Sharma"
                  value="<?= h($old['name'] ?? '') ?>" required autocomplete="name"/>
         </div>
-        <div class="input-group">
-          <label class="input-label">Email Address *</label>
-          <input type="email" name="email" class="input-field" placeholder="you@studio.com"
+        <div class="form-group">
+          <label class="form-label">Email Address *</label>
+          <input type="email" name="email" class="form-control" placeholder="you@studio.com"
                  value="<?= h($old['email'] ?? '') ?>" autocomplete="email" required/>
         </div>
-        <div class="input-group">
-          <label class="input-label">Password *</label>
+        <div class="form-group">
+          <label class="form-label">Password *</label>
           <div class="password-wrap">
-            <input type="password" name="password" id="regPwd" class="input-field"
+            <input type="password" name="password" id="regPwd" class="form-control"
                    placeholder="Min. 8 characters" required minlength="8" autocomplete="new-password"/>
             <button type="button" class="pwd-toggle" data-target="regPwd"><?= icon('eye',16) ?></button>
           </div>
           <div class="pwd-strength" id="pwdStrength"></div>
         </div>
-        <div class="input-group">
-          <label class="input-label">Confirm Password *</label>
-          <input type="password" name="password_confirm" class="input-field"
+        <div class="form-group">
+          <label class="form-label">Confirm Password *</label>
+          <input type="password" name="password_confirm" class="form-control"
                  placeholder="Re-enter password" required autocomplete="new-password"/>
         </div>
-        <div class="input-group">
-          <label class="input-label">Mobile Number</label>
+        <div class="form-group">
+          <label class="form-label">Mobile Number</label>
           <div class="input-prefix-group">
             <span class="input-prefix">+91</span>
-            <input type="tel" name="phone" class="input-field" placeholder="98765 43210"
+            <input type="tel" name="phone" class="form-control" placeholder="98765 43210"
                    value="<?= h($old['phone'] ?? '') ?>" maxlength="10" autocomplete="tel"/>
           </div>
         </div>
@@ -88,18 +88,18 @@ $old  = $_SESSION['reg_data'] ?? [];
       <form method="POST" action="index.php?page=register&step=2" novalidate>
         <input type="hidden" name="action" value="register_step2"/>
          <?= csrfField() ?>
-        <div class="input-group">
-          <label class="input-label">Firm / Studio Name *</label>
-          <input type="text" name="firm" class="input-field" placeholder="RS Architecture Studio"
+        <div class="form-group">
+          <label class="form-label">Firm / Studio Name *</label>
+          <input type="text" name="firm" class="form-control" placeholder="RS Architecture Studio"
                  value="<?= h($old['firm'] ?? '') ?>" required/>
         </div>
-        <div class="input-group">
-          <label class="input-label">City *</label>
-          <input type="text" name="city" class="input-field" placeholder="Mumbai"
+        <div class="form-group">
+          <label class="form-label">City *</label>
+          <input type="text" name="city" class="form-control" placeholder="Mumbai"
                  value="<?= h($old['city'] ?? '') ?>" required/>
         </div>
-        <div class="input-group">
-          <label class="input-label">Professional Role *</label>
+        <div class="form-group">
+          <label class="form-label">Professional Role *</label>
           <div class="roles-grid">
             <?php foreach (ROLES as $val => $label): ?>
             <label class="role-option <?= ($old['role'] ?? '') === $val ? 'selected' : '' ?>">
@@ -111,8 +111,8 @@ $old  = $_SESSION['reg_data'] ?? [];
             <?php endforeach; ?>
           </div>
         </div>
-        <div class="input-group" style="margin-top:18px;">
-          <label class="input-label">Years of Experience</label>
+        <div class="form-group" style="margin-top:18px;">
+          <label class="form-label">Years of Experience</label>
           <div class="chip-row">
             <?php foreach (EXPERIENCE_OPTIONS as $exp): ?>
             <label class="exp-chip <?= ($old['experience'] ?? '') === $exp ? 'active' : '' ?>">

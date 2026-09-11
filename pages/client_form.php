@@ -33,7 +33,7 @@ $g = fn($k) => h($c[$k] ?? '');
   </div>
 
   <?php if ($err): ?>
-  <div class="alert alert-error" style="margin-bottom:20px;"><?= h($err) ?></div>
+  <div class="alert alert-danger" style="margin-bottom:20px;"><?= h($err) ?></div>
   <?php endif; ?>
 
   <div class="card" style="padding:24px;">
@@ -46,14 +46,14 @@ $g = fn($k) => h($c[$k] ?? '');
       <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text4);margin-bottom:14px;">Client Details</p>
 
       <div class="profile-form-grid" style="grid-template-columns:1fr 1fr;gap:0 16px;">
-        <div class="input-group">
+        <div class="form-group">
           <label class="input-label">Client Name <span style="color:var(--danger);">*</span></label>
           <input type="text" name="client_name" class="input-field"
                  placeholder="e.g. Ramesh Patel"
                  value="<?= $g('client_name') ?>" required/>
          
         </div>
-        <div class="input-group">
+        <div class="form-group">
  <label class="input-label">Client Mobile <span style="color:var(--danger);">*</span></label>
           <div class="input-prefix-group">
             <span class="input-prefix">+91</span>
@@ -83,13 +83,13 @@ $g = fn($k) => h($c[$k] ?? '');
       <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text4);margin-bottom:14px;">Mason / Contractor (Optional)</p>
 
       <div class="profile-form-grid" style="grid-template-columns:1fr 1fr;gap:0 16px;">
-        <div class="input-group">
+        <div class="form-group">
           <label class="input-label">Mason Name</label>
           <input type="text" name="mansoner_name" class="input-field"
                  placeholder="e.g. Suresh Kumar"
                  value="<?= $g('mansoner_name') ?>"/>
         </div>
-        <div class="input-group">
+        <div class="form-group">
           <label class="input-label">Mason Mobile</label>
           <div class="input-prefix-group">
             <span class="input-prefix">+91</span>
@@ -103,7 +103,7 @@ $g = fn($k) => h($c[$k] ?? '');
       <hr class="divider" style="margin:4px 0 20px;"/>
 
       <!-- Site address -->
-      <div class="input-group">
+      <div class="form-group">
         <label class="input-label">Site Address</label>
         <textarea name="site_address" class="input-field" rows="3"
                   maxlength="500" id="siteAddr"

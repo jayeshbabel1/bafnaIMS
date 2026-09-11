@@ -65,7 +65,7 @@ if ($p['thickness'])    $specParts[] = h($p['thickness']);
     </div>
 
     <?php if ($err): ?>
-    <div class="alert alert-error"><?= h($err) ?></div>
+    <div class="alert alert-danger"><?= h($err) ?></div>
     <?php endif; ?>
 
     <form method="POST" action="index.php" id="inquiryForm">

@@ -64,19 +64,19 @@ $slC = $slSt->fetch()['c'];
           <input type="hidden" name="action" value="update_profile"/>
           <?= csrfField() ?>
           <div class="profile-form-grid">
-            <div class="input-group">
+            <div class="form-group">
               <label class="input-label">Full Name</label>
               <input type="text" name="name" class="input-field" value="<?= h($user['name'] ?? '') ?>" required/>
             </div>
-            <div class="input-group">
+            <div class="form-group">
               <label class="input-label">Firm / Studio</label>
               <input type="text" name="firm" class="input-field" value="<?= h($user['firm'] ?? '') ?>"/>
             </div>
-            <div class="input-group">
+            <div class="form-group">
               <label class="input-label">City</label>
               <input type="text" name="city" class="input-field" value="<?= h($user['city'] ?? '') ?>"/>
             </div>
-            <div class="input-group">
+            <div class="form-group">
               <label class="input-label">Mobile</label>
               <input type="tel" name="phone" class="input-field" value="<?= h($user['phone'] ?? '') ?>"/>
             </div>
@@ -97,14 +97,14 @@ $slC = $slSt->fetch()['c'];
           <input type="hidden" name="action" value="change_password"/>
           <?= csrfField() ?>
           <div class="profile-form-grid">
-            <div class="input-group">
+            <div class="form-group">
               <label class="input-label">Current Password</label>
               <div class="password-wrap">
                 <input type="password" name="current_password" id="curPwd" class="input-field" placeholder="••••••••"/>
                 <button type="button" class="pwd-toggle" data-target="curPwd"><?= icon('eye',16) ?></button>
               </div>
             </div>
-            <div class="input-group">
+            <div class="form-group">
               <label class="input-label">New Password</label>
               <div class="password-wrap">
                 <input type="password" name="new_password" id="newPwd" class="input-field"
