@@ -137,8 +137,12 @@ textarea.form-control { resize: vertical; min-height: 90px; line-height: 1.6; }
 .badge-blue   { background: #eff6ff; color: #1d4ed8; }
 
 /* Toast  */
-.toast { position: fixed; top: calc(var(--nav-h) + 12px); left: 50%; transform: translateX(-50%); background: var(--black); color: var(--white); padding: 11px 20px; border-radius: 24px; font-size: 13px; font-weight: 600; z-index: 9999; white-space: normal; text-align: center; max-width: 90vw; box-shadow: var(--shadow-xl); animation: toastIn .35s cubic-bezier(.34,1.4,.64,1); }
-.toast-error { background: var(--danger); }
+/* .app-toast - renamed from .toast in Fire 7: "toast" also names a Bootstrap
+   component with `.toast:not(.show){display:none}`, which out-specifies a
+   plain .toast rule regardless of load order and was silently hiding every
+   success/error notification since Fire 0. */
+.app-toast { position: fixed; top: calc(var(--nav-h) + 12px); left: 50%; transform: translateX(-50%); background: var(--black); color: var(--white); padding: 11px 20px; border-radius: 24px; font-size: 13px; font-weight: 600; z-index: 9999; white-space: normal; text-align: center; max-width: 90vw; box-shadow: var(--shadow-xl); animation: toastIn .35s cubic-bezier(.34,1.4,.64,1); }
+.app-toast-error { background: var(--danger); }
 @keyframes toastIn { from { opacity: 0; top: calc(var(--nav-h) - 10px); } to { opacity: 1; top: calc(var(--nav-h) + 12px); } }
 /* .alert now comes from Bootstrap - colors driven by the --bs-* bridge in getCSSVariables() */
 

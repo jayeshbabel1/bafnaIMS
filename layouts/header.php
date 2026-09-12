@@ -37,9 +37,9 @@ $_trustedDeviceUser = isLoggedIn() ? getCurrentTrustedDevice('user') : null;
 ?>
 
 <?php if ($_toast || $_success): ?>
-<div class="toast" id="app-toast"><?= h($_toast ?: $_success) ?></div>
+<div class="app-toast" id="app-toast"><?= h($_toast ?: $_success) ?></div>
 <?php elseif ($_error): ?>
-<div class="toast toast-error" id="app-toast"><?= h($_error) ?></div>
+<div class="app-toast app-toast-error" id="app-toast"><?= h($_error) ?></div>
 <?php endif; ?>
 
 <?php if (!empty($showNav) && isLoggedIn()):
