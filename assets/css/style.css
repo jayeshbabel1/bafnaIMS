@@ -93,6 +93,7 @@ ul, ol { list-style: none; }
 
 /*  Buttons  */
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 11px 20px; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all .15s; white-space: nowrap; border: none; font-family: var(--font-body); }
+.btn:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--input-focus-shadow, rgba(44,110,138,.25)); }
 .btn-primary { background: var(--btn-bg); color: var(--btn-color); border: 1.5px solid var(--btn-border-color); }
 .btn-primary:hover { background: var(--btn-hover-bg); color: var(--btn-hover-color); border-color: var(--btn-hover-border); }
 .btn-primary:active { transform: scale(.97); }
