@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 requireAdminPermission('products.view');
 require_once BASE_PATH . '/includes/product_views.php';
@@ -130,29 +130,98 @@ function renderAdminProductsGrid(array $products, array $fields): string {
 }
 
 //  LIST view 
+function pvAdminListStatIcon(string $key): string {
+    $map = [
+        'category' => 'layers', 'subcategory' => 'layers', 'color_subcategory' => 'palette',
+        'thickness' => 'resize', 'sizes' => 'expand', 'cutter_size' => 'expand',
+        'quantity_available' => 'truck', 'quantity_on_hold' => 'truck',
+        'in_stock' => 'box', 'finish' => 'info', 'featured' => 'star',
+    ];
+    return $map[$key] ?? 'info';
+}
+
+function pvAdminListStatLabel(string $key, string $fallback): string {
+    if ($key === 'sizes') return 'Available Size'; // list-card wording only; other views keep "Useable Size"
+    return pvShortLabel($key, $fallback);
+}
+
+function pvAdminListActionButtons(array $p): string {
+    $thumbSrc = ($p['primary_photo'] && file_exists(PHOTOS_DIR.'/'.$p['primary_photo']))
+        ? '../assets/uploads/photos/' . $p['primary_photo'] : '';
+    $canEdit = adminCan('products.edit');
+    $canView = $canEdit || adminCan('products.view_details');
+
+    $h = '<div class="apv-list-actions">';
+    if ($canEdit) {
+        $h .= '<a href="index.php?page=product_edit&id='.$p['id'].'" class="apv-icon-btn apv-icon-btn--edit" title="Edit">'.icon('edit',15).'</a>';
+    }
+    if (adminCan('products.whatsapp')) {
+        $h .= '<button type="button" onclick="openWaShare('.$p['id'].', '.h(json_encode($p['name'])).', '.h(json_encode($p['quarry_number'])).', '.h(json_encode($thumbSrc)).')" class="apv-icon-btn apv-icon-btn--wa" title="Share via WhatsApp">'.icon('whatsapp',15).'</button>';
+    }
+    if (adminCan('products.delete')) {
+        $h .= '<form method="POST" action="index.php" style="display:inline;">
+            <input type="hidden" name="action" value="delete_product"/>
+            <input type="hidden" name="product_id" value="'.$p['id'].'"/>
+            '.csrfField().'
+            <button type="submit" class="apv-icon-btn apv-icon-btn--delete" title="Delete" data-confirm="Delete \''.h(addslashes($p['name'])).'\'?">'.icon('trash',15).'</button>
+        </form>';
+    }
+    if ($canView) {
+        $h .= '<a href="index.php?page=product_edit&id='.$p['id'].'" class="apv-view-details-btn">View Details '.icon('forward',14).'</a>';
+    }
+    $h .= '</div>';
+    return $h;
+}
+
 function renderAdminProductsList(array $products, array $fields): string {
     if (empty($products)) return '<div class="admin-table-empty">No products found.</div>';
+    $keys       = array_column($fields, 'key');
+    $hasPhoto   = in_array('photo', $keys, true);
+    $hasActions = in_array('actions', $keys, true);
+    $hasQuarry  = in_array('quarry_number', $keys, true);
+    $hasOrigin  = in_array('origin', $keys, true);
+    $statFields = array_values(array_filter($fields, fn($f) => !in_array($f['key'], ['photo','name','quarry_number','actions','origin'], true)));
+
     $h = '<div class="apv-list">';
     foreach ($products as $p) {
         $editUrl = adminCan('products.edit') ? 'index.php?page=product_edit&id='.$p['id'] : '';
         $h .= '<div class="apv-list-row'.($editUrl?' apv-row-clickable':'').'"'.($editUrl?' onclick="if(!event.target.closest(\'a,button,form\'))window.location=\''.$editUrl.'\'"':'').'>';
-        if (in_array('photo', array_column($fields, 'key'), true)) {
+
+        if ($hasPhoto) {
             $h .= '<div class="apv-list-thumb">'.pvAdminFieldHtml($p, 'photo').'</div>';
         }
-        $h .= '<div class="apv-list-body">';
-        foreach ($fields as $f) {
-            if (in_array($f['key'], ['photo','actions'], true)) continue;
-            if ($f['key'] === 'name') {
-                $h .= '<div class="apv-list-name">'.pvAdminFieldHtml($p, 'name').'</div>';
-            } else {
-                $h .= '<span class="apv-list-chip"><b>'.h(pvShortLabel($f['key'],$f['label'])).':</b> '.pvAdminFieldHtml($p, $f['key']).'</span>';
+
+        $h .= '<div class="apv-list-body"><div class="apv-list-toprow">';
+
+        $h .= '<div class="apv-list-info"><div class="apv-list-name">'.pvAdminFieldHtml($p, 'name').'</div>';
+        if ($hasQuarry) {
+            $h .= '<div class="apv-list-quarry">Quarry #: '.h($p['quarry_number'] ?: '—').'</div>';
+        }
+        $h .= '</div>';
+
+        if (!empty($statFields)) {
+            $h .= '<div class="apv-list-stats">';
+            foreach ($statFields as $f) {
+                $h .= '<div class="apv-list-stat">'.icon(pvAdminListStatIcon($f['key']), 15, 'apv-list-stat-icon').
+                      '<span><span class="apv-list-stat-label">'.h(pvAdminListStatLabel($f['key'],$f['label'])).'</span>'.
+                      '<span class="apv-list-stat-val">'.pvAdminFieldHtml($p, $f['key']).'</span></span></div>';
             }
+            $h .= '</div>';
         }
-        $h .= '</div>';
-        if (in_array('actions', array_column($fields, 'key'), true)) {
-            $h .= '<div class="apv-list-actions">'.pvAdminFieldHtml($p, 'actions').'</div>';
+
+        if ($hasActions) {
+            $h .= '<div class="apv-list-divider"></div>'.pvAdminListActionButtons($p);
         }
-        $h .= '</div>';
+
+        $h .= '</div>'; // toprow
+
+        $metaParts = ['<span>'.icon('calendar',13).' Added: '.h(date('d M Y', (int)($p['created_at'] ?? time()))).'</span>'];
+        if ($hasOrigin && !empty($p['origin'])) {
+            $metaParts[] = '<span>'.icon('pin',13).' Origin: '.h($p['origin']).'</span>';
+        }
+        $h .= '<div class="apv-list-meta">'.implode('', $metaParts).'</div>';
+
+        $h .= '</div></div>'; // body, row
     }
     $h .= '</div>';
     return $h;
@@ -346,16 +415,68 @@ $serverDefaultView = getDefaultView('admin');
 .apv-card-val { text-align:right; color:var(--admin-text,var(--text)); }
 .apv-card-actions { margin-top:8px; padding-top:8px; border-top:1px solid var(--admin-table-border,var(--border)); }
 
-/* ── List view  */
-.apv-list { display:flex; flex-direction:column; gap:8px; }
-.apv-list-row { display:flex; align-items:center; gap:12px; background:var(--admin-card-bg,var(--surface)); border:1px solid var(--admin-card-border,var(--border)); border-radius:10px; padding:10px 12px; flex-wrap:wrap; }
-.apv-list-thumb { width:56px; height:56px; border-radius:8px; overflow:hidden; background:var(--admin-surface2,var(--surface2)); flex-shrink:0; }
-.apv-list-thumb img, .apv-list-thumb svg { width:100%; height:100%; object-fit:cover; }
-.apv-list-body { flex:1; min-width:180px; display:flex; flex-direction:column; gap:4px; }
-.apv-list-name { font-size:14px; font-weight:700; }
-.apv-list-chip { font-size:11.5px; color:var(--admin-text2,var(--text2)); margin-right:10px; }
-.apv-list-chip b { color:var(--admin-text3,var(--text3)); font-weight:600; }
-.apv-list-actions { flex-shrink:0; margin-left:auto; }
+/* ── List view (card-style)  */
+.apv-list { display:flex; flex-direction:column; gap:12px; }
+.apv-list-row {
+  display:flex; align-items:flex-start; gap:16px;
+  background:var(--admin-card-bg,var(--surface));
+  border:1px solid var(--admin-card-border,var(--border));
+  border-radius:var(--admin-card-radius,var(--card-radius));
+  padding:14px 16px;
+  transition:box-shadow .15s,border-color .15s;
+}
+.apv-list-row.apv-row-clickable:hover { box-shadow:0 4px 16px rgba(0,0,0,.06); border-color:var(--admin-accent,var(--accent)); }
+.apv-list-thumb { width:84px; height:84px; border-radius:10px; overflow:hidden; background:var(--admin-surface2,var(--surface2)); flex-shrink:0; }
+.apv-list-thumb img, .apv-list-thumb svg { width:100%; height:100%; object-fit:cover; display:block; }
+.apv-list-body { flex:1; min-width:0; display:flex; flex-direction:column; gap:12px; }
+.apv-list-toprow { display:flex; align-items:center; justify-content:space-between; gap:18px; flex-wrap:wrap; }
+.apv-list-info { min-width:150px; flex-shrink:0; }
+.apv-list-name { font-size:15.5px; font-weight:700; color:var(--admin-text,var(--text)); line-height:1.3; }
+.apv-list-quarry { font-size:12px; color:var(--admin-text3,var(--text3)); margin-top:3px; }
+.apv-list-stats { display:flex; align-items:center; gap:22px; flex-wrap:wrap; flex:1; }
+.apv-list-stat { display:flex; align-items:center; gap:8px; }
+.apv-list-stat-icon { color:var(--admin-text3,var(--text3)); flex-shrink:0; }
+.apv-list-stat-label { display:block; font-size:10.5px; color:var(--admin-text3,var(--text3)); font-weight:600; line-height:1.3; }
+.apv-list-stat-val { display:block; font-size:12.5px; font-weight:600; color:var(--admin-text,var(--text)); line-height:1.4; }
+.apv-list-divider { width:1px; align-self:stretch; background:var(--admin-table-border,var(--border)); flex-shrink:0; }
+.apv-list-actions { display:flex; align-items:center; gap:8px; flex-shrink:0; }
+.apv-icon-btn {
+  display:flex; align-items:center; justify-content:center;
+  width:32px; height:32px; border-radius:50%; flex-shrink:0;
+  border:1.5px solid var(--admin-table-border,var(--border));
+  background:var(--admin-surface,var(--surface));
+  color:var(--admin-text2,var(--text2));
+  cursor:pointer; transition:background .15s,border-color .15s,color .15s;
+}
+.apv-icon-btn:hover { background:var(--admin-surface2,var(--surface2)); }
+.apv-icon-btn--edit { color:#1c8a4a; border-color:#1c8a4a; }
+.apv-icon-btn--delete { color:#d64545; border-color:#d64545; }
+.apv-icon-btn--wa { color:#25D366; border-color:#25D366; }
+.apv-view-details-btn {
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 16px; border-radius:8px;
+  background:var(--nav-bg,var(--accent)); color:#fff;
+  font-size:12.5px; font-weight:600; white-space:nowrap;
+  text-decoration:none; border:none; cursor:pointer;
+}
+.apv-view-details-btn:hover { opacity:.92; color:#fff; }
+.apv-list-meta {
+  display:flex; gap:20px; flex-wrap:wrap;
+  padding-top:10px; border-top:1px solid var(--admin-table-border,var(--border));
+  font-size:11.5px; color:var(--admin-text3,var(--text3));
+}
+.apv-list-meta span { display:flex; align-items:center; gap:6px; }
+.apv-list-meta svg { flex-shrink:0; }
+@media (max-width:768px) {
+  .apv-list-toprow { flex-direction:column; align-items:flex-start; }
+  .apv-list-stats { width:100%; gap:16px; }
+  .apv-list-divider { display:none; }
+  .apv-list-actions { width:100%; justify-content:flex-start; }
+}
+@media (max-width:520px) {
+  .apv-list-row { flex-direction:column; }
+  .apv-list-thumb { width:100%; height:150px; }
+}
 .apv-row-clickable { cursor:pointer; }
 tr.apv-row-clickable:hover td { background:var(--admin-table-row-hover,var(--surface2)); }
   
