@@ -1,10 +1,11 @@
 <?php
-
+//ini_set('display_errors', 1);
+//ini_set('display_startup_errors', 1);
+//error_reporting(E_ALL);
 require_once __DIR__ . '/marketing.php';
 require_once __DIR__ . '/marketing_contacts.php';
 require_once __DIR__ . '/marketing_templates.php';
 require_once __DIR__ . '/marketing_attachments.php';
-
 
 function listRecentCatalogPdfsForAttachment(int $limit = 20): array {
     try {
@@ -22,6 +23,11 @@ function listRecentCatalogPdfsForAttachment(int $limit = 20): array {
     }
 }
 
+function _mktResolveCatalogFilePath(string $storedPath): ?string {
+    $absolute = str_starts_with($storedPath, '/') ? $storedPath : (BASE_PATH . '/' . ltrim($storedPath, '/'));
+    return is_file($absolute) ? $absolute : null;
+}
+
 function _resolveStaticCatalogAttachment(int $catalogId): ?array {
     if (!$catalogId) return null;
     try {
@@ -29,12 +35,8 @@ function _resolveStaticCatalogAttachment(int $catalogId): ?array {
         $st->execute([$catalogId]);
         $path = $st->fetchColumn();
         if (!$path) return null;
-
-        // pdf_path may be stored relative to BASE_PATH rather than absolute
-        // — this app's convention elsewhere (Fire 12's own attachment dirs)
-        // uses paths under storage/, so try both rather than assuming.
-        $absolute = str_starts_with($path, '/') ? $path : (BASE_PATH . '/' . ltrim($path, '/'));
-        if (!is_file($absolute)) return null;
+        $absolute = _mktResolveCatalogFilePath($path);
+        if (!$absolute) return null;
         return ['path' => $absolute, 'filename' => basename($absolute)];
     } catch (Throwable $e) {
         error_log('_resolveStaticCatalogAttachment: ' . $e->getMessage());
@@ -42,27 +44,46 @@ function _resolveStaticCatalogAttachment(int $catalogId): ?array {
     }
 }
 
+function _resolveExistingSelectionCatalog(int $clientId): ?array {
+    try {
+        $st = getDB()->prepare("SELECT id, pdf_path FROM catalogs WHERE source_client_id=? AND pdf_path IS NOT NULL AND pdf_path != ''
+                                 ORDER BY created_at DESC LIMIT 1");
+        $st->execute([$clientId]);
+        $row = $st->fetch();
+        if (!$row) return null;
+        $absolute = _mktResolveCatalogFilePath($row['pdf_path']);
+        if (!$absolute) {
+            error_log("_resolveExistingSelectionCatalog: found catalogs row {$row['id']} for client {$clientId} but file missing on disk at {$row['pdf_path']}.");
+            return null;
+        }
+        return ['catalog_id' => (int)$row['id'], 'path' => $absolute, 'filename' => basename($absolute)];
+    } catch (Throwable $e) {
+        error_log('_resolveExistingSelectionCatalog: ' . $e->getMessage());
+        return null;
+    }
+}
 
-// ── Per-client selection PDF resolution (generated fresh per recipient) ──
-/**
- * ASSUMPTION: generateClientSelectionCatalog(int $clientId): array returns
- * a shape containing one of path/file_path/pdf_path. Only works for
- * contacts linked to an actual `clients` row (source_type='client') — a
- * lead/manual/import contact has no selection to generate.
- */
 function _resolveSelectionPdfAttachment(array $contact): ?array {
     if (($contact['source_type'] ?? '') !== 'client' || empty($contact['source_id'])) return null;
+    $clientId = (int)$contact['source_id'];
+
+    $existing = _resolveExistingSelectionCatalog($clientId);
+    if ($existing) return $existing;
+
     if (!function_exists('generateClientSelectionCatalog')) {
-        error_log('_resolveSelectionPdfAttachment: generateClientSelectionCatalog() not loaded/found.');
+        error_log('_resolveSelectionPdfAttachment: no existing catalog found, and generateClientSelectionCatalog() not loaded/found — cannot produce a PDF.');
         return null;
     }
     try {
-        $result = generateClientSelectionCatalog((int)$contact['source_id']);
+        $result = generateClientSelectionCatalog($clientId);
+        $newCatalogId = (int)($result['id'] ?? $result['catalog_id'] ?? 0);
         $path = $result['path'] ?? $result['file_path'] ?? $result['pdf_path'] ?? null;
-        if (!$path || !is_file($path)) return null;
-        return ['path' => $path, 'filename' => $result['filename'] ?? basename($path)];
+        if (!$path) return null;
+        $absolute = _mktResolveCatalogFilePath($path) ?? (is_file($path) ? $path : null);
+        if (!$absolute) return null;
+        return ['catalog_id' => $newCatalogId, 'path' => $absolute, 'filename' => $result['filename'] ?? basename($absolute)];
     } catch (Throwable $e) {
-        error_log('_resolveSelectionPdfAttachment: generateClientSelectionCatalog() call failed — ' . $e->getMessage());
+        error_log('_resolveSelectionPdfAttachment: fresh-generation fallback failed — ' . $e->getMessage());
         return null;
     }
 }
@@ -116,14 +137,18 @@ function sendAdHocSelectionCatalog(int $contactId, string $channel, int $templat
     if ($channel === 'email') {
         if (!$contact['email']) return ['success' => false, 'error' => 'This contact has no email address.'];
         if (!function_exists('sendCatalogPdfEmail')) return ['success' => false, 'error' => 'sendCatalogPdfEmail() not loaded/found — cannot send.'];
+        if (empty($attachment['catalog_id'])) {
+          return ['success' => false, 'error' => 'No catalog ID available to send — the generated catalog could not be linked back to a catalogs row.'];
+        }
         try {
-            $result = sendCatalogPdfEmail($contact['email'], $attachment['path'], ['client_name' => $contact['name']]);
+            
+            $result = sendCatalogPdfEmail($attachment['catalog_id'], $contact['email'], 'Selection Catalog','Dear Sir, Please find the attachment. Regards');
         } catch (Throwable $e) {
             return ['success' => false, 'error' => 'sendCatalogPdfEmail() call failed: ' . $e->getMessage()];
         }
         if (!empty($result['success'])) {
-            _touchMarketingContactSendTimestamp($contactId, 'email');
-            logMarketingAudit('adhoc_selection_catalog_sent', 'marketing_contacts', $contactId, 'channel=email');
+         //   _touchMarketingContactSendTimestamp($contactId, 'email');
+       //     logMarketingAudit('adhoc_selection_catalog_sent', 'marketing_contacts', $contactId, 'channel=email');
         }
         return $result['success'] ? ['success' => true] : ['success' => false, 'error' => $result['error'] ?? 'Send failed.'];
     }

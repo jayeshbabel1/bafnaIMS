@@ -81,7 +81,7 @@ foreach ($expectedIndexes as [$table, $name]) {
 
 <div class="admin-form-section">
   <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
-    <p class="admin-form-section-title" style="margin:0;">Fire 14 Index Status</p>
+    <p class="admin-form-section-title" style="margin:0;">Database Index Status</p>
     <?php if ($canRepair): ?>
     <button type="button" id="mktRepairBtn" class="btn-admin-primary" style="white-space:nowrap;">
       <?= icon('refresh', 14) ?> Repair &amp; Optimize

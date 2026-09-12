@@ -1,9 +1,4 @@
 <?php
-/**
- * includes/catalog_pdf.php
- * Catalog PDF Management — schema bootstrap + core helpers (Fire 1)
- */
-
 function ensureCatalogPdfTables(): void {
     static $done = false;
     if ($done) return;

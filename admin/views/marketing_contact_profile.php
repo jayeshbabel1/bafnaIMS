@@ -45,7 +45,11 @@ $sourceLabels = ['user' => 'App User', 'client' => 'Client', 'manual' => 'Manual
 .mktp-card{background:var(--admin-card-bg,var(--surface));border:1px solid var(--admin-table-border,var(--border));border-radius:12px;padding:18px;margin-bottom:16px;}
 .mktp-field{margin-bottom:12px;} .mktp-field label{font-size:10.5px;text-transform:uppercase;color:var(--admin-text3,var(--text3));display:block;margin-bottom:2px;}
 .mktp-field p{font-size:13px;font-weight:600;margin:0;}
+.mktp-row{display:flex;gap:6px;}
+.mktp-row select{flex:1;min-width:0;}
+@media(max-width:480px){.mktp-row{flex-direction:column;} .mktp-row button{width:100%;justify-content:center;}}
 </style>
+
 
 <a href="index.php?page=marketing_contacts" style="font-size:12px;display:inline-block;margin-bottom:14px;"><?= icon('chevron-left',12) ?> Back to Contacts</a>
 
@@ -122,11 +126,11 @@ $sourceLabels = ['user' => 'App User', 'client' => 'Client', 'manual' => 'Manual
         <?php if (empty($contactTags)): ?><span style="font-size:12px;color:var(--admin-text3,var(--text3));">No tags.</span><?php endif; ?>
       </div>
       <?php if ($canManage): ?>
-      <form method="POST" action="index.php" style="display:flex;gap:6px;">
+       <form method="POST" action="index.php" class="mktp-row">
         <input type="hidden" name="action" value="marketing_contact_add_tag"/>
         <input type="hidden" name="contact_id" value="<?= $contact['id'] ?>"/>
         <?= csrfField() ?>
-        <select name="tag_id" class="admin-input admin-select" style="flex:1;"><option value="">Add tag…</option><?php foreach ($allTags as $t): ?><option value="<?= $t['id'] ?>"><?= h($t['name']) ?></option><?php endforeach; ?></select>
+        <select name="tag_id" class="admin-input admin-select"><option value="">Add tag…</option><?php foreach ($allTags as $t): ?><option value="<?= $t['id'] ?>"><?= h($t['name']) ?></option><?php endforeach; ?></select>
         <button type="submit" class="btn-admin-secondary btn-admin-sm">Add</button>
       </form>
       <?php endif; ?>
@@ -152,11 +156,11 @@ $sourceLabels = ['user' => 'App User', 'client' => 'Client', 'manual' => 'Manual
         <?php if (empty($memberships)): ?><p style="font-size:12px;color:var(--admin-text3,var(--text3));">Not in any static group.</p><?php endif; ?>
       </div>
       <?php if ($canManage): ?>
-      <form method="POST" action="index.php" style="display:flex;gap:6px;">
+      <form method="POST" action="index.php" class="mktp-row">
         <input type="hidden" name="action" value="marketing_contact_add_group"/>
         <input type="hidden" name="contact_id" value="<?= $contact['id'] ?>"/>
         <?= csrfField() ?>
-        <select name="group_id" class="admin-input admin-select" style="flex:1;"><option value="">Add to group…</option><?php foreach ($allStaticGroups as $g): ?><option value="<?= $g['id'] ?>"><?= h($g['name']) ?></option><?php endforeach; ?></select>
+        <select name="group_id" class="admin-input admin-select"><option value="">Add to group…</option><?php foreach ($allStaticGroups as $g): ?><option value="<?= $g['id'] ?>"><?= h($g['name']) ?></option><?php endforeach; ?></select>
         <button type="submit" class="btn-admin-secondary btn-admin-sm">Add</button>
       </form>
       <?php endif; ?>
@@ -176,29 +180,35 @@ $sourceLabels = ['user' => 'App User', 'client' => 'Client', 'manual' => 'Manual
         }
     }
     ?>
-    <?php if ($mktShowSelectionCard): ?>
+        <?php if ($mktShowSelectionCard): ?>
     <div class="mktp-card">
       <p class="admin-form-section-title" style="margin-bottom:10px;">Send Selection Catalog</p>
       <p style="font-size:11px;color:var(--admin-text3,var(--text3));margin-bottom:10px;">
-        Generates this client's current selection PDF fresh and sends it now — bypasses the campaign system entirely.
+        Sends this client's existing generated catalog if one is already on file (the same PDF shown on their Client Selection page) — generates one fresh only if none exists yet.
       </p>
-      <form method="POST" action="index.php" style="margin-bottom:8px;">
+      <?php if ($contact['email']): ?>
+      <form method="POST" action="index.php" style="margin-bottom:10px;">
         <input type="hidden" name="action" value="marketing_send_selection_catalog"/>
         <input type="hidden" name="contact_id" value="<?= $contact['id'] ?>"/>
         <input type="hidden" name="channel" value="email"/>
         <?= csrfField() ?>
-        <button type="submit" class="btn-admin-secondary btn-admin-sm" style="width:100%;justify-content:center;" <?= $contact['email']?'':'disabled' ?>><?= icon('mail',13) ?> Send via Email<?= $contact['email']?'':' (no email on file)' ?></button>
+        <button type="submit" class="btn-admin-secondary btn-admin-sm" style="width:100%;justify-content:center;"><?= icon('mail',13) ?> Send via Email</button>
       </form>
+      <?php else: ?>
+      <p style="font-size:11px;background:var(--admin-surface2,var(--surface2));padding:8px 10px;border-radius:6px;margin-bottom:10px;">
+        <?= icon('info',11) ?> Clients don't have an email address on file in this system — use WhatsApp below to send.
+      </p>
+      <?php endif; ?>
       <?php if (!empty($docTemplates)): ?>
-      <form method="POST" action="index.php" style="display:flex;gap:6px;">
+      <form method="POST" action="index.php" class="mktp-row">
         <input type="hidden" name="action" value="marketing_send_selection_catalog"/>
         <input type="hidden" name="contact_id" value="<?= $contact['id'] ?>"/>
         <input type="hidden" name="channel" value="whatsapp"/>
         <?= csrfField() ?>
-        <select name="template_id" class="admin-input admin-select" style="flex:1;">
+        <select name="template_id" class="admin-input admin-select">
           <?php foreach ($docTemplates as $t): ?><option value="<?= $t['id'] ?>"><?= h($t['name']) ?></option><?php endforeach; ?>
         </select>
-        <button type="submit" class="btn-admin-secondary btn-admin-sm"><?= icon('whatsapp',13) ?></button>
+        <button type="submit" class="btn-admin-secondary btn-admin-sm"><?= icon('whatsapp',13) ?> Send</button>
       </form>
       <?php else: ?>
       <p style="font-size:11px;color:var(--admin-text3,var(--text3));">No approved WhatsApp document-header templates yet — create one on the Templates page to send selections via WhatsApp.</p>
