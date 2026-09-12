@@ -70,7 +70,7 @@ $specs = [
           <?= icon('download',16) ?>
         </a>
         <?php endif; ?>
-        <button class="hero-icon-btn" onclick="openShareModal()"><?= icon('share',16) ?></button>
+        <button class="hero-icon-btn" data-bs-toggle="modal" data-bs-target="#shareModal"><?= icon('share',16) ?></button>
         <form method="POST" action="index.php" style="margin:0">
           <input type="hidden" name="action"     value="toggle_shortlist"/>
           <input type="hidden" name="product_id" value="<?= $id ?>"/>
@@ -274,7 +274,7 @@ $vidShareMsg = rawurlencode(($p['name'] ?? '').' — Video: '.$vidShareUrl);
           <?= $saved ? icon('heart_fill',16).'&nbsp;Saved' : icon('heart',16).'&nbsp;Save to Shortlist' ?>
         </button>
       </form>
-      <button type="button" onclick="openWaPdfShare()" class="btn btn-secondary" style="flex:1;">
+      <button type="button" data-bs-toggle="modal" data-bs-target="#waPdfShareModal" class="btn btn-secondary" style="flex:1;">
         <?= icon('whatsapp',16) ?>&nbsp; WhatsApp Share
       </button>
       
@@ -283,7 +283,7 @@ $vidShareMsg = rawurlencode(($p['name'] ?? '').' — Video: '.$vidShareUrl);
 
     <!-- Add to Selection — full width row -->
     <div style="margin-top:10px;">
-      <button onclick="openAddToSelection()" class="btn btn-gold btn-block btn-lg">
+      <button data-bs-toggle="modal" data-bs-target="#addToSelModal" class="btn btn-gold btn-block btn-lg">
         <?= icon('plus',16) ?>&nbsp; Add to Client Selection
       </button>
     </div>
@@ -384,38 +384,42 @@ window.GALLERY_IMAGES = <?= json_encode($galleryImages) ?>;
 </script>
 
 <!-- Share modal -->
-<div class="modal-overlay" id="shareModal" onclick="if(event.target===this)closeShareModal()">
-  <div class="modal-sheet">
-    <div class="modal-handle"></div>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
-      <p style="font-family:var(--font-display);font-size:17px;font-weight:700;">Share Product</p>
-      <button onclick="closeShareModal()" style="color:var(--text3);padding:4px;cursor:pointer;"><?= icon('close',18) ?></button>
+<div class="modal fade" id="shareModal" tabindex="-1" aria-labelledby="shareModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius:var(--radius-xl);border:none;">
+      <div class="modal-header border-0 pb-0">
+        <p class="modal-title" id="shareModalLabel" style="font-family:var(--font-display);font-size:17px;font-weight:700;">Share Product</p>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body pt-2">
+        <?php $shareUrl = BASE_URL.'/index.php?page=product&id='.$id; $shareText = urlencode($p['name'].' — Bafna Marbles'); ?>
+        <a href="https://wa.me/?text=<?= $shareText ?>%20<?= urlencode($shareUrl) ?>" target="_blank" class="share-option">
+          <div class="share-icon" style="color:#25D366;"><?= icon('whatsapp',20) ?></div><span>Share via WhatsApp</span>
+        </a>
+        <a href="mailto:?subject=<?= $shareText ?>&body=<?= urlencode($shareUrl) ?>" class="share-option">
+          <div class="share-icon" style="color:var(--gold);"><?= icon('mail',20) ?></div><span>Share via Email</span>
+        </a>
+        <button class="share-option" onclick="copyLink('<?= h($shareUrl) ?>')">
+          <div class="share-icon"><?= icon('copy',20) ?></div><span id="copyLinkLabel">Copy Link</span>
+        </button>
+      </div>
     </div>
-    <?php $shareUrl = BASE_URL.'/index.php?page=product&id='.$id; $shareText = urlencode($p['name'].' — Bafna Marbles'); ?>
-    <a href="https://wa.me/?text=<?= $shareText ?>%20<?= urlencode($shareUrl) ?>" target="_blank" class="share-option">
-      <div class="share-icon" style="color:#25D366;"><?= icon('whatsapp',20) ?></div><span>Share via WhatsApp</span>
-    </a>
-    <a href="mailto:?subject=<?= $shareText ?>&body=<?= urlencode($shareUrl) ?>" class="share-option">
-      <div class="share-icon" style="color:var(--gold);"><?= icon('mail',20) ?></div><span>Share via Email</span>
-    </a>
-    <button class="share-option" onclick="copyLink('<?= h($shareUrl) ?>')">
-      <div class="share-icon"><?= icon('copy',20) ?></div><span id="copyLinkLabel">Copy Link</span>
-    </button>
   </div>
-  <?= roomAreaDatalist() ?>
 </div>
+<?= roomAreaDatalist() ?>
 
 
 <!-- ════════════════════════════════════════════════════════════════════════
      ADD TO SELECTION MODAL
      ════════════════════════════════════════════════════════════════════════ -->
-<div id="addToSelModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9000;align-items:flex-end;justify-content:center;">
-  <div style="background:var(--white);border-radius:var(--radius-xl) var(--radius-xl) 0 0;width:100%;max-width:100%;max-height:92vh;overflow-y:auto;">
+<div class="modal fade" id="addToSelModal" tabindex="-1" aria-labelledby="addToSelModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable">
+    <div class="modal-content" style="border-radius:var(--radius-xl) var(--radius-xl) 0 0;border:none;">
 
     <!-- Header -->
-    <div style="padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--white);z-index:2;">
-      <p style="font-family:var(--font-display);font-size:16px;font-weight:700;">Add to Client Selection</p>
-      <button onclick="closeAddToSelection()" style="color:var(--text3);cursor:pointer;padding:4px;"><?= icon('close',18) ?></button>
+    <div class="modal-header" style="position:sticky;top:0;background:var(--white);z-index:2;">
+      <p class="modal-title" id="addToSelModalLabel" style="font-family:var(--font-display);font-size:16px;font-weight:700;">Add to Client Selection</p>
+      <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
     </div>
 
     <!-- Product preview -->
@@ -506,7 +510,7 @@ window.GALLERY_IMAGES = <?= json_encode($galleryImages) ?>;
           <button type="submit" class="btn btn-gold btn-block">
             <?= icon('check',15) ?>&nbsp; Save to Selection
           </button>
-          <button type="button" onclick="closeAddToSelection()" class="btn btn-secondary">
+          <button type="button" data-bs-dismiss="modal" class="btn btn-secondary">
             Cancel
           </button>
         </div>
@@ -514,24 +518,20 @@ window.GALLERY_IMAGES = <?= json_encode($galleryImages) ?>;
       <?php endif; ?>
     </div>
 
+    </div>
   </div>
 </div>
 <!-- /addToSelModal -->
 
 <script>
-// ── Modal open/close ─────────────────────────────────────────────────────────
-function openAddToSelection() {
-  const modal = document.getElementById('addToSelModal');
-  if (modal) { modal.style.display = 'flex'; document.body.style.overflow = 'hidden'; }
-  setTimeout(() => document.getElementById('atsClientSearch')?.focus(), 100);
-}
-function closeAddToSelection() {
-  const modal = document.getElementById('addToSelModal');
-  if (modal) { modal.style.display = 'none'; document.body.style.overflow = ''; }
-}
-document.getElementById('addToSelModal')?.addEventListener('click', function(e) {
-  if (e.target === this) closeAddToSelection();
+// ── Modal — preload client search + focus once the Bootstrap modal is shown ──
+document.getElementById('addToSelModal')?.addEventListener('shown.bs.modal', function () {
+  document.getElementById('atsClientSearch')?.focus();
+  doSearchOnOpen();
 });
+function closeAddToSelection() {
+  bootstrap.Modal.getOrCreateInstance(document.getElementById('addToSelModal')).hide();
+}
 
 // ── Client AJAX search ───────────────────────────────────────────────────────
 (function () {
@@ -579,6 +579,7 @@ document.getElementById('addToSelModal')?.addEventListener('click', function(e) 
     });
   }
 
+  window.doSearchOnOpen = () => doSearch('');
   async function doSearch(q) {
     try {
       const r = await fetch('index.php?page=clients&ajax_search=1&q=' + encodeURIComponent(q));
@@ -605,11 +606,6 @@ document.getElementById('addToSelModal')?.addEventListener('click', function(e) 
 
   inp.addEventListener('blur', function() {
     setTimeout(() => { drop.style.display = 'none'; }, 220);
-  });
-
-  // Preload on modal open
-  document.querySelector('[onclick="openAddToSelection()"]')?.addEventListener('click', () => {
-    setTimeout(() => doSearch(''), 200);
   });
 
 // Validate
@@ -676,6 +672,13 @@ document.getElementById('addToSelModal')?.addEventListener('click', function(e) 
 })();
 </script>
 <style>
+/* Add-to-selection modal — bottom sheet on mobile, centered dialog >=640px */
+#addToSelModal .modal-dialog { margin: 0; max-width: 100%; min-height: 100%; display: flex; align-items: flex-end; }
+@media (min-width: 640px) {
+  #addToSelModal .modal-dialog { align-items: center; max-width: 480px; margin: 1.75rem auto; min-height: calc(100% - 3.5rem); }
+  #addToSelModal .modal-content { border-radius: var(--radius-xl) !important; }
+}
+
 /* ── Product detail — responsive fixes ──────────────────────── */
  
 /* Mobile (default): single-column, full hero */

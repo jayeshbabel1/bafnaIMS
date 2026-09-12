@@ -218,37 +218,44 @@ $_trustedDeviceUser = isLoggedIn() ? getCurrentTrustedDevice('user') : null;
 
 <?php endif; ?>
 <?php if (!empty($_trustedDeviceUser)): ?>
-<div id="forceLogoutModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9200;align-items:center;justify-content:center;padding:16px;">
-  <div style="background:var(--white);border-radius:var(--radius-xl);padding:26px;max-width:400px;width:100%;box-shadow:var(--shadow-xl);">
-    <div id="flStep1">
-      <p style="font-size:16px;font-weight:700;margin-bottom:8px;">Sign Out of Trusted Device?</p>
-      <p style="font-size:13px;color:var(--text3);line-height:1.6;margin-bottom:20px;">
-        This device is trusted for auto sign-in. Signing out here will also remove its trusted status.
-      </p>
-      <div style="display:flex;gap:10px;">
-        <button type="button" class="btn btn-secondary btn-block" onclick="closeForceLogoutConfirm()">Cancel</button>
-        <button type="button" class="btn btn-danger btn-block" onclick="flGoStep2()">Continue</button>
-      </div>
-    </div>
-    <div id="flStep2" style="display:none;">
-      <p style="font-size:16px;font-weight:700;margin-bottom:8px;">Confirm Forced Logout</p>
-      <p style="font-size:13px;color:var(--text3);line-height:1.6;margin-bottom:20px;">
-        You'll need your <strong>email and password</strong> to sign back in on this device. Continue?
-      </p>
-      <form method="POST" action="index.php">
-        <input type="hidden" name="action" value="forced_logout"/>
-        <?= csrfField() ?>
-        <div style="display:flex;gap:10px;">
-          <button type="button" class="btn btn-secondary btn-block" onclick="closeForceLogoutConfirm()">Cancel</button>
-          <button type="submit" class="btn btn-danger btn-block">Yes, Sign Out</button>
+<div class="modal fade" id="forceLogoutModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius:var(--radius-xl);border:none;padding:6px;">
+      <div class="modal-body">
+        <div id="flStep1">
+          <p style="font-size:16px;font-weight:700;margin-bottom:8px;">Sign Out of Trusted Device?</p>
+          <p style="font-size:13px;color:var(--text3);line-height:1.6;margin-bottom:20px;">
+            This device is trusted for auto sign-in. Signing out here will also remove its trusted status.
+          </p>
+          <div style="display:flex;gap:10px;">
+            <button type="button" class="btn btn-secondary btn-block" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-danger btn-block" onclick="flGoStep2()">Continue</button>
+          </div>
         </div>
-      </form>
+        <div id="flStep2" style="display:none;">
+          <p style="font-size:16px;font-weight:700;margin-bottom:8px;">Confirm Forced Logout</p>
+          <p style="font-size:13px;color:var(--text3);line-height:1.6;margin-bottom:20px;">
+            You'll need your <strong>email and password</strong> to sign back in on this device. Continue?
+          </p>
+          <form method="POST" action="index.php">
+            <input type="hidden" name="action" value="forced_logout"/>
+            <?= csrfField() ?>
+            <div style="display:flex;gap:10px;">
+              <button type="button" class="btn btn-secondary btn-block" data-bs-dismiss="modal">Cancel</button>
+              <button type="submit" class="btn btn-danger btn-block">Yes, Sign Out</button>
+            </div>
+          </form>
+        </div>
+      </div>
     </div>
   </div>
 </div>
 <script>
-function openForceLogoutConfirm(){document.getElementById('flStep1').style.display='';document.getElementById('flStep2').style.display='none';document.getElementById('forceLogoutModal').style.display='flex';}
-function closeForceLogoutConfirm(){document.getElementById('forceLogoutModal').style.display='none';}
+function openForceLogoutConfirm(){
+  document.getElementById('flStep1').style.display='';
+  document.getElementById('flStep2').style.display='none';
+  bootstrap.Modal.getOrCreateInstance(document.getElementById('forceLogoutModal')).show();
+}
 function flGoStep2(){document.getElementById('flStep1').style.display='none';document.getElementById('flStep2').style.display='';}
 </script>
 <?php endif; ?>

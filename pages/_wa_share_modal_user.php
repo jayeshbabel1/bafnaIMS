@@ -6,20 +6,19 @@
  * Include from a page with $p (product array) and $id (product id) in scope.
  */
 ?>
-<div id="waPdfShareModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9500;align-items:center;justify-content:center;padding:16px;">
-  <div style="background:var(--white);border-radius:var(--radius-xl);width:100%;max-width:420px;box-shadow:var(--shadow-xl);overflow:hidden;">
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);background:var(--gray-50);">
+<div class="modal fade" id="waPdfShareModal" tabindex="-1" aria-labelledby="waPdfShareModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius:var(--radius-xl);border:none;overflow:hidden;">
+    <div class="modal-header" style="background:var(--gray-50);">
       <div style="display:flex;align-items:center;gap:10px;">
         <div style="width:36px;height:36px;border-radius:10px;background:#e8faf0;color:#25D366;display:flex;align-items:center;justify-content:center;">
           <?= icon('whatsapp', 18) ?>
         </div>
-        <p style="font-size:14px;font-weight:700;color:var(--text);">Share Product PDF</p>
+        <p class="modal-title" id="waPdfShareModalLabel" style="font-size:14px;font-weight:700;color:var(--text);">Share Product PDF</p>
       </div>
-      <button onclick="closeWaPdfShare()" type="button" style="color:var(--text3);cursor:pointer;padding:4px;background:none;border:none;">
-        <?= icon('close', 18) ?>
-      </button>
+      <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
     </div>
-    <div style="padding:20px;">
+    <div class="modal-body">
 
       <div id="waPdfStep1">
         <label class="form-label">Recipient Mobile Number</label>
@@ -62,6 +61,7 @@
       </div>
 
     </div>
+    </div>
   </div>
 </div>
 
@@ -70,16 +70,15 @@
   var _pid  = <?= (int)$id ?>;
   var _name = <?= json_encode($p['name'] ?? '') ?>;
 
+  var _waModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('waPdfShareModal'));
   window.openWaPdfShare = function () {
     document.getElementById('waPdfMobileInput').value = '';
     document.getElementById('waPdfMobileError').style.display = 'none';
     waPdfGoStep(1);
-    document.getElementById('waPdfShareModal').style.display = 'flex';
-    document.body.style.overflow = 'hidden';
+    _waModal.show();
   };
   window.closeWaPdfShare = function () {
-    document.getElementById('waPdfShareModal').style.display = 'none';
-    document.body.style.overflow = '';
+    _waModal.hide();
   };
   window.waPdfGoStep = function (n) {
     [1,2,3,4].forEach(function (i) {
@@ -125,8 +124,5 @@
       });
   };
 
-  document.getElementById('waPdfShareModal').addEventListener('click', function (e) {
-    if (e.target === this) closeWaPdfShare();
-  });
 })();
 </script>
