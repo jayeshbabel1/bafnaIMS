@@ -99,7 +99,7 @@ if (!isset($clients)) {
 
 
 <!-- Pagination mount point — filled by pagination.js -->
- <div class="pagination" id="paginationWrap"></div>
+ <ul class="pagination" id="paginationWrap"></ul>
  <?php if ($totalPages > 1): ?>
 <p style="text-align:center;font-size:12px;color:var(--text4);margin-top:10px;margin-bottom:20px;">
    Showing <?= (($currentPage - 1) * $perPage) + 1 ?>–<?= min($currentPage * $perPage, $total) ?> of <?= $total ?>

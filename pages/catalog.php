@@ -357,14 +357,20 @@ $catalogTheme  = getCatalogTheme();
 //  Pagination HTML 
 function renderPagination(int $cur, int $total): string {
     if ($total <= 1) return '';
-    $h  = '<div class="pagination" id="paginationWrap">';
-    $h .= '<button class="pag-btn '.($cur<=1?'disabled':'').'" data-page="'.($cur-1).'">&lsaquo;</button>';
+    $h  = '<ul class="pagination" id="paginationWrap">';
+    $h .= '<li class="page-item '.($cur<=1?'disabled':'').'"><button class="page-link" data-page="'.($cur-1).'">&lsaquo;</button></li>';
     $s = max(1,$cur-2); $e = min($total,$cur+2);
-    if ($s > 1) { $h .= '<button class="pag-btn" data-page="1">1</button>'; if ($s>2) $h .= '<span class="pag-ellipsis">…</span>'; }
-    for ($i=$s;$i<=$e;$i++) $h .= '<button class="pag-btn '.($i===$cur?'active':'').'" data-page="'.$i.'">'.$i.'</button>';
-    if ($e < $total) { if ($e < $total-1) $h .= '<span class="pag-ellipsis">…</span>'; $h .= '<button class="pag-btn" data-page="'.$total.'">'.$total.'</button>'; }
-    $h .= '<button class="pag-btn '.($cur>=$total?'disabled':'').'" data-page="'.($cur+1).'">&rsaquo;</button>';
-    $h .= '</div>';
+    if ($s > 1) {
+        $h .= '<li class="page-item"><button class="page-link" data-page="1">1</button></li>';
+        if ($s>2) $h .= '<li class="page-item disabled"><span class="page-link">…</span></li>';
+    }
+    for ($i=$s;$i<=$e;$i++) $h .= '<li class="page-item '.($i===$cur?'active':'').'"><button class="page-link" data-page="'.$i.'">'.$i.'</button></li>';
+    if ($e < $total) {
+        if ($e < $total-1) $h .= '<li class="page-item disabled"><span class="page-link">…</span></li>';
+        $h .= '<li class="page-item"><button class="page-link" data-page="'.$total.'">'.$total.'</button></li>';
+    }
+    $h .= '<li class="page-item '.($cur>=$total?'disabled':'').'"><button class="page-link" data-page="'.($cur+1).'">&rsaquo;</button></li>';
+    $h .= '</ul>';
     return $h;
 }
 

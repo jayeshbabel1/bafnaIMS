@@ -289,9 +289,10 @@ if ($isAjax) {
 
   function bindButtons() {
     // Pagination
-    content.querySelectorAll('.pag-btn').forEach(btn => {
+    content.querySelectorAll('.page-link[data-page]').forEach(btn => {
       btn.addEventListener('click', () => {
-        if (btn.classList.contains('disabled') || btn.classList.contains('active')) return;
+        const item = btn.closest('.page-item');
+        if (item && (item.classList.contains('disabled') || item.classList.contains('active'))) return;
         load(parseInt(btn.dataset.page));
       });
     });

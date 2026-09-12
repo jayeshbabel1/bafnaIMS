@@ -173,15 +173,15 @@
 <!-- Pagination -->
 <?php if ($totalPages > 1): ?>
 <?php $range = 2; $s = max(1, $currentPage - $range); $e = min($totalPages, $currentPage + $range); ?>
-<div class="pagination">
-  <button class="pag-btn <?= $currentPage <= 1 ? 'disabled' : '' ?>" data-page="<?= $currentPage - 1 ?>">&lsaquo;</button>
-  <?php if ($s > 1): ?><button class="pag-btn" data-page="1">1</button><?php if ($s > 2): ?><span class="pag-ellipsis">…</span><?php endif; endif; ?>
+<ul class="pagination">
+  <li class="page-item <?= $currentPage <= 1 ? 'disabled' : '' ?>"><button class="page-link" data-page="<?= $currentPage - 1 ?>">&lsaquo;</button></li>
+  <?php if ($s > 1): ?><li class="page-item"><button class="page-link" data-page="1">1</button></li><?php if ($s > 2): ?><li class="page-item disabled"><span class="page-link">…</span></li><?php endif; endif; ?>
   <?php for ($pi = $s; $pi <= $e; $pi++): ?>
-  <button class="pag-btn <?= $pi === $currentPage ? 'active' : '' ?>" data-page="<?= $pi ?>"><?= $pi ?></button>
+  <li class="page-item <?= $pi === $currentPage ? 'active' : '' ?>"><button class="page-link" data-page="<?= $pi ?>"><?= $pi ?></button></li>
   <?php endfor; ?>
-  <?php if ($e < $totalPages): ?><?php if ($e < $totalPages - 1): ?><span class="pag-ellipsis">…</span><?php endif; ?><button class="pag-btn" data-page="<?= $totalPages ?>"><?= $totalPages ?></button><?php endif; ?>
-  <button class="pag-btn <?= $currentPage >= $totalPages ? 'disabled' : '' ?>" data-page="<?= $currentPage + 1 ?>">&rsaquo;</button>
-</div>
+  <?php if ($e < $totalPages): ?><?php if ($e < $totalPages - 1): ?><li class="page-item disabled"><span class="page-link">…</span></li><?php endif; ?><li class="page-item"><button class="page-link" data-page="<?= $totalPages ?>"><?= $totalPages ?></button></li><?php endif; ?>
+  <li class="page-item <?= $currentPage >= $totalPages ? 'disabled' : '' ?>"><button class="page-link" data-page="<?= $currentPage + 1 ?>">&rsaquo;</button></li>
+</ul>
 <?php endif; ?>
 
 <?php endif; ?>

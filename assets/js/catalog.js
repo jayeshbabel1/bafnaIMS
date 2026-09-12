@@ -115,8 +115,10 @@
 
   // Pagination (delegated — works after AJAX re-render)
   content.addEventListener('click', function (e) {
-    const btn = e.target.closest('.pag-btn');
-    if (!btn || btn.classList.contains('disabled') || btn.classList.contains('active')) return;
+    const btn = e.target.closest('.page-link');
+    if (!btn) return;
+    const item = btn.closest('.page-item');
+    if (item && (item.classList.contains('disabled') || item.classList.contains('active'))) return;
     const pg = parseInt(btn.dataset.page, 10);
     if (!isNaN(pg) && pg > 0) loadPage(pg);
   });
