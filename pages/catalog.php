@@ -428,9 +428,6 @@ function fv($v): string { return $v !== null ? h((string)$v) : ''; }
 .catalog-table-thumb { display:block; width:52px; height:52px; border-radius:8px; overflow:hidden; background:var(--gray-100); }
 .catalog-table-thumb img, .catalog-table-thumb svg { width:100%; height:100%; object-fit:cover; }
 .catalog-table-name { font-weight:600; color:var(--text); text-decoration:none; }
-/* Equal-size view toggle buttons (3-way) */
-.view-toggle { display:flex; border:1.5px solid var(--border); border-radius:var(--radius); overflow:hidden; }
-.view-toggle .view-btn { width:34px; height:34px; }
 
 /*  Catalog Themes (set via Settings → Product Views → User)  */
 [data-catalog-theme="minimal"] .product-card,
@@ -599,16 +596,16 @@ function fv($v): string { return $v !== null ? h((string)$v) : ''; }
             <?= icon('filter',15) ?> Filters
             <?php if ($hasFilter): ?><span class="filter-active-dot"></span><?php endif; ?>
           </button>
-          <select id="sortSelect" class="sort-select">
+          <select id="sortSelect" class="form-select" style="width:auto;font-size:12px;">
             <option value="latest"   <?= $sort==='latest'  ?'selected':'' ?>>Latest</option>
             <option value="qty_desc" <?= $sort==='qty_desc'?'selected':'' ?>>Qty: High→Low</option>
             <option value="qty_asc"  <?= $sort==='qty_asc' ?'selected':'' ?>>Qty: Low→High</option>
             <option value="name_az"  <?= $sort==='name_az' ?'selected':'' ?>>Name A→Z</option>
           </select>
-          <div class="view-toggle">
-            <button class="view-btn" id="viewGrid" title="Grid"><?= icon('grid',15) ?></button>
-            <button class="view-btn" id="viewList" title="List"><?= icon('filter',15) ?></button>
-            <button class="view-btn" id="viewTable" title="Table"><?= icon('file',15) ?></button>
+          <div class="btn-group view-toggle" role="group" aria-label="View">
+            <button class="btn btn-outline-secondary view-btn" id="viewGrid" title="Grid" type="button"><?= icon('grid',15) ?></button>
+            <button class="btn btn-outline-secondary view-btn" id="viewList" title="List" type="button"><?= icon('filter',15) ?></button>
+            <button class="btn btn-outline-secondary view-btn" id="viewTable" title="Table" type="button"><?= icon('file',15) ?></button>
           </div>
         </div>
       </div>

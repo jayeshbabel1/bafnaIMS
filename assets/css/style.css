@@ -87,7 +87,7 @@ ul, ol { list-style: none; }
 .mobile-menu-footer { padding: 16px 20px calc(16px + env(safe-area-inset-bottom,0px)); border-top: 1px solid var(--border); }
 
 /*  Cards */
-.card { background: var(--surface); border-radius: var(--radius-lg); border: 1px solid var(--border); }
+.card { display: block; height: auto; background: var(--surface); border-radius: var(--radius-lg); border: 1px solid var(--border); }
 .card-hover { transition: transform .2s, box-shadow .2s; cursor: pointer; }
 .card-hover:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
 
@@ -188,12 +188,9 @@ textarea.form-control { resize: vertical; min-height: 90px; line-height: 1.6; }
 .catalog-count { font-size: 13px; color: var(--text3); display: flex; align-items: center; gap: 8px; }
 .catalog-count strong { font-family: var(--font-display); font-size: 20px; font-weight: 700; color: var(--text); }
 .catalog-controls-right { display: flex; align-items: center; gap: 8px; }
-.sort-select { padding: 8px 32px 8px 12px; border: 1.5px solid var(--border); border-radius: var(--radius); font-size: 12px; font-weight: 500; color: var(--text); background: var(--white); cursor: pointer; outline: none; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23777' stroke-width='1.5' fill='none'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; font-family: var(--font-body); transition: border-color .15s; }
-.sort-select:focus { border-color: var(--black); }
-.view-toggle { display: flex; border: 1.5px solid var(--border); border-radius: var(--radius); overflow: hidden; }
-.view-btn { width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; background: var(--white); color: var(--text3); cursor: pointer; border: none; transition: all .15s; }
-.view-btn:first-child { border-right: 1px solid var(--border); }
-.view-btn.active { background: var(--black); color: var(--white); }
+/* Catalog view toggle - now a Bootstrap .btn-group, only sizing/active-state remain custom */
+.view-toggle .btn.view-btn { width: 34px; height: 34px; padding: 0; display: flex; align-items: center; justify-content: center; }
+.view-toggle .btn.view-btn.active { background: var(--black); border-color: var(--black); color: var(--white); }
 .filter-toggle-btn { display: flex; align-items: center; gap: 8px; padding: 9px 16px; border: 1.5px solid var(--border); border-radius: var(--radius); background: var(--white); font-size: 13px; font-weight: 600; color: var(--text); cursor: pointer; transition: all .15s; white-space: nowrap; }
 .filter-toggle-btn:hover { border-color: var(--black); }
 .filter-toggle-btn.has-filter { background: var(--black); color: var(--white); border-color: var(--black); }
