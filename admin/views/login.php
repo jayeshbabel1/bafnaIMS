@@ -18,6 +18,24 @@ $tagline   = getSetting('company_tagline', 'Premium Stone Catalog Platform');
 <style><?= getCSSVariables() ?></style>
 <link rel="stylesheet" href="../assets/css/style.css"/>
 <link rel="stylesheet" href="../assets/css/auth.css"/>
+<style>
+/* Admin login intentionally does not load Bootstrap and is out of scope for
+   the user-panel migration. style.css keeps changing/removing these class
+   names as that migration progresses, so this page carries permanent local
+   copies instead of depending on it. */
+.toast { position: fixed; top: calc(var(--nav-h, 60px) + 12px); left: 50%; transform: translateX(-50%); background: var(--black); color: var(--white); padding: 11px 20px; border-radius: 24px; font-size: 13px; font-weight: 600; z-index: 9999; white-space: normal; text-align: center; max-width: 90vw; box-shadow: var(--shadow-xl); }
+.toast-error { background: var(--danger); }
+.alert { padding: 12px 16px; border-radius: 10px; font-size: 13px; margin-bottom: 16px; display: flex; align-items: flex-start; gap: 10px; line-height: 1.5; }
+.alert-error { background: var(--danger-bg); color: var(--danger); border: 1px solid #fecaca; }
+.input-group { margin-bottom: 18px; }
+.input-label { display: block; font-size: var(--label-font-size); font-weight: var(--label-font-weight); color: var(--label-color); margin-bottom: 7px; letter-spacing: .3px; text-transform: uppercase; }
+.input-field { width: 100%; padding: 11px 14px; background: var(--input-bg); border: 1.5px solid var(--input-border); border-radius: var(--input-radius); font-size: var(--input-font-size); color: var(--input-color); outline: none; transition: border-color .15s, box-shadow .15s; font-family: var(--font-body); min-height: 44px; }
+.input-field:hover { border-color: var(--input-hover-border); }
+.input-field:focus { border-color: var(--input-focus-border); box-shadow: 0 0 0 3px var(--input-focus-shadow); }
+.input-field::placeholder { color: var(--input-placeholder); }
+.password-wrap { position: relative; }
+.password-wrap .input-field { padding-right: 46px; }
+</style>
 </head>
 <body class="auth-body">
 <div class="app-shell">

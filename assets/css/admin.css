@@ -303,9 +303,16 @@ div.dashboard-grid>.dash-card {
 .btn-admin-sm {
     padding:6px 12px;font-size:12px;border-radius:6px;}
 
-/* Toast in admin */
+/* Toast in admin - fully self-contained now (no longer reads style.css's
+   .toast/.toast-error, which the user-panel Bootstrap migration renamed to
+   .app-toast in Fire 7). Admin panel isn't part of that migration. */
 .toast {
-    position:fixed;top:16px;right:24px;left:auto;transform:none;padding:12px 20px;border-radius:12px;font-size:13px;font-weight:600;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,.15);animation:slideInRight .3s ease;}
+    position:fixed;top:16px;right:24px;left:auto;transform:none;padding:12px 20px;border-radius:12px;font-size:13px;font-weight:600;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,.15);animation:slideInRight .3s ease;
+    background: var(--admin-accent2, #1A4D65);
+    color: #fff;
+}
+.toast-success { background: var(--success, #3D8B6E); }
+.toast-error   { background: var(--danger, #E84040); }
 
 @keyframes slideInRight {
     from {
