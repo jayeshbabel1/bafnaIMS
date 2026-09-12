@@ -8,7 +8,7 @@ require_once BASE_PATH . '/includes/clients.php';
 $pageTitle = h($p['name']) . ' — ' . APP_NAME;
 $showNav   = true;
 $extraJS   = ['product.js','zoom.js'];
-$extraCSS  = ['zoom.css','clients.css'];
+$extraCSS  = [];
 if (isSlabCalculatorEnabled()) $extraJS[] = 'slab_calculator.js';
 $pal           = $p['palette_arr'];
 $photos        = $p['photos'];
@@ -264,7 +264,7 @@ $vidShareMsg = rawurlencode(($p['name'] ?? '').' — Video: '.$vidShareUrl);
     <?php endif; ?>
 
     <!-- ── CTAs ── -->
-    <div class="detail-cta" style="margin-top:22px;">
+    <div class="detail-cta">
       <form method="POST" action="index.php" style="flex:1">
         <input type="hidden" name="action"     value="toggle_shortlist"/>
         <input type="hidden" name="product_id" value="<?= $id ?>"/>
@@ -741,9 +741,6 @@ function closeAddToSelection() {
   .qty-tile-value{ font-size: 22px; }
 }
  
-/* Lightbox */
-.lightbox { display: none; }
-.lightbox.open { display: flex; }
   /* Lightbox gallery nav */
 .lightbox-nav {
   position: absolute;
@@ -779,22 +776,6 @@ function closeAddToSelection() {
   .lightbox-nav { width: 38px; height: 38px; }
   .lightbox-nav--prev { left: 6px; }
   .lightbox-nav--next { right: 6px; }
-}
- 
-/* Add-to-selection modal — full-width on mobile, sheet */
-#addToSelModal > div {
-  max-height: 92vh;
-  width: 100%;
-  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
-}
-@media (min-width: 640px) {
-  #addToSelModal {
-    align-items: center;
-  }
-  #addToSelModal > div {
-    max-width: 480px;
-    border-radius: var(--radius-xl);
-  }
 }
  
 /* Spec table responsive */
