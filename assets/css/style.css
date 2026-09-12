@@ -111,22 +111,22 @@ ul, ol { list-style: none; }
 
 /*  Inputs */
 .form-group { margin-bottom: 18px; }
-.input-label { display: block; font-size: var(--label-font-size); font-weight: var(--label-font-weight); color: var(--label-color); margin-bottom: 7px; letter-spacing: .3px; text-transform: uppercase; }
-.input-field { width: 100%; padding: 11px 14px; background: var(--input-bg); border: 1.5px solid var(--input-border); border-radius: var(--input-radius); font-size: var(--input-font-size); color: var(--input-color); outline: none; transition: border-color .15s, box-shadow .15s; font-family: var(--font-body); min-height: 44px; }
-.input-field:hover { border-color: var(--input-hover-border); }
-.input-field:focus { border-color: var(--input-focus-border); box-shadow: 0 0 0 3px var(--input-focus-shadow); }
-.input-field::placeholder { color: var(--input-placeholder); }
-textarea.input-field { resize: vertical; min-height: 90px; line-height: 1.6; }
+.form-label { display: block; font-size: var(--label-font-size); font-weight: var(--label-font-weight); color: var(--label-color); margin-bottom: 7px; letter-spacing: .3px; text-transform: uppercase; }
+.form-control { width: 100%; padding: 11px 14px; background: var(--input-bg); border: 1.5px solid var(--input-border); border-radius: var(--input-radius); font-size: var(--input-font-size); color: var(--input-color); outline: none; transition: border-color .15s, box-shadow .15s; font-family: var(--font-body); min-height: 44px; }
+.form-control:hover { border-color: var(--input-hover-border); }
+.form-control:focus { border-color: var(--input-focus-border); box-shadow: 0 0 0 3px var(--input-focus-shadow); }
+.form-control::placeholder { color: var(--input-placeholder); }
+textarea.form-control { resize: vertical; min-height: 90px; line-height: 1.6; }
 .password-wrap { position: relative; }
-.password-wrap .input-field { padding-right: 46px; }
+.password-wrap .form-control { padding-right: 46px; }
 .pwd-toggle { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--text3); padding: 4px; cursor: pointer; }
 .input-hint { font-size: 12px; color: var(--text4); margin-top: 5px; }
 .input-prefix-group { display: flex; align-items: center; border: 1.5px solid var(--border); border-radius: var(--radius); overflow: hidden; background: var(--surface); flex-wrap: nowrap; min-width: 0; }
 .input-prefix { padding: 11px 10px 11px 14px; font-size: 14px; color: var(--text2); border-right: 1px solid var(--border); background: var(--gray-50); white-space: nowrap; }
-.input-prefix-group .input-field { border: none; border-radius: 0; min-width: 0; flex: 1; }
+.input-prefix-group .form-control { border: none; border-radius: 0; min-width: 0; flex: 1; }
 
 /*  Badges */
-.badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; white-space: nowrap; letter-spacing: .2px; }
+.badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; white-space: nowrap; letter-spacing: .2px; color: var(--text2); background: var(--gray-100); }
 .badge-black  { background: var(--black); color: var(--white); }
 .badge-white  { background: var(--white); color: var(--black); border: 1px solid var(--border); }
 .badge-gray   { background: var(--gray-100); color: var(--gray-600); }

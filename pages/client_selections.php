@@ -193,17 +193,17 @@ if ($isAjax) {
         <input type="hidden" name="selection_id" id="editSelId"/>
         <input type="hidden" name="client_id"    value="<?= $clientId ?>"/>
         <?= csrfField() ?>
-        <div class="input-group">
-          <label class="input-label">Selection Area / Room</label>
-          <input type="text" name="selection_area" id="editSelArea" class="input-field" placeholder="e.g. Master Bedroom" list="roomAreaSuggestions" autocomplete="off"/>
+        <div class="form-group">
+          <label class="form-label">Selection Area / Room</label>
+          <input type="text" name="selection_area" id="editSelArea" class="form-control" placeholder="e.g. Master Bedroom" list="roomAreaSuggestions" autocomplete="off"/>
         </div>
-        <div class="input-group">
-          <label class="input-label">Quantity Required (sqft)</label>
-          <input type="number" name="quantity_required" id="editSelQty" class="input-field" min="0" step="0.01" placeholder="0.00"/>
+        <div class="form-group">
+          <label class="form-label">Quantity Required (sqft)</label>
+          <input type="number" name="quantity_required" id="editSelQty" class="form-control" min="0" step="0.01" placeholder="0.00"/>
         </div>
-        <div class="input-group">
-          <label class="input-label">Notes</label>
-          <textarea name="extra_notes" id="editSelNotes" class="input-field" rows="3" placeholder="Any special requirements…"></textarea>
+        <div class="form-group">
+          <label class="form-label">Notes</label>
+          <textarea name="extra_notes" id="editSelNotes" class="form-control" rows="3" placeholder="Any special requirements…"></textarea>
         </div>
         <div style="display:flex;gap:10px;">
           <button type="submit" class="btn btn-primary" style="flex:1;"><?= icon('check', 14) ?>&nbsp; Save</button>
@@ -223,25 +223,25 @@ if ($isAjax) {
     </div>
     <div style="padding:20px;">
       <form id="selEmailForm">
-        <div class="input-group">
-          <label class="input-label">To <span style="color:var(--danger);">*</span></label>
-          <input type="text" id="selEmailTo" class="input-field" placeholder="client@example.com" required/>
+        <div class="form-group">
+          <label class="form-label">To <span style="color:var(--danger);">*</span></label>
+          <input type="text" id="selEmailTo" class="form-control" placeholder="client@example.com" required/>
         </div>
-        <div class="input-group">
-          <label class="input-label">CC</label>
-          <input type="text" id="selEmailCc" class="input-field" placeholder="optional, comma-separated"/>
+        <div class="form-group">
+          <label class="form-label">CC</label>
+          <input type="text" id="selEmailCc" class="form-control" placeholder="optional, comma-separated"/>
         </div>
-        <div class="input-group">
-          <label class="input-label">BCC</label>
-          <input type="text" id="selEmailBcc" class="input-field" placeholder="optional, comma-separated"/>
+        <div class="form-group">
+          <label class="form-label">BCC</label>
+          <input type="text" id="selEmailBcc" class="form-control" placeholder="optional, comma-separated"/>
         </div>
-        <div class="input-group">
-          <label class="input-label">Subject</label>
-          <input type="text" id="selEmailSubject" class="input-field"/>
+        <div class="form-group">
+          <label class="form-label">Subject</label>
+          <input type="text" id="selEmailSubject" class="form-control"/>
         </div>
-        <div class="input-group">
-          <label class="input-label">Message</label>
-          <textarea id="selEmailMessage" class="input-field" rows="5"></textarea>
+        <div class="form-group">
+          <label class="form-label">Message</label>
+          <textarea id="selEmailMessage" class="form-control" rows="5"></textarea>
         </div>
         <div style="display:flex;gap:10px;">
           <button type="submit" class="btn btn-primary" style="flex:1;" id="selEmailSendBtn">

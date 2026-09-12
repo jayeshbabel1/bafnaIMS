@@ -22,7 +22,7 @@
     <div style="padding:20px;">
 
       <div id="waPdfStep1">
-        <label class="input-label">Recipient Mobile Number</label>
+        <label class="form-label">Recipient Mobile Number</label>
         <div style="display:flex;border:1.5px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:6px;" id="waPdfInputWrap">
           <select id="waPdfCountryCode" style="border:none;outline:none;background:var(--gray-50);padding:0 8px;font-size:13px;font-weight:600;border-right:1px solid var(--border);font-family:inherit;flex-shrink:0;">
             <option value="91">🇮🇳 +91</option>
@@ -31,7 +31,7 @@
             <option value="971">🇦🇪 +971</option>
             <option value="61">🇦🇺 +61</option>
           </select>
-          <input type="tel" id="waPdfMobileInput" placeholder="Mobile number" class="input-field" style="border:none;flex:1;min-height:44px;"/>
+          <input type="tel" id="waPdfMobileInput" placeholder="Mobile number" class="form-control" style="border:none;flex:1;min-height:44px;"/>
         </div>
         <p id="waPdfMobileError" style="display:none;font-size:11px;color:var(--danger);margin-bottom:12px;">Please enter a valid mobile number.</p>
         <button type="button" onclick="doWaPdfShare()" class="btn btn-block" style="background:#25D366;color:#fff;">

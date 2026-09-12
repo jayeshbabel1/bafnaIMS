@@ -37,7 +37,7 @@ $devices = getUserDevices($user['id']);
       <input type="hidden" name="action" value="register_device"/>
       <input type="hidden" name="return_url" value="index.php?page=devices"/>
       <?= csrfField() ?>
-      <input type="text" name="device_name" class="input-field" style="flex:1;min-width:180px;"
+      <input type="text" name="device_name" class="form-control" style="flex:1;min-width:180px;"
              placeholder="Device name (e.g. My Laptop)"/>
       <button type="submit" class="btn btn-primary">
         <?= icon('check',15) ?>&nbsp; Trust This Device
@@ -175,9 +175,9 @@ $devices = getUserDevices($user['id']);
       <input type="hidden" name="device_id" id="devRenameId" value=""/>
       <input type="hidden" name="return_url" value="index.php?page=devices"/>
       <?= csrfField() ?>
-      <div class="input-group">
-        <label class="input-label">Device Name</label>
-        <input type="text" name="device_name" id="devRenameInput" class="input-field" required maxlength="150"/>
+      <div class="form-group">
+        <label class="form-label">Device Name</label>
+        <input type="text" name="device_name" id="devRenameInput" class="form-control" required maxlength="150"/>
       </div>
       <div style="display:flex;gap:10px;margin-top:6px;">
         <button type="submit" class="btn btn-primary btn-block">Save</button>

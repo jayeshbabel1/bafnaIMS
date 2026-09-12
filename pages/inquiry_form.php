@@ -74,15 +74,15 @@ if ($p['thickness'])    $specParts[] = h($p['thickness']);
 
       <div class="inq-form-grid">
         <div class="input-wrap" style="margin-bottom:0;">
-          <label class="input-label">Your Message</label>
-          <textarea name="message" id="inqMessage" class="input-field" rows="6"
+          <label class="form-label">Your Message</label>
+          <textarea name="message" id="inqMessage" class="form-control" rows="6"
                     placeholder="Hi, I'm interested in this product for a residential project. Could you please share availability and pricing?"
                     required><?= h($_POST['message'] ?? '') ?></textarea>
         </div>
         <div>
           <div class="input-wrap">
-            <label class="input-label">Quantity Required (sq.ft.)</label>
-            <input type="number" name="qty_required" class="input-field"
+            <label class="form-label">Quantity Required (sq.ft.)</label>
+            <input type="number" name="qty_required" class="form-control"
                    placeholder="e.g. 200" min="1"/>
           </div>
 

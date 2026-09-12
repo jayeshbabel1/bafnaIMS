@@ -47,33 +47,33 @@ $g = fn($k) => h($c[$k] ?? '');
 
       <div class="profile-form-grid" style="grid-template-columns:1fr 1fr;gap:0 16px;">
         <div class="form-group">
-          <label class="input-label">Client Name <span style="color:var(--danger);">*</span></label>
-          <input type="text" name="client_name" class="input-field"
+          <label class="form-label">Client Name <span style="color:var(--danger);">*</span></label>
+          <input type="text" name="client_name" class="form-control"
                  placeholder="e.g. Ramesh Patel"
                  value="<?= $g('client_name') ?>" required/>
          
         </div>
         <div class="form-group">
- <label class="input-label">Client Mobile <span style="color:var(--danger);">*</span></label>
+ <label class="form-label">Client Mobile <span style="color:var(--danger);">*</span></label>
           <div class="input-prefix-group">
             <span class="input-prefix">+91</span>
-            <input type="tel" name="client_mobile" class="input-field"
+            <input type="tel" name="client_mobile" class="form-control"
                    placeholder="98765 43210"
                    value="<?= $g('client_mobile') ?>" maxlength="10" required/>
           </div>
           <p class="input-hint">10-digit Indian mobile number</p>
         </div>
       </div>
-<div class="input-group">
-  <label class="input-label">Email Address</label>
-  <input type="email" name="email" class="input-field"
+<div class="form-group">
+  <label class="form-label">Email Address</label>
+  <input type="email" name="email" class="form-control"
          placeholder="client@example.com"
          value="<?= $g('email') ?>"/>
   <p class="input-hint">Optional — used to send catalogs directly.</p>
 </div>
-<div class="input-group">
-  <label class="input-label">City</label>
-  <input type="text" name="city" class="input-field"
+<div class="form-group">
+  <label class="form-label">City</label>
+  <input type="text" name="city" class="form-control"
          placeholder="e.g. Mumbai"
          value="<?= $g('city') ?>"/>
 </div>
@@ -84,16 +84,16 @@ $g = fn($k) => h($c[$k] ?? '');
 
       <div class="profile-form-grid" style="grid-template-columns:1fr 1fr;gap:0 16px;">
         <div class="form-group">
-          <label class="input-label">Mason Name</label>
-          <input type="text" name="mansoner_name" class="input-field"
+          <label class="form-label">Mason Name</label>
+          <input type="text" name="mansoner_name" class="form-control"
                  placeholder="e.g. Suresh Kumar"
                  value="<?= $g('mansoner_name') ?>"/>
         </div>
         <div class="form-group">
-          <label class="input-label">Mason Mobile</label>
+          <label class="form-label">Mason Mobile</label>
           <div class="input-prefix-group">
             <span class="input-prefix">+91</span>
-            <input type="tel" name="mansoner_mobile" class="input-field"
+            <input type="tel" name="mansoner_mobile" class="form-control"
                    placeholder="98765 43210"
                    value="<?= $g('mansoner_mobile') ?>" maxlength="10"/>
           </div>
@@ -104,8 +104,8 @@ $g = fn($k) => h($c[$k] ?? '');
 
       <!-- Site address -->
       <div class="form-group">
-        <label class="input-label">Site Address</label>
-        <textarea name="site_address" class="input-field" rows="3"
+        <label class="form-label">Site Address</label>
+        <textarea name="site_address" class="form-control" rows="3"
                   maxlength="500" id="siteAddr"
                   placeholder="Plot 12, Sector 5, New Mumbai — 400001"><?= $g('site_address') ?></textarea>
         <p class="input-hint">

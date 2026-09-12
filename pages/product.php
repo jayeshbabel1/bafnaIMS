@@ -464,11 +464,11 @@ window.GALLERY_IMAGES = <?= json_encode($galleryImages) ?>;
         <input type="hidden" name="product_id" value="<?= $id ?>"/>
         <?= csrfField() ?>
         <!-- Client search -->
-        <div class="input-group">
-          <label class="input-label">Client <span style="color:var(--danger);">*</span></label>
+        <div class="form-group">
+          <label class="form-label">Client <span style="color:var(--danger);">*</span></label>
           <div style="position:relative;">
             <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text4);pointer-events:none;"><?= icon('search',14) ?></span>
-            <input type="text" id="atsClientSearch" class="input-field"
+            <input type="text" id="atsClientSearch" class="form-control"
                    placeholder="Type to search client…"
                    autocomplete="off"
                    style="padding-left:36px;"/>
@@ -484,21 +484,21 @@ window.GALLERY_IMAGES = <?= json_encode($galleryImages) ?>;
 
         <!-- Area + Qty on same row -->
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
-          <div class="input-group">
-            <label class="input-label">Area / Room</label>
-           <input type="text" name="selection_area" class="input-field"
+          <div class="form-group">
+            <label class="form-label">Area / Room</label>
+           <input type="text" name="selection_area" class="form-control"
        placeholder="e.g. Living Room" list="roomAreaSuggestions" autocomplete="off"/>
           </div>
-          <div class="input-group">
-            <label class="input-label">Qty Required (sqft)</label>
-            <input type="number" name="quantity_required" class="input-field"
+          <div class="form-group">
+            <label class="form-label">Qty Required (sqft)</label>
+            <input type="number" name="quantity_required" class="form-control"
                    min="0" step="0.01" placeholder="0"/>
           </div>
         </div>
 
-        <div class="input-group">
-          <label class="input-label">Notes</label>
-          <textarea name="extra_notes" class="input-field" rows="2"
+        <div class="form-group">
+          <label class="form-label">Notes</label>
+          <textarea name="extra_notes" class="form-control" rows="2"
                     placeholder="Special requirements, finish preferences…"></textarea>
         </div>
 
