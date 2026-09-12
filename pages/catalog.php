@@ -598,7 +598,8 @@ function fv($v): string { return $v !== null ? h((string)$v) : ''; }
           <?php endif; ?>
         </div>
         <div class="catalog-controls-right">
-          <button class="filter-toggle-btn<?= $hasFilter?' has-filter':'' ?>" id="filterToggleBtn">
+          <button class="filter-toggle-btn<?= $hasFilter?' has-filter':'' ?>" id="filterToggleBtn"
+                  type="button" data-bs-toggle="offcanvas" data-bs-target="#filterDrawer" aria-controls="filterDrawer">
             <?= icon('filter',15) ?> Filters
             <?php if ($hasFilter): ?><span class="filter-active-dot"></span><?php endif; ?>
           </button>
@@ -640,15 +641,14 @@ function fv($v): string { return $v !== null ? h((string)$v) : ''; }
   </div><!-- /catalog-layout -->
 </div><!-- /page-content -->
 
-<!-- ══════════════════ MOBILE FILTER DRAWER ════════════════════════════════ -->
-<div class="filter-drawer-overlay" id="filterOverlay" onclick="closeFilterDrawer()"></div>
-<div class="filter-drawer" id="filterDrawer">
+<!-- ══════════════════ MOBILE FILTER DRAWER (Bootstrap Offcanvas) ═══════════ -->
+<div class="offcanvas offcanvas-bottom filter-drawer" tabindex="-1" id="filterDrawer" aria-labelledby="filterDrawerLabel">
   <div class="filter-drawer-handle"></div>
-  <div class="filter-drawer-header">
-    <p class="filter-drawer-title">Filters</p>
-    <button onclick="closeFilterDrawer()" class="btn btn-ghost btn-icon"><?= icon('close',18) ?></button>
+  <div class="filter-drawer-header offcanvas-header">
+    <p class="filter-drawer-title" id="filterDrawerLabel">Filters</p>
+    <button type="button" data-bs-dismiss="offcanvas" aria-label="Close" class="btn btn-ghost btn-icon"><?= icon('close',18) ?></button>
   </div>
-  <div class="filter-drawer-body">
+  <div class="filter-drawer-body offcanvas-body">
 
     <div class="filter-section">
       <p class="filter-section-title">Stone Type</p>
@@ -782,23 +782,17 @@ document.getElementById('sidebarApplyBtn')?.addEventListener('click', function()
   el.addEventListener('input', function() { updateApplyBtnState(); });
 });
 
-function openFilterDrawer() {
+document.getElementById('filterDrawer')?.addEventListener('show.bs.offcanvas', function() {
   document.getElementById('drawerSqftMin').value = _applied.sqft_min || '';
   document.getElementById('drawerSqftMax').value = _applied.sqft_max || '';
   document.getElementById('drawerSlMin').value   = _applied.sl_min   || '';
   document.getElementById('drawerSlMax').value   = _applied.sl_max   || '';
   document.getElementById('drawerShMin').value   = _applied.sh_min   || '';
   document.getElementById('drawerShMax').value   = _applied.sh_max   || '';
-  document.getElementById('filterDrawer').classList.add('open');
-  document.getElementById('filterOverlay').classList.add('open');
-  document.body.style.overflow = 'hidden';
-}
+});
 function closeFilterDrawer() {
-  document.getElementById('filterDrawer').classList.remove('open');
-  document.getElementById('filterOverlay').classList.remove('open');
-  document.body.style.overflow = '';
+  bootstrap.Offcanvas.getOrCreateInstance(document.getElementById('filterDrawer')).hide();
 }
-document.getElementById('filterToggleBtn')?.addEventListener('click', openFilterDrawer);
 
 document.getElementById('drawerApplyBtn')?.addEventListener('click', function() {
   var drawerState = {
