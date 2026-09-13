@@ -99,7 +99,7 @@ if (!isset($clients)) {
 
 
 <!-- Pagination mount point — filled by pagination.js -->
- <div class="pagination" id="paginationWrap"></div>
+ <ul class="pagination" id="paginationWrap"></ul>
  <?php if ($totalPages > 1): ?>
 <p style="text-align:center;font-size:12px;color:var(--text4);margin-top:10px;margin-bottom:20px;">
    Showing <?= (($currentPage - 1) * $perPage) + 1 ?>–<?= min($currentPage * $perPage, $total) ?> of <?= $total ?>
@@ -109,42 +109,43 @@ if (!isset($clients)) {
 <?php endif; ?>
 
 <!-- Delete confirm modal -->
-<div id="deleteClientModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9000;align-items:center;justify-content:center;">
-  <div style="background:var(--white);border-radius:var(--radius-xl);padding:28px 24px;max-width:380px;width:90%;box-shadow:var(--shadow-xl);">
-    <div style="width:52px;height:52px;border-radius:50%;background:var(--danger-bg);color:var(--danger);display:flex;align-items:center;justify-content:center;margin-bottom:16px;">
-      <?= icon('trash', 22) ?>
-    </div>
-    <p style="font-size:17px;font-weight:700;color:var(--text);margin-bottom:8px;">Delete Client?</p>
-    <p style="font-size:13px;color:var(--text3);line-height:1.6;margin-bottom:22px;" id="deleteClientMsg">This will also delete all product selections for this client.</p>
-    <div style="display:flex;gap:10px;">
-      <button id="deleteClientCancel" class="btn btn-secondary btn-block">Cancel</button>
-      <form method="POST" action="index.php" style="flex:1">
-        <input type="hidden" name="action"    value="delete_client"/>
-        <input type="hidden" name="client_id" id="deleteClientId" value=""/>
-        <?= csrfField() ?>
-        <button type="submit" class="btn btn-danger btn-block">Delete</button>
-      </form>
+<div class="modal fade" id="deleteClientModal" tabindex="-1" aria-labelledby="deleteClientModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius:var(--radius-xl);border:none;padding:4px 4px 8px;">
+      <div class="modal-body">
+        <div style="width:52px;height:52px;border-radius:50%;background:var(--danger-bg);color:var(--danger);display:flex;align-items:center;justify-content:center;margin-bottom:16px;">
+          <?= icon('trash', 22) ?>
+        </div>
+        <p id="deleteClientModalLabel" style="font-size:17px;font-weight:700;color:var(--text);margin-bottom:8px;">Delete Client?</p>
+        <p style="font-size:13px;color:var(--text3);line-height:1.6;margin-bottom:22px;" id="deleteClientMsg">This will also delete all product selections for this client.</p>
+        <div style="display:flex;gap:10px;">
+          <button type="button" data-bs-dismiss="modal" class="btn btn-secondary btn-block">Cancel</button>
+          <form method="POST" action="index.php" style="flex:1">
+            <input type="hidden" name="action"    value="delete_client"/>
+            <input type="hidden" name="client_id" id="deleteClientId" value=""/>
+            <?= csrfField() ?>
+            <button type="submit" class="btn btn-danger btn-block">Delete</button>
+          </form>
+        </div>
+      </div>
     </div>
   </div>
 </div>
 
 <script>
 (function () {
-  const modal    = document.getElementById('deleteClientModal');
+  const modalEl  = document.getElementById('deleteClientModal');
+  const modal    = bootstrap.Modal.getOrCreateInstance(modalEl);
   const msgEl    = document.getElementById('deleteClientMsg');
   const inputEl  = document.getElementById('deleteClientId');
-  const cancelBtn = document.getElementById('deleteClientCancel');
 
   document.querySelectorAll('.client-delete-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const name = btn.dataset.name;
       inputEl.value = btn.dataset.id;
       msgEl.textContent = 'Delete "' + name + '"? This will also remove all their product selections.';
-      modal.style.display = 'flex';
+      modal.show();
     });
   });
-
-  if (cancelBtn) cancelBtn.addEventListener('click', () => { modal.style.display = 'none'; });
-  modal && modal.addEventListener('click', e => { if (e.target === modal) modal.style.display = 'none'; });
 })();
 </script>

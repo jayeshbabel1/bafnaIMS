@@ -64,21 +64,21 @@ $slC = $slSt->fetch()['c'];
           <input type="hidden" name="action" value="update_profile"/>
           <?= csrfField() ?>
           <div class="profile-form-grid">
-            <div class="input-group">
-              <label class="input-label">Full Name</label>
-              <input type="text" name="name" class="input-field" value="<?= h($user['name'] ?? '') ?>" required/>
+            <div class="form-group">
+              <label class="form-label">Full Name</label>
+              <input type="text" name="name" class="form-control" value="<?= h($user['name'] ?? '') ?>" required/>
             </div>
-            <div class="input-group">
-              <label class="input-label">Firm / Studio</label>
-              <input type="text" name="firm" class="input-field" value="<?= h($user['firm'] ?? '') ?>"/>
+            <div class="form-group">
+              <label class="form-label">Firm / Studio</label>
+              <input type="text" name="firm" class="form-control" value="<?= h($user['firm'] ?? '') ?>"/>
             </div>
-            <div class="input-group">
-              <label class="input-label">City</label>
-              <input type="text" name="city" class="input-field" value="<?= h($user['city'] ?? '') ?>"/>
+            <div class="form-group">
+              <label class="form-label">City</label>
+              <input type="text" name="city" class="form-control" value="<?= h($user['city'] ?? '') ?>"/>
             </div>
-            <div class="input-group">
-              <label class="input-label">Mobile</label>
-              <input type="tel" name="phone" class="input-field" value="<?= h($user['phone'] ?? '') ?>"/>
+            <div class="form-group">
+              <label class="form-label">Mobile</label>
+              <input type="tel" name="phone" class="form-control" value="<?= h($user['phone'] ?? '') ?>"/>
             </div>
           </div>
           <button type="submit" class="btn btn-primary">Save Changes</button>
@@ -97,17 +97,17 @@ $slC = $slSt->fetch()['c'];
           <input type="hidden" name="action" value="change_password"/>
           <?= csrfField() ?>
           <div class="profile-form-grid">
-            <div class="input-group">
-              <label class="input-label">Current Password</label>
+            <div class="form-group">
+              <label class="form-label">Current Password</label>
               <div class="password-wrap">
-                <input type="password" name="current_password" id="curPwd" class="input-field" placeholder="••••••••"/>
+                <input type="password" name="current_password" id="curPwd" class="form-control" placeholder="••••••••"/>
                 <button type="button" class="pwd-toggle" data-target="curPwd"><?= icon('eye',16) ?></button>
               </div>
             </div>
-            <div class="input-group">
-              <label class="input-label">New Password</label>
+            <div class="form-group">
+              <label class="form-label">New Password</label>
               <div class="password-wrap">
-                <input type="password" name="new_password" id="newPwd" class="input-field"
+                <input type="password" name="new_password" id="newPwd" class="form-control"
                        placeholder="Min. 8 characters" minlength="8"/>
                 <button type="button" class="pwd-toggle" data-target="newPwd"><?= icon('eye',16) ?></button>
               </div>
@@ -153,7 +153,7 @@ $slC = $slSt->fetch()['c'];
           <input type="hidden" name="action" value="register_device"/>
           <input type="hidden" name="return_url" value="index.php?page=profile"/>
           <?= csrfField() ?>
-          <input type="text" name="device_name" class="input-field" style="flex:1;min-width:180px;"
+          <input type="text" name="device_name" class="form-control" style="flex:1;min-width:180px;"
                  placeholder="Device name (e.g. My Laptop)"/>
           <button type="submit" class="btn btn-primary">
             <?= icon('check',15) ?>&nbsp; Trust This Device

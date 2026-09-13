@@ -59,10 +59,10 @@ $pageTitle = 'Product Activation — ' . APP_NAME;
       <p class="auth-card-sub"><?= h(APP_NAME) ?></p>
 
       <?php if ($err): ?>
-      <div class="alert alert-error"><?= h($err) ?></div>
+      <div class="alert alert-danger"><?= h($err) ?></div>
       <?php endif; ?>
 
-      <div class="alert <?= $isGood ? 'alert-success' : (in_array($blockState,['expired','revoked','domain_mismatch'],true) ? 'alert-error' : 'alert-info') ?>">
+      <div class="alert <?= $isGood ? 'alert-success' : (in_array($blockState,['expired','revoked','domain_mismatch'],true) ? 'alert-danger' : 'alert-info') ?>">
         <?= h($statusMessage) ?>
       </div>
 
@@ -72,9 +72,9 @@ $pageTitle = 'Product Activation — ' . APP_NAME;
       <form method="POST" action="index.php?page=activation" novalidate>
         <input type="hidden" name="action" value="activate_license"/>
         <?= csrfField() ?>
-        <div class="input-group">
-          <label class="input-label">Activation Key</label>
-          <input type="text" name="activation_key" class="input-field"
+        <div class="form-group">
+          <label class="form-label">Activation Key</label>
+          <input type="text" name="activation_key" class="form-control"
                  placeholder="XXXXX-XXXXX-XXXXX-XXXXX" required autocomplete="off"
                  style="font-family:monospace;letter-spacing:1px;text-transform:uppercase;"/>
         </div>

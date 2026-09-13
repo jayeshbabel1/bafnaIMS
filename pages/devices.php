@@ -37,7 +37,7 @@ $devices = getUserDevices($user['id']);
       <input type="hidden" name="action" value="register_device"/>
       <input type="hidden" name="return_url" value="index.php?page=devices"/>
       <?= csrfField() ?>
-      <input type="text" name="device_name" class="input-field" style="flex:1;min-width:180px;"
+      <input type="text" name="device_name" class="form-control" style="flex:1;min-width:180px;"
              placeholder="Device name (e.g. My Laptop)"/>
       <button type="submit" class="btn btn-primary">
         <?= icon('check',15) ?>&nbsp; Trust This Device
@@ -93,8 +93,9 @@ $devices = getUserDevices($user['id']);
   </p>
 </div>
 <!-- Forced Logout modal — double confirmation -->
-<div id="devForceLogoutModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9100;align-items:center;justify-content:center;padding:16px;">
-  <div style="background:var(--white);border-radius:var(--radius-xl);padding:26px;max-width:400px;width:100%;box-shadow:var(--shadow-xl);">
+<div class="modal fade" id="devForceLogoutModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius:var(--radius-xl);border:none;padding:6px;">
 
     <!-- Step 1 -->
     <div id="dflStep1">
@@ -106,7 +107,7 @@ $devices = getUserDevices($user['id']);
         "<span id="dflName1"></span>" will be removed from your trusted devices and signed out immediately.
       </p>
       <div style="display:flex;gap:10px;">
-        <button type="button" class="btn btn-secondary btn-block" id="dflCancel1">Cancel</button>
+        <button type="button" class="btn btn-secondary btn-block" data-bs-dismiss="modal">Cancel</button>
         <button type="button" class="btn btn-danger btn-block" id="dflNext">Continue</button>
       </div>
     </div>
@@ -126,20 +127,22 @@ $devices = getUserDevices($user['id']);
         <input type="hidden" name="return_url" value="index.php?page=devices"/>
         <?= csrfField() ?>
         <div style="display:flex;gap:10px;">
-          <button type="button" class="btn btn-secondary btn-block" id="dflCancel2">Cancel</button>
+          <button type="button" class="btn btn-secondary btn-block" data-bs-dismiss="modal">Cancel</button>
           <button type="submit" class="btn btn-danger btn-block">Yes, Forced Logout</button>
         </div>
       </form>
     </div>
 
+    </div>
   </div>
 </div>
 
 <script>
 (function () {
-  var modal = document.getElementById('devForceLogoutModal');
-  var step1 = document.getElementById('dflStep1');
-  var step2 = document.getElementById('dflStep2');
+  var modalEl = document.getElementById('devForceLogoutModal');
+  var modal   = bootstrap.Modal.getOrCreateInstance(modalEl);
+  var step1   = document.getElementById('dflStep1');
+  var step2   = document.getElementById('dflStep2');
 
   function openModal(id, name) {
     document.getElementById('dflName1').textContent = name;
@@ -147,9 +150,8 @@ $devices = getUserDevices($user['id']);
     document.getElementById('dflDeviceId').value = id;
     step1.style.display = '';
     step2.style.display = 'none';
-    modal.style.display = 'flex';
+    modal.show();
   }
-  function closeModal() { modal.style.display = 'none'; }
 
   document.querySelectorAll('.dev-forcelogout-btn').forEach(function (btn) {
     btn.addEventListener('click', function () {
@@ -161,50 +163,46 @@ $devices = getUserDevices($user['id']);
     step1.style.display = 'none';
     step2.style.display = '';
   });
-  document.getElementById('dflCancel1').addEventListener('click', closeModal);
-  document.getElementById('dflCancel2').addEventListener('click', closeModal);
-  modal.addEventListener('click', function (e) { if (e.target === modal) closeModal(); });
 })();
 </script>
 <!-- Rename modal -->
-<div id="devRenameModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9000;align-items:center;justify-content:center;padding:16px;">
-  <div style="background:var(--white);border-radius:var(--radius-xl);padding:24px;max-width:380px;width:100%;box-shadow:var(--shadow-xl);">
-    <p style="font-size:16px;font-weight:700;margin-bottom:16px;">Rename Device</p>
+<div class="modal fade" id="devRenameModal" tabindex="-1" aria-labelledby="devRenameModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius:var(--radius-xl);border:none;padding:16px;">
+    <p id="devRenameModalLabel" style="font-size:16px;font-weight:700;margin-bottom:16px;">Rename Device</p>
     <form method="POST" action="index.php">
       <input type="hidden" name="action"    value="rename_device"/>
       <input type="hidden" name="device_id" id="devRenameId" value=""/>
       <input type="hidden" name="return_url" value="index.php?page=devices"/>
       <?= csrfField() ?>
-      <div class="input-group">
-        <label class="input-label">Device Name</label>
-        <input type="text" name="device_name" id="devRenameInput" class="input-field" required maxlength="150"/>
+      <div class="form-group">
+        <label class="form-label">Device Name</label>
+        <input type="text" name="device_name" id="devRenameInput" class="form-control" required maxlength="150"/>
       </div>
       <div style="display:flex;gap:10px;margin-top:6px;">
         <button type="submit" class="btn btn-primary btn-block">Save</button>
-        <button type="button" class="btn btn-secondary" id="devRenameCancel">Cancel</button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
       </div>
     </form>
+    </div>
   </div>
 </div>
 
 <script>
 (function () {
-  var modal  = document.getElementById('devRenameModal');
-  var idEl   = document.getElementById('devRenameId');
-  var nameEl = document.getElementById('devRenameInput');
+  var modalEl = document.getElementById('devRenameModal');
+  var modal   = bootstrap.Modal.getOrCreateInstance(modalEl);
+  var idEl    = document.getElementById('devRenameId');
+  var nameEl  = document.getElementById('devRenameInput');
 
   document.querySelectorAll('.dev-rename-btn').forEach(function (btn) {
     btn.addEventListener('click', function () {
       idEl.value   = btn.dataset.id;
       nameEl.value = btn.dataset.name;
-      modal.style.display = 'flex';
-      setTimeout(function () { nameEl.focus(); }, 80);
+      modal.show();
     });
   });
-  document.getElementById('devRenameCancel').addEventListener('click', function () {
-    modal.style.display = 'none';
-  });
-  modal.addEventListener('click', function (e) { if (e.target === modal) modal.style.display = 'none'; });
+  modalEl.addEventListener('shown.bs.modal', function () { nameEl.focus(); });
 })();
 </script>
 

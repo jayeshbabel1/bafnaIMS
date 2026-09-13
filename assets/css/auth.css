@@ -97,7 +97,7 @@ body {
 }
 
 /* Inputs */
-.auth-card .input-label {
+.auth-card .form-label {
   font-size: 11.5px;
   font-weight: 600;
   text-transform: uppercase;
@@ -106,7 +106,7 @@ body {
   margin-bottom: 7px;
 }
 
-.auth-card .input-field {
+.auth-card .form-control {
   height: var(--auth-input-h);
   border-radius: 10px;
   border: 1.5px solid #E0D8CE;
@@ -116,13 +116,13 @@ body {
   transition: border-color .15s, box-shadow .15s;
 }
 
-.auth-card .input-field:focus {
+.auth-card .form-control:focus {
   border-color: var(--auth-gold);
   background: #fff;
   box-shadow: 0 0 0 3px rgba(200, 164, 93, .12);
 }
 
-.auth-card .password-wrap .input-field {
+.auth-card .password-wrap .form-control {
   padding-right: 48px;
 }
 
@@ -259,9 +259,6 @@ body {
 }
 
 /* Alerts */
-.auth-card .alert-error {
-  border-radius: 10px;
-}
 
 /* Divider */
 .auth-divider {

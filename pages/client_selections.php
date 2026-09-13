@@ -181,76 +181,80 @@ if ($isAjax) {
 </div>
 
 <!-- Edit Selection Modal -->
-<div id="editSelModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9000;align-items:center;justify-content:center;padding:16px;">
-  <div style="background:var(--white);border-radius:var(--radius-xl);width:100%;max-width:480px;max-height:90vh;overflow-y:auto;box-shadow:var(--shadow-xl);">
-    <div style="padding:20px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
-      <p style="font-size:16px;font-weight:700;">Edit Selection</p>
-      <button id="editSelClose" style="color:var(--text3);cursor:pointer;"><?= icon('close', 18) ?></button>
+<div class="modal fade" id="editSelModal" tabindex="-1" aria-labelledby="editSelModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius:var(--radius-xl);border:none;">
+    <div class="modal-header">
+      <p class="modal-title" id="editSelModalLabel" style="font-size:16px;font-weight:700;">Edit Selection</p>
+      <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
     </div>
-    <div style="padding:22px;">
+    <div class="modal-body">
       <form method="POST" action="index.php" id="editSelForm">
         <input type="hidden" name="action"       value="update_selection"/>
         <input type="hidden" name="selection_id" id="editSelId"/>
         <input type="hidden" name="client_id"    value="<?= $clientId ?>"/>
         <?= csrfField() ?>
-        <div class="input-group">
-          <label class="input-label">Selection Area / Room</label>
-          <input type="text" name="selection_area" id="editSelArea" class="input-field" placeholder="e.g. Master Bedroom" list="roomAreaSuggestions" autocomplete="off"/>
+        <div class="form-group">
+          <label class="form-label">Selection Area / Room</label>
+          <input type="text" name="selection_area" id="editSelArea" class="form-control" placeholder="e.g. Master Bedroom" list="roomAreaSuggestions" autocomplete="off"/>
         </div>
-        <div class="input-group">
-          <label class="input-label">Quantity Required (sqft)</label>
-          <input type="number" name="quantity_required" id="editSelQty" class="input-field" min="0" step="0.01" placeholder="0.00"/>
+        <div class="form-group">
+          <label class="form-label">Quantity Required (sqft)</label>
+          <input type="number" name="quantity_required" id="editSelQty" class="form-control" min="0" step="0.01" placeholder="0.00"/>
         </div>
-        <div class="input-group">
-          <label class="input-label">Notes</label>
-          <textarea name="extra_notes" id="editSelNotes" class="input-field" rows="3" placeholder="Any special requirements…"></textarea>
+        <div class="form-group">
+          <label class="form-label">Notes</label>
+          <textarea name="extra_notes" id="editSelNotes" class="form-control" rows="3" placeholder="Any special requirements…"></textarea>
         </div>
         <div style="display:flex;gap:10px;">
           <button type="submit" class="btn btn-primary" style="flex:1;"><?= icon('check', 14) ?>&nbsp; Save</button>
-          <button type="button" id="editSelCancelBtn" class="btn btn-secondary">Cancel</button>
+          <button type="button" data-bs-dismiss="modal" class="btn btn-secondary">Cancel</button>
         </div>
       </form>
     </div>
-  </div>
-  <?= roomAreaDatalist() ?>
-</div>
-<!-- Email Selection PDF Modal -->
-<div id="selEmailModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9100;align-items:center;justify-content:center;padding:16px;">
-  <div style="background:var(--white);border-radius:var(--radius-xl);width:100%;max-width:480px;max-height:90vh;overflow-y:auto;box-shadow:var(--shadow-xl);">
-    <div style="padding:18px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
-      <p style="font-size:16px;font-weight:700;">Email Selection PDF</p>
-      <button type="button" id="selEmailClose" style="color:var(--text3);cursor:pointer;background:none;border:none;"><?= icon('close', 18) ?></button>
     </div>
-    <div style="padding:20px;">
+  </div>
+</div>
+<?= roomAreaDatalist() ?>
+<!-- Email Selection PDF Modal -->
+<div class="modal fade" id="selEmailModal" tabindex="-1" aria-labelledby="selEmailModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius:var(--radius-xl);border:none;">
+    <div class="modal-header">
+      <p class="modal-title" id="selEmailModalLabel" style="font-size:16px;font-weight:700;">Email Selection PDF</p>
+      <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+    </div>
+    <div class="modal-body">
       <form id="selEmailForm">
-        <div class="input-group">
-          <label class="input-label">To <span style="color:var(--danger);">*</span></label>
-          <input type="text" id="selEmailTo" class="input-field" placeholder="client@example.com" required/>
+        <div class="form-group">
+          <label class="form-label">To <span style="color:var(--danger);">*</span></label>
+          <input type="text" id="selEmailTo" class="form-control" placeholder="client@example.com" required/>
         </div>
-        <div class="input-group">
-          <label class="input-label">CC</label>
-          <input type="text" id="selEmailCc" class="input-field" placeholder="optional, comma-separated"/>
+        <div class="form-group">
+          <label class="form-label">CC</label>
+          <input type="text" id="selEmailCc" class="form-control" placeholder="optional, comma-separated"/>
         </div>
-        <div class="input-group">
-          <label class="input-label">BCC</label>
-          <input type="text" id="selEmailBcc" class="input-field" placeholder="optional, comma-separated"/>
+        <div class="form-group">
+          <label class="form-label">BCC</label>
+          <input type="text" id="selEmailBcc" class="form-control" placeholder="optional, comma-separated"/>
         </div>
-        <div class="input-group">
-          <label class="input-label">Subject</label>
-          <input type="text" id="selEmailSubject" class="input-field"/>
+        <div class="form-group">
+          <label class="form-label">Subject</label>
+          <input type="text" id="selEmailSubject" class="form-control"/>
         </div>
-        <div class="input-group">
-          <label class="input-label">Message</label>
-          <textarea id="selEmailMessage" class="input-field" rows="5"></textarea>
+        <div class="form-group">
+          <label class="form-label">Message</label>
+          <textarea id="selEmailMessage" class="form-control" rows="5"></textarea>
         </div>
         <div style="display:flex;gap:10px;">
           <button type="submit" class="btn btn-primary" style="flex:1;" id="selEmailSendBtn">
             <?= icon('mail',15) ?>&nbsp; Send
           </button>
-          <button type="button" id="selEmailCancel" class="btn btn-secondary">Cancel</button>
+          <button type="button" data-bs-dismiss="modal" class="btn btn-secondary">Cancel</button>
         </div>
         <p id="selEmailStatus" style="font-size:12px;margin-top:10px;"></p>
       </form>
+    </div>
     </div>
   </div>
 </div>
@@ -260,7 +264,8 @@ if ($isAjax) {
   const loader   = document.getElementById('selLoader');
   const countEl  = document.getElementById('selCount');
   const searchEl = document.getElementById('selSearch');
-  const modal    = document.getElementById('editSelModal');
+  const modalEl  = document.getElementById('editSelModal');
+  const modal    = bootstrap.Modal.getOrCreateInstance(modalEl);
   const clientId = <?= $clientId ?>;
 
   let state = { q: <?= json_encode($search) ?>, page: 1 };
@@ -284,9 +289,10 @@ if ($isAjax) {
 
   function bindButtons() {
     // Pagination
-    content.querySelectorAll('.pag-btn').forEach(btn => {
+    content.querySelectorAll('.page-link[data-page]').forEach(btn => {
       btn.addEventListener('click', () => {
-        if (btn.classList.contains('disabled') || btn.classList.contains('active')) return;
+        const item = btn.closest('.page-item');
+        if (item && (item.classList.contains('disabled') || item.classList.contains('active'))) return;
         load(parseInt(btn.dataset.page));
       });
     });
@@ -297,7 +303,7 @@ if ($isAjax) {
         document.getElementById('editSelArea').value  = btn.dataset.area  || '';
         document.getElementById('editSelQty').value   = btn.dataset.qty   || '';
         document.getElementById('editSelNotes').value = btn.dataset.notes || '';
-        modal.style.display = 'flex';
+        modal.show();
       });
     });
     // Delete buttons
@@ -325,11 +331,6 @@ if ($isAjax) {
     });
   }
 
-  // Modal close
-  document.getElementById('editSelClose')?.addEventListener('click',     () => { modal.style.display = 'none'; });
-  document.getElementById('editSelCancelBtn')?.addEventListener('click', () => { modal.style.display = 'none'; });
-  modal?.addEventListener('click', e => { if (e.target === modal) modal.style.display = 'none'; });
-
   // Handle edit form submit via AJAX
   document.getElementById('editSelForm')?.addEventListener('submit', async function (e) {
     e.preventDefault();
@@ -344,7 +345,7 @@ if ($isAjax) {
       let d = {};
       try { d = await r.json(); } catch (_) { /* non-JSON success path, ignore */ }
       if (d && d.success === false) throw new Error(d.error || 'Update failed.');
-      modal.style.display = 'none';
+      modal.hide();
       load(state.page, false);
     } catch (err) {
       alert('Could not save changes: ' + err.message + '. Please refresh and try again.');
@@ -435,7 +436,8 @@ if ($isAjax) {
   }
 
   // ── Email modal ──────────────────────────────────────────────────────────
-  var emailModal = document.getElementById('selEmailModal');
+  var emailModalEl = document.getElementById('selEmailModal');
+  var emailModal = bootstrap.Modal.getOrCreateInstance(emailModalEl);
   function openEmailModal() {
     if (!latestCatalogId) { alert('Generate a PDF first.'); return; }
     document.getElementById('selEmailTo').value = '';
@@ -444,13 +446,10 @@ if ($isAjax) {
     document.getElementById('selEmailSubject').value = 'Your Product Selection Catalog';
     document.getElementById('selEmailMessage').value = 'Hi,\n\nPlease find attached your product selection catalog.\n\nRegards';
     document.getElementById('selEmailStatus').textContent = '';
-    emailModal.style.display = 'flex';
+    emailModal.show();
   }
-  function closeEmailModal() { emailModal.style.display = 'none'; }
+  function closeEmailModal() { emailModal.hide(); }
   emailBtn && emailBtn.addEventListener('click', openEmailModal);
-  document.getElementById('selEmailClose')?.addEventListener('click', closeEmailModal);
-  document.getElementById('selEmailCancel')?.addEventListener('click', closeEmailModal);
-  emailModal?.addEventListener('click', function (e) { if (e.target === this) closeEmailModal(); });
 
   document.getElementById('selEmailForm')?.addEventListener('submit', function (e) {
     e.preventDefault();

@@ -119,17 +119,6 @@ function lightboxBgClick(e) {
   });
 })();
 
-/* ── Share modal  */
-function openShareModal() {
-  const m = document.getElementById('shareModal');
-  if (m) { m.classList.add('open'); document.body.style.overflow = 'hidden'; }
-}
-
-function closeShareModal() {
-  const m = document.getElementById('shareModal');
-  if (m) { m.classList.remove('open'); document.body.style.overflow = ''; }
-}
-
 /* ── Copy link  */
 function copyLink(url) {
   const lbl  = document.getElementById('copyLinkLabel');
@@ -150,7 +139,7 @@ function fallbackCopy(url) {
 
 /* ── Keyboard  */
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { closeLightbox(); closeShareModal(); }
+  if (e.key === 'Escape') { closeLightbox(); }
   const lb = document.getElementById('lightbox');
   if (lb && lb.classList.contains('open')) {
     if (e.key === 'ArrowRight') lightboxNext();

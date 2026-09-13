@@ -357,14 +357,20 @@ $catalogTheme  = getCatalogTheme();
 //  Pagination HTML 
 function renderPagination(int $cur, int $total): string {
     if ($total <= 1) return '';
-    $h  = '<div class="pagination" id="paginationWrap">';
-    $h .= '<button class="pag-btn '.($cur<=1?'disabled':'').'" data-page="'.($cur-1).'">&lsaquo;</button>';
+    $h  = '<ul class="pagination" id="paginationWrap">';
+    $h .= '<li class="page-item '.($cur<=1?'disabled':'').'"><button class="page-link" data-page="'.($cur-1).'">&lsaquo;</button></li>';
     $s = max(1,$cur-2); $e = min($total,$cur+2);
-    if ($s > 1) { $h .= '<button class="pag-btn" data-page="1">1</button>'; if ($s>2) $h .= '<span class="pag-ellipsis">…</span>'; }
-    for ($i=$s;$i<=$e;$i++) $h .= '<button class="pag-btn '.($i===$cur?'active':'').'" data-page="'.$i.'">'.$i.'</button>';
-    if ($e < $total) { if ($e < $total-1) $h .= '<span class="pag-ellipsis">…</span>'; $h .= '<button class="pag-btn" data-page="'.$total.'">'.$total.'</button>'; }
-    $h .= '<button class="pag-btn '.($cur>=$total?'disabled':'').'" data-page="'.($cur+1).'">&rsaquo;</button>';
-    $h .= '</div>';
+    if ($s > 1) {
+        $h .= '<li class="page-item"><button class="page-link" data-page="1">1</button></li>';
+        if ($s>2) $h .= '<li class="page-item disabled"><span class="page-link">…</span></li>';
+    }
+    for ($i=$s;$i<=$e;$i++) $h .= '<li class="page-item '.($i===$cur?'active':'').'"><button class="page-link" data-page="'.$i.'">'.$i.'</button></li>';
+    if ($e < $total) {
+        if ($e < $total-1) $h .= '<li class="page-item disabled"><span class="page-link">…</span></li>';
+        $h .= '<li class="page-item"><button class="page-link" data-page="'.$total.'">'.$total.'</button></li>';
+    }
+    $h .= '<li class="page-item '.($cur>=$total?'disabled':'').'"><button class="page-link" data-page="'.($cur+1).'">&rsaquo;</button></li>';
+    $h .= '</ul>';
     return $h;
 }
 
@@ -428,9 +434,6 @@ function fv($v): string { return $v !== null ? h((string)$v) : ''; }
 .catalog-table-thumb { display:block; width:52px; height:52px; border-radius:8px; overflow:hidden; background:var(--gray-100); }
 .catalog-table-thumb img, .catalog-table-thumb svg { width:100%; height:100%; object-fit:cover; }
 .catalog-table-name { font-weight:600; color:var(--text); text-decoration:none; }
-/* Equal-size view toggle buttons (3-way) */
-.view-toggle { display:flex; border:1.5px solid var(--border); border-radius:var(--radius); overflow:hidden; }
-.view-toggle .view-btn { width:34px; height:34px; }
 
 /*  Catalog Themes (set via Settings → Product Views → User)  */
 [data-catalog-theme="minimal"] .product-card,
@@ -595,20 +598,21 @@ function fv($v): string { return $v !== null ? h((string)$v) : ''; }
           <?php endif; ?>
         </div>
         <div class="catalog-controls-right">
-          <button class="filter-toggle-btn<?= $hasFilter?' has-filter':'' ?>" id="filterToggleBtn">
+          <button class="filter-toggle-btn<?= $hasFilter?' has-filter':'' ?>" id="filterToggleBtn"
+                  type="button" data-bs-toggle="offcanvas" data-bs-target="#filterDrawer" aria-controls="filterDrawer">
             <?= icon('filter',15) ?> Filters
             <?php if ($hasFilter): ?><span class="filter-active-dot"></span><?php endif; ?>
           </button>
-          <select id="sortSelect" class="sort-select">
+          <select id="sortSelect" class="form-select" style="width:auto;font-size:12px;">
             <option value="latest"   <?= $sort==='latest'  ?'selected':'' ?>>Latest</option>
             <option value="qty_desc" <?= $sort==='qty_desc'?'selected':'' ?>>Qty: High→Low</option>
             <option value="qty_asc"  <?= $sort==='qty_asc' ?'selected':'' ?>>Qty: Low→High</option>
             <option value="name_az"  <?= $sort==='name_az' ?'selected':'' ?>>Name A→Z</option>
           </select>
-          <div class="view-toggle">
-            <button class="view-btn" id="viewGrid" title="Grid"><?= icon('grid',15) ?></button>
-            <button class="view-btn" id="viewList" title="List"><?= icon('filter',15) ?></button>
-            <button class="view-btn" id="viewTable" title="Table"><?= icon('file',15) ?></button>
+          <div class="btn-group view-toggle" role="group" aria-label="View">
+            <button class="btn btn-outline-secondary view-btn" id="viewGrid" title="Grid" type="button"><?= icon('grid',15) ?></button>
+            <button class="btn btn-outline-secondary view-btn" id="viewList" title="List" type="button"><?= icon('filter',15) ?></button>
+            <button class="btn btn-outline-secondary view-btn" id="viewTable" title="Table" type="button"><?= icon('file',15) ?></button>
           </div>
         </div>
       </div>
@@ -637,15 +641,14 @@ function fv($v): string { return $v !== null ? h((string)$v) : ''; }
   </div><!-- /catalog-layout -->
 </div><!-- /page-content -->
 
-<!-- ══════════════════ MOBILE FILTER DRAWER ════════════════════════════════ -->
-<div class="filter-drawer-overlay" id="filterOverlay" onclick="closeFilterDrawer()"></div>
-<div class="filter-drawer" id="filterDrawer">
+<!-- ══════════════════ MOBILE FILTER DRAWER (Bootstrap Offcanvas) ═══════════ -->
+<div class="offcanvas offcanvas-bottom filter-drawer" tabindex="-1" id="filterDrawer" aria-labelledby="filterDrawerLabel">
   <div class="filter-drawer-handle"></div>
-  <div class="filter-drawer-header">
-    <p class="filter-drawer-title">Filters</p>
-    <button onclick="closeFilterDrawer()" class="btn btn-ghost btn-icon"><?= icon('close',18) ?></button>
+  <div class="filter-drawer-header offcanvas-header">
+    <p class="filter-drawer-title" id="filterDrawerLabel">Filters</p>
+    <button type="button" data-bs-dismiss="offcanvas" aria-label="Close" class="btn btn-ghost btn-icon"><?= icon('close',18) ?></button>
   </div>
-  <div class="filter-drawer-body">
+  <div class="filter-drawer-body offcanvas-body">
 
     <div class="filter-section">
       <p class="filter-section-title">Stone Type</p>
@@ -779,23 +782,17 @@ document.getElementById('sidebarApplyBtn')?.addEventListener('click', function()
   el.addEventListener('input', function() { updateApplyBtnState(); });
 });
 
-function openFilterDrawer() {
+document.getElementById('filterDrawer')?.addEventListener('show.bs.offcanvas', function() {
   document.getElementById('drawerSqftMin').value = _applied.sqft_min || '';
   document.getElementById('drawerSqftMax').value = _applied.sqft_max || '';
   document.getElementById('drawerSlMin').value   = _applied.sl_min   || '';
   document.getElementById('drawerSlMax').value   = _applied.sl_max   || '';
   document.getElementById('drawerShMin').value   = _applied.sh_min   || '';
   document.getElementById('drawerShMax').value   = _applied.sh_max   || '';
-  document.getElementById('filterDrawer').classList.add('open');
-  document.getElementById('filterOverlay').classList.add('open');
-  document.body.style.overflow = 'hidden';
-}
+});
 function closeFilterDrawer() {
-  document.getElementById('filterDrawer').classList.remove('open');
-  document.getElementById('filterOverlay').classList.remove('open');
-  document.body.style.overflow = '';
+  bootstrap.Offcanvas.getOrCreateInstance(document.getElementById('filterDrawer')).hide();
 }
-document.getElementById('filterToggleBtn')?.addEventListener('click', openFilterDrawer);
 
 document.getElementById('drawerApplyBtn')?.addEventListener('click', function() {
   var drawerState = {

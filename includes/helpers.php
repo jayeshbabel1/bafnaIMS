@@ -159,6 +159,37 @@ function throttle(string $key, int $maxPerWindow, int $windowSeconds): bool {
     return $bucket['count'] <= $maxPerWindow;
 }
 
+// Converts a hex color (#RGB or #RRGGBB) to an "r,g,b" triplet for Bootstrap's
+// *-rgb variables (used internally for rgba() opacity tricks like focus rings).
+// Non-hex input (rgba()/gradients from the theme editor) falls back to a
+// neutral grey rather than emitting invalid CSS.
+function _bsHexToRgbTriplet(string $hex): string {
+    $hex = ltrim(trim($hex), '#');
+    if (preg_match('/^[0-9a-fA-F]{3}$/', $hex)) {
+        $hex = $hex[0].$hex[0].$hex[1].$hex[1].$hex[2].$hex[2];
+    }
+    if (!preg_match('/^[0-9a-fA-F]{6}$/', $hex)) {
+        return '140,140,140';
+    }
+    return hexdec(substr($hex,0,2)) . ',' . hexdec(substr($hex,2,2)) . ',' . hexdec(substr($hex,4,2));
+}
+
+// Linearly mixes two hex colors ($ratio = weight of $hex1, 0..1). Used to derive
+// Bootstrap's "-bg-subtle" / "-border-subtle" / "-text-emphasis" variants from a
+// single brand color - Bootstrap 5.3 computes those at Sass-compile time (fixed
+// into the CDN CSS), not from --bs-danger etc. at runtime, so without this,
+// alerts/badges silently ignore the theme override.
+function _bsMixHex(string $hex1, string $hex2, float $ratio): string {
+    $ratio = max(0, min(1, $ratio));
+    $rgb1 = explode(',', _bsHexToRgbTriplet($hex1));
+    $rgb2 = explode(',', _bsHexToRgbTriplet($hex2));
+    $out = [];
+    for ($i = 0; $i < 3; $i++) {
+        $out[] = (int)round(((int)$rgb1[$i]) * $ratio + ((int)$rgb2[$i]) * (1 - $ratio));
+    }
+    return sprintf('#%02x%02x%02x', $out[0], $out[1], $out[2]);
+}
+
 function getCSSVariables(bool $isAdmin = false): string {
 
     $file = __DIR__ . '/../config/colors.php';
@@ -245,6 +276,47 @@ if ($langFont) {
     $css .= "--font-body:{$fontFamily};\n";
     $css .= "--font-display:{$fontFamily};\n";
 }
+
+    // Bootstrap 5 variable bridge (user panel only, Fire 0) - maps existing
+    // admin-configurable theme tokens onto Bootstrap's own CSS custom
+    // properties so Bootstrap components inherit the live theme with zero
+    // new settings UI. Skipped for admin (Bootstrap isn't loaded there).
+    if (!$isAdmin) {
+        $bsColorMap = [
+            '--bs-primary'   => $vars['--accent']      ?? '#2C6E8A',
+            '--bs-secondary' => $vars['--text3']       ?? '#8FA3B1',
+            '--bs-success'   => $vars['--success']     ?? '#3D8B6E',
+            '--bs-danger'    => $vars['--danger']      ?? '#E84040',
+            '--bs-warning'   => $vars['--gold']        ?? '#B8975A',
+            '--bs-info'      => $vars['--accent-mid']  ?? '#4DA8C9',
+            '--bs-light'     => $vars['--surface2']    ?? '#EEF2F7',
+            '--bs-dark'      => $vars['--text']        ?? '#1A2837',
+        ];
+        foreach ($bsColorMap as $bk => $bv) {
+            $css .= "{$bk}:{$bv};\n";
+            $css .= "{$bk}-rgb:" . _bsHexToRgbTriplet($bv) . ";\n";
+            // Subtle variants - used by .alert-*, .text-bg-*, and other
+            // components that don't read --bs-{color} directly.
+            $css .= "{$bk}-bg-subtle:"     . _bsMixHex($bv, '#FFFFFF', 0.15) . ";\n";
+            $css .= "{$bk}-border-subtle:" . _bsMixHex($bv, '#FFFFFF', 0.35) . ";\n";
+            $css .= "{$bk}-text-emphasis:" . _bsMixHex($bv, '#000000', 0.75) . ";\n";
+        }
+        $bsOther = [
+            '--bs-body-bg'          => $vars['--bg']          ?? '#F2F5F9',
+            '--bs-body-color'       => $vars['--text']        ?? '#1A2837',
+            '--bs-border-color'     => $vars['--border']      ?? '#DDE4EB',
+            '--bs-border-radius'    => $vars['--btn-radius']  ?? '8px',
+            '--bs-border-radius-sm' => $vars['--btn-radius']  ?? '6px',
+            '--bs-border-radius-lg' => $vars['--card-radius'] ?? '16px',
+            '--bs-link-color'       => $vars['--accent']      ?? '#2C6E8A',
+            '--bs-link-hover-color' => $vars['--accent2']     ?? '#1A4D65',
+            '--bs-font-sans-serif'  => $fontFamily,
+        ];
+        foreach ($bsOther as $bk => $bv) {
+            $css .= "{$bk}:{$bv};\n";
+        }
+    }
+
     $css .= "}";
 
     return $css;

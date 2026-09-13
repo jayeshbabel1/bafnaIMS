@@ -59,25 +59,25 @@ if ($token) {
       <p class="auth-card-sub">Choose a strong password with at least 8 characters.</p>
 
       <?php if ($inlineError ?? null): ?>
-      <div class="alert alert-error"><?= h($inlineError) ?></div>
+      <div class="alert alert-danger"><?= h($inlineError) ?></div>
       <?php endif; ?>
 
       <form method="POST" action="index.php?page=reset_password">
         <input type="hidden" name="action" value="reset_password"/>
         <input type="hidden" name="token"  value="<?= h($token) ?>"/>
          <?= csrfField() ?>
-        <div class="input-group">
-          <label class="input-label">New Password</label>
+        <div class="form-group">
+          <label class="form-label">New Password</label>
           <div class="password-wrap">
-            <input type="password" name="password" id="newPwd" class="input-field"
+            <input type="password" name="password" id="newPwd" class="form-control"
                    placeholder="Min. 8 characters" required minlength="8" autocomplete="new-password"/>
             <button type="button" class="pwd-toggle" data-target="newPwd"><?= icon('eye',16) ?></button>
           </div>
           <div class="pwd-strength" id="pwdStrength"></div>
         </div>
-        <div class="input-group">
-          <label class="input-label">Confirm Password</label>
-          <input type="password" name="password_confirm" class="input-field"
+        <div class="form-group">
+          <label class="form-label">Confirm Password</label>
+          <input type="password" name="password_confirm" class="form-control"
                  placeholder="Re-enter your new password" required autocomplete="new-password"/>
         </div>
         <button type="submit" class="btn btn-primary btn-block btn-lg">Update Password</button>

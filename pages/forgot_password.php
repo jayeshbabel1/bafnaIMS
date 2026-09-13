@@ -44,15 +44,15 @@
       <p class="auth-card-sub">Enter your email and we'll send a reset link.</p>
 
       <?php if ($inlineError ?? null): ?>
-      <div class="alert alert-error"><?= h($inlineError) ?></div>
+      <div class="alert alert-danger"><?= h($inlineError) ?></div>
       <?php endif; ?>
 
       <form method="POST" action="index.php?page=forgot_password">
         <input type="hidden" name="action" value="forgot_password"/>
          <?= csrfField() ?>
-        <div class="input-group">
-          <label class="input-label">Email Address</label>
-          <input type="email" name="email" class="input-field"
+        <div class="form-group">
+          <label class="form-label">Email Address</label>
+          <input type="email" name="email" class="form-control"
                  placeholder="you@studio.com" required autocomplete="email"/>
         </div>
         <button type="submit" class="btn btn-primary btn-block btn-lg">
