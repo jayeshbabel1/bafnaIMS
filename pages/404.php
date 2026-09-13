@@ -24,10 +24,10 @@ $showNav   = isLoggedIn();
     </p>
     <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
       <a href="index.php?page=<?= isLoggedIn() ? 'catalog' : 'login' ?>" class="btn btn-primary" style="text-decoration:none;">
-        <?= icon('home', 15) ?>&nbsp; <?= isLoggedIn() ? 'Go to Catalog' : 'Go to Login' ?>
+        <?= icon('home', 15) ?>&nbsp; <?= isLoggedIn() ? h(ui('btn_go_to_catalog', 'Go to Catalog')) : h(ui('btn_go_to_login', 'Go to Login')) ?>
       </a>
       <a href="javascript:history.back()" class="btn btn-secondary" style="text-decoration:none;">
-        <?= icon('back', 15) ?>&nbsp; Go Back
+        <?= icon('back', 15) ?>&nbsp; <?= h(ui('btn_go_back', 'Go Back')) ?>
       </a>
     </div>
   </div>

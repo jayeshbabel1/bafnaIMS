@@ -65,23 +65,23 @@ $slC = $slSt->fetch()['c'];
           <?= csrfField() ?>
           <div class="profile-form-grid">
             <div class="form-group">
-              <label class="form-label">Full Name</label>
+              <label class="form-label"><?= h(ui('form_full_name', 'Full Name')) ?></label>
               <input type="text" name="name" class="form-control" value="<?= h($user['name'] ?? '') ?>" required/>
             </div>
             <div class="form-group">
-              <label class="form-label">Firm / Studio</label>
+              <label class="form-label"><?= h(ui('form_firm_studio', 'Firm / Studio')) ?></label>
               <input type="text" name="firm" class="form-control" value="<?= h($user['firm'] ?? '') ?>"/>
             </div>
             <div class="form-group">
-              <label class="form-label">City</label>
+              <label class="form-label"><?= h(ui('form_city', 'City')) ?></label>
               <input type="text" name="city" class="form-control" value="<?= h($user['city'] ?? '') ?>"/>
             </div>
             <div class="form-group">
-              <label class="form-label">Mobile</label>
+              <label class="form-label"><?= h(ui('form_mobile', 'Mobile')) ?></label>
               <input type="tel" name="phone" class="form-control" value="<?= h($user['phone'] ?? '') ?>"/>
             </div>
           </div>
-          <button type="submit" class="btn btn-primary">Save Changes</button>
+          <button type="submit" class="btn btn-primary"><?= h(ui('btn_save_changes', 'Save Changes')) ?></button>
         </form>
       </div>
     </div>
@@ -98,22 +98,22 @@ $slC = $slSt->fetch()['c'];
           <?= csrfField() ?>
           <div class="profile-form-grid">
             <div class="form-group">
-              <label class="form-label">Current Password</label>
+              <label class="form-label"><?= h(ui('form_current_password', 'Current Password')) ?></label>
               <div class="password-wrap">
                 <input type="password" name="current_password" id="curPwd" class="form-control" placeholder="••••••••"/>
                 <button type="button" class="pwd-toggle" data-target="curPwd"><?= icon('eye',16) ?></button>
               </div>
             </div>
             <div class="form-group">
-              <label class="form-label">New Password</label>
+              <label class="form-label"><?= h(ui('form_new_password', 'New Password')) ?></label>
               <div class="password-wrap">
                 <input type="password" name="new_password" id="newPwd" class="form-control"
-                       placeholder="Min. 8 characters" minlength="8"/>
+                       placeholder="<?= h(ui('hint_min_8_chars', 'Min. 8 characters')) ?>" minlength="8"/>
                 <button type="button" class="pwd-toggle" data-target="newPwd"><?= icon('eye',16) ?></button>
               </div>
             </div>
           </div>
-          <button type="submit" class="btn btn-primary">Update Password</button>
+          <button type="submit" class="btn btn-primary"><?= h(ui('btn_update_password', 'Update Password')) ?></button>
         </form>
       </div>
     </div>
@@ -154,13 +154,13 @@ $slC = $slSt->fetch()['c'];
           <input type="hidden" name="return_url" value="index.php?page=profile"/>
           <?= csrfField() ?>
           <input type="text" name="device_name" class="form-control" style="flex:1;min-width:180px;"
-                 placeholder="Device name (e.g. My Laptop)"/>
+                 placeholder="<?= h(ui('form_device_name_placeholder', 'Device name (e.g. My Laptop)')) ?>"/>
           <button type="submit" class="btn btn-primary">
-            <?= icon('check',15) ?>&nbsp; Trust This Device
+            <?= icon('check',15) ?>&nbsp; <?= h(ui('btn_trust_this_device', 'Trust This Device')) ?>
           </button>
         </form>
         <a href="index.php?page=devices" style="font-size:12px;font-weight:600;color:var(--black);">
-          Manage all trusted devices →
+          <?= h(ui('link_manage_devices', 'Manage all trusted devices →')) ?>
         </a>
       </div>
     </div>
@@ -171,7 +171,7 @@ $slC = $slSt->fetch()['c'];
         <input type="hidden" name="action" value="logout"/>
         <?= csrfField() ?>
         <button type="submit" class="btn btn-danger btn-block" style="border-radius:var(--radius-lg);">
-          <?= icon('logout',16) ?>&nbsp; Sign Out
+          <?= icon('logout',16) ?>&nbsp; <?= h(ui('btn_sign_out', 'Sign Out')) ?>
         </button>
       </form>
       <p style="text-align:center;font-size:11px;color:var(--text4);margin-top:16px;">

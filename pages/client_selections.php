@@ -140,10 +140,10 @@ if ($isAjax) {
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
         <a id="selCatalogDlBtn" href="#" style="display:none;text-decoration:none;" class="btn btn-secondary btn-sm">
-          <?= icon('download',13) ?>&nbsp; Download
+          <?= icon('download',13) ?>&nbsp; <?= h(ui('btn_download', 'Download')) ?>
         </a>
         <button type="button" id="selCatalogEmailBtn" style="display:none;" class="btn btn-secondary btn-sm">
-          <?= icon('mail',13) ?>&nbsp; Email
+          <?= icon('mail',13) ?>&nbsp; <?= h(ui('btn_email', 'Email')) ?>
         </button>
       </div>
     </div>
@@ -153,14 +153,14 @@ if ($isAjax) {
     <div class="catalog-search-wrap" style="flex:1;min-width:200px;margin-bottom:0;">
       <span class="catalog-search-icon"><?= icon('search', 16) ?></span>
       <input type="search" id="selSearch" class="catalog-search-input"
-             placeholder="Search product name or lot number…"
+             placeholder="<?= h(ui('search_selection_placeholder', 'Search product name or lot number…')) ?>"
              value="<?= h($search) ?>" autocomplete="off"/>
     </div>
     <a href="index.php?page=catalog" class="btn btn-primary btn-sm" style="flex-shrink:0;">
-      <?= icon('plus', 14) ?>&nbsp; Add Products
+      <?= icon('plus', 14) ?>&nbsp; <?= h(ui('btn_add_products', 'Add Products')) ?>
     </a>
     <button type="button" id="selGenPdfBtn" class="btn btn-secondary btn-sm" style="flex-shrink:0;color:var(--danger);border-color:var(--danger);">
-      <?= icon('pdf', 14) ?>&nbsp; Generate PDF
+      <?= icon('pdf', 14) ?>&nbsp; <?= h(ui('btn_generate_pdf', 'Generate PDF')) ?>
     </button>
   </div>
   
@@ -185,7 +185,7 @@ if ($isAjax) {
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content" style="border-radius:var(--radius-xl);border:none;">
     <div class="modal-header">
-      <p class="modal-title" id="editSelModalLabel" style="font-size:16px;font-weight:700;">Edit Selection</p>
+      <p class="modal-title" id="editSelModalLabel" style="font-size:16px;font-weight:700;"><?= h(ui('title_edit_selection', 'Edit Selection')) ?></p>
       <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
     </div>
     <div class="modal-body">
@@ -195,20 +195,20 @@ if ($isAjax) {
         <input type="hidden" name="client_id"    value="<?= $clientId ?>"/>
         <?= csrfField() ?>
         <div class="form-group">
-          <label class="form-label">Selection Area / Room</label>
-          <input type="text" name="selection_area" id="editSelArea" class="form-control" placeholder="e.g. Master Bedroom" list="roomAreaSuggestions" autocomplete="off"/>
+          <label class="form-label"><?= h(ui('form_selection_area_room', 'Selection Area / Room')) ?></label>
+          <input type="text" name="selection_area" id="editSelArea" class="form-control" placeholder="<?= h(ui('form_area_room_placeholder', 'e.g. Master Bedroom')) ?>" list="roomAreaSuggestions" autocomplete="off"/>
         </div>
         <div class="form-group">
-          <label class="form-label">Quantity Required (sqft)</label>
+          <label class="form-label"><?= h(ui('form_quantity_required', 'Quantity Required (sqft)')) ?></label>
           <input type="number" name="quantity_required" id="editSelQty" class="form-control" min="0" step="0.01" placeholder="0.00"/>
         </div>
         <div class="form-group">
-          <label class="form-label">Notes</label>
-          <textarea name="extra_notes" id="editSelNotes" class="form-control" rows="3" placeholder="Any special requirements…"></textarea>
+          <label class="form-label"><?= h(ui('form_notes', 'Notes')) ?></label>
+          <textarea name="extra_notes" id="editSelNotes" class="form-control" rows="3" placeholder="<?= h(ui('form_notes_placeholder', 'Any special requirements…')) ?>"></textarea>
         </div>
         <div style="display:flex;gap:10px;">
-          <button type="submit" class="btn btn-primary" style="flex:1;"><?= icon('check', 14) ?>&nbsp; Save</button>
-          <button type="button" data-bs-dismiss="modal" class="btn btn-secondary">Cancel</button>
+          <button type="submit" class="btn btn-primary" style="flex:1;"><?= icon('check', 14) ?>&nbsp; <?= h(ui('btn_save', 'Save')) ?></button>
+          <button type="button" data-bs-dismiss="modal" class="btn btn-secondary"><?= h(ui('btn_cancel', 'Cancel')) ?></button>
         </div>
       </form>
     </div>
@@ -221,36 +221,36 @@ if ($isAjax) {
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content" style="border-radius:var(--radius-xl);border:none;">
     <div class="modal-header">
-      <p class="modal-title" id="selEmailModalLabel" style="font-size:16px;font-weight:700;">Email Selection PDF</p>
+      <p class="modal-title" id="selEmailModalLabel" style="font-size:16px;font-weight:700;"><?= h(ui('title_email_selection_pdf', 'Email Selection PDF')) ?></p>
       <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
     </div>
     <div class="modal-body">
       <form id="selEmailForm">
         <div class="form-group">
-          <label class="form-label">To <span style="color:var(--danger);">*</span></label>
-          <input type="text" id="selEmailTo" class="form-control" placeholder="client@example.com" required/>
+          <label class="form-label"><?= h(ui('form_to', 'To')) ?> <span style="color:var(--danger);">*</span></label>
+          <input type="text" id="selEmailTo" class="form-control" placeholder="<?= h(ui('form_email_placeholder', 'client@example.com')) ?>" required/>
         </div>
         <div class="form-group">
-          <label class="form-label">CC</label>
-          <input type="text" id="selEmailCc" class="form-control" placeholder="optional, comma-separated"/>
+          <label class="form-label"><?= h(ui('form_cc', 'CC')) ?></label>
+          <input type="text" id="selEmailCc" class="form-control" placeholder="<?= h(ui('form_cc_bcc_placeholder', 'optional, comma-separated')) ?>"/>
         </div>
         <div class="form-group">
-          <label class="form-label">BCC</label>
-          <input type="text" id="selEmailBcc" class="form-control" placeholder="optional, comma-separated"/>
+          <label class="form-label"><?= h(ui('form_bcc', 'BCC')) ?></label>
+          <input type="text" id="selEmailBcc" class="form-control" placeholder="<?= h(ui('form_cc_bcc_placeholder', 'optional, comma-separated')) ?>"/>
         </div>
         <div class="form-group">
-          <label class="form-label">Subject</label>
+          <label class="form-label"><?= h(ui('form_subject', 'Subject')) ?></label>
           <input type="text" id="selEmailSubject" class="form-control"/>
         </div>
         <div class="form-group">
-          <label class="form-label">Message</label>
+          <label class="form-label"><?= h(ui('form_message', 'Message')) ?></label>
           <textarea id="selEmailMessage" class="form-control" rows="5"></textarea>
         </div>
         <div style="display:flex;gap:10px;">
           <button type="submit" class="btn btn-primary" style="flex:1;" id="selEmailSendBtn">
-            <?= icon('mail',15) ?>&nbsp; Send
+            <?= icon('mail',15) ?>&nbsp; <?= h(ui('btn_send', 'Send')) ?>
           </button>
-          <button type="button" data-bs-dismiss="modal" class="btn btn-secondary">Cancel</button>
+          <button type="button" data-bs-dismiss="modal" class="btn btn-secondary"><?= h(ui('btn_cancel', 'Cancel')) ?></button>
         </div>
         <p id="selEmailStatus" style="font-size:12px;margin-top:10px;"></p>
       </form>

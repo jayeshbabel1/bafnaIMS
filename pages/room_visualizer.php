@@ -51,7 +51,7 @@ $productPhotoUrl = ($ph && file_exists(PHOTOS_DIR.'/'.$ph['filename']))
       <h1 class="page-title"><?= h($p['name']) ?></h1>
     </div>
     <a href="index.php?page=product&id=<?= $pid ?>" class="btn btn-secondary btn-sm">
-      <?= icon('back',14) ?>&nbsp;Back to Product
+      <?= icon('back',14) ?>&nbsp;<?= h(ui('btn_back_to_product', 'Back to Product')) ?>
     </a>
   </div>
 

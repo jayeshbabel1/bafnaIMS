@@ -43,58 +43,58 @@ $g = fn($k) => h($c[$k] ?? '');
       <?= csrfField() ?>
 
       <!-- Client section -->
-      <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text4);margin-bottom:14px;">Client Details</p>
+      <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text4);margin-bottom:14px;"><?= h(ui('section_client_details', 'Client Details')) ?></p>
 
       <div class="profile-form-grid" style="grid-template-columns:1fr 1fr;gap:0 16px;">
         <div class="form-group">
-          <label class="form-label">Client Name <span style="color:var(--danger);">*</span></label>
+          <label class="form-label"><?= h(ui('form_client_name', 'Client Name')) ?> <span style="color:var(--danger);">*</span></label>
           <input type="text" name="client_name" class="form-control"
-                 placeholder="e.g. Ramesh Patel"
+                 placeholder="<?= h(ui('form_client_name_placeholder', 'e.g. Ramesh Patel')) ?>"
                  value="<?= $g('client_name') ?>" required/>
          
         </div>
         <div class="form-group">
- <label class="form-label">Client Mobile <span style="color:var(--danger);">*</span></label>
+ <label class="form-label"><?= h(ui('form_client_mobile', 'Client Mobile')) ?> <span style="color:var(--danger);">*</span></label>
           <div class="input-prefix-group">
             <span class="input-prefix">+91</span>
             <input type="tel" name="client_mobile" class="form-control"
-                   placeholder="98765 43210"
+                   placeholder="<?= h(ui('form_mobile_placeholder', '98765 43210')) ?>"
                    value="<?= $g('client_mobile') ?>" maxlength="10" required/>
           </div>
-          <p class="input-hint">10-digit Indian mobile number</p>
+          <p class="input-hint"><?= h(ui('hint_mobile_10_digit', '10-digit Indian mobile number')) ?></p>
         </div>
       </div>
 <div class="form-group">
-  <label class="form-label">Email Address</label>
+  <label class="form-label"><?= h(ui('form_email_address', 'Email Address')) ?></label>
   <input type="email" name="email" class="form-control"
-         placeholder="client@example.com"
+         placeholder="<?= h(ui('form_email_placeholder', 'client@example.com')) ?>"
          value="<?= $g('email') ?>"/>
-  <p class="input-hint">Optional — used to send catalogs directly.</p>
+  <p class="input-hint"><?= h(ui('hint_email_optional', 'Optional — used to send catalogs directly.')) ?></p>
 </div>
 <div class="form-group">
-  <label class="form-label">City</label>
+  <label class="form-label"><?= h(ui('form_city', 'City')) ?></label>
   <input type="text" name="city" class="form-control"
-         placeholder="e.g. Mumbai"
+         placeholder="<?= h(ui('form_city_placeholder', 'e.g. Mumbai')) ?>"
          value="<?= $g('city') ?>"/>
 </div>
       <hr class="divider" style="margin:4px 0 20px;"/>
 
       <!-- Mason section -->
-      <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text4);margin-bottom:14px;">Mason / Contractor (Optional)</p>
+      <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text4);margin-bottom:14px;"><?= h(ui('section_mason_contractor', 'Mason / Contractor (Optional)')) ?></p>
 
       <div class="profile-form-grid" style="grid-template-columns:1fr 1fr;gap:0 16px;">
         <div class="form-group">
-          <label class="form-label">Mason Name</label>
+          <label class="form-label"><?= h(ui('form_mason_name', 'Mason Name')) ?></label>
           <input type="text" name="mansoner_name" class="form-control"
-                 placeholder="e.g. Suresh Kumar"
+                 placeholder="<?= h(ui('form_mason_name_placeholder', 'e.g. Suresh Kumar')) ?>"
                  value="<?= $g('mansoner_name') ?>"/>
         </div>
         <div class="form-group">
-          <label class="form-label">Mason Mobile</label>
+          <label class="form-label"><?= h(ui('form_mason_mobile', 'Mason Mobile')) ?></label>
           <div class="input-prefix-group">
             <span class="input-prefix">+91</span>
             <input type="tel" name="mansoner_mobile" class="form-control"
-                   placeholder="98765 43210"
+                   placeholder="<?= h(ui('form_mobile_placeholder', '98765 43210')) ?>"
                    value="<?= $g('mansoner_mobile') ?>" maxlength="10"/>
           </div>
         </div>
@@ -104,21 +104,21 @@ $g = fn($k) => h($c[$k] ?? '');
 
       <!-- Site address -->
       <div class="form-group">
-        <label class="form-label">Site Address</label>
+        <label class="form-label"><?= h(ui('form_site_address', 'Site Address')) ?></label>
         <textarea name="site_address" class="form-control" rows="3"
                   maxlength="500" id="siteAddr"
-                  placeholder="Plot 12, Sector 5, New Mumbai — 400001"><?= $g('site_address') ?></textarea>
+                  placeholder="<?= h(ui('form_site_address_placeholder', 'Plot 12, Sector 5, New Mumbai — 400001')) ?>"><?= $g('site_address') ?></textarea>
         <p class="input-hint">
-          <span id="addrCount"><?= mb_strlen($c['site_address'] ?? '') ?></span>/500 characters
+          <span id="addrCount"><?= mb_strlen($c['site_address'] ?? '') ?></span>/500 <?= h(ui('label_characters', 'characters')) ?>
         </p>
       </div>
 
       <!-- Actions -->
       <div style="display:flex;gap:10px;margin-top:8px;">
         <button type="submit" class="btn btn-primary" style="flex:1;">
-          <?= icon('check', 15) ?>&nbsp; <?= $id ? 'Update Client' : 'Save Client' ?>
+          <?= icon('check', 15) ?>&nbsp; <?= $id ? h(ui('btn_update_client', 'Update Client')) : h(ui('btn_save_client', 'Save Client')) ?>
         </button>
-        <a href="index.php?page=clients" class="btn btn-secondary">Cancel</a>
+        <a href="index.php?page=clients" class="btn btn-secondary"><?= h(ui('btn_cancel', 'Cancel')) ?></a>
       </div>
     </form>
   </div>

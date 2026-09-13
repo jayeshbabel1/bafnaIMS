@@ -232,7 +232,7 @@ $vidShareMsg = rawurlencode(($p['name'] ?? '').' — Video: '.$vidShareUrl);
       </div>
      
       <a href="index.php?pdf_download=1&product_id=<?= $id ?>" class="btn btn-secondary btn-sm">
-        <?= icon('download',13) ?>Download</a>
+        <?= icon('download',13) ?><?= h(ui('btn_download', 'Download')) ?></a>
     </div>
      <?php if ($p['measurement_sheet'] || $p['dna_report']): ?>
     <?php if ($p['measurement_sheet']): ?>
@@ -243,9 +243,9 @@ $vidShareMsg = rawurlencode(($p['name'] ?? '').' — Video: '.$vidShareUrl);
         <p class="doc-meta">Measurement Sheet</p>
       </div>
       <a href="assets/uploads/measurement_sheets/<?= h($p['measurement_sheet']) ?>" target="_blank"
-         class="btn btn-secondary btn-sm"><?= icon('eye',13) ?> View</a>
+         class="btn btn-secondary btn-sm"><?= icon('eye',13) ?> <?= h(ui('btn_view', 'View')) ?></a>
       <a href="assets/uploads/measurement_sheets/<?= h($p['measurement_sheet']) ?>" download
-         class="btn btn-secondary btn-sm"><?= icon('download',13) ?>Download</a>
+         class="btn btn-secondary btn-sm"><?= icon('download',13) ?><?= h(ui('btn_download', 'Download')) ?></a>
     </div>
     <?php endif; ?>
     <?php if ($p['dna_report']): ?>
@@ -256,9 +256,9 @@ $vidShareMsg = rawurlencode(($p['name'] ?? '').' — Video: '.$vidShareUrl);
         <p class="doc-meta">DNA Report</p>
       </div>
       <a href="assets/uploads/dna_reports/<?= h($p['dna_report']) ?>" target="_blank"
-         class="btn btn-secondary btn-sm"><?= icon('eye',13) ?> View</a>
+         class="btn btn-secondary btn-sm"><?= icon('eye',13) ?> <?= h(ui('btn_view', 'View')) ?></a>
       <a href="assets/uploads/dna_reports/<?= h($p['dna_report']) ?>" download
-         class="btn btn-secondary btn-sm"><?= icon('download',13) ?>Download</a>
+         class="btn btn-secondary btn-sm"><?= icon('download',13) ?><?= h(ui('btn_download', 'Download')) ?></a>
     </div>
     <?php endif; ?>
     <?php endif; ?>
@@ -459,7 +459,7 @@ window.GALLERY_IMAGES = <?= json_encode($galleryImages) ?>;
         <p style="font-weight:700;font-size:15px;margin-bottom:6px;">No clients yet</p>
         <p style="font-size:13px;color:var(--text3);margin-bottom:18px;">Add a client first to save product selections for them.</p>
         <a href="index.php?page=client_form" class="btn btn-primary" style="text-decoration:none;">
-          <?= icon('plus',14) ?>&nbsp; Add Client
+          <?= icon('plus',14) ?>&nbsp; <?= h(ui('btn_add_client', 'Add Client')) ?>
         </a>
       </div>
       <?php else: ?>
@@ -469,11 +469,11 @@ window.GALLERY_IMAGES = <?= json_encode($galleryImages) ?>;
         <?= csrfField() ?>
         <!-- Client search -->
         <div class="form-group">
-          <label class="form-label">Client <span style="color:var(--danger);">*</span></label>
+          <label class="form-label"><?= h(ui('form_client', 'Client')) ?> <span style="color:var(--danger);">*</span></label>
           <div style="position:relative;">
             <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text4);pointer-events:none;"><?= icon('search',14) ?></span>
             <input type="text" id="atsClientSearch" class="form-control"
-                   placeholder="Type to search client…"
+                   placeholder="<?= h(ui('form_client_placeholder', 'Type to search client…')) ?>"
                    autocomplete="off"
                    style="padding-left:36px;"/>
             <input type="hidden" name="client_id" id="atsClientId"/>
@@ -489,29 +489,29 @@ window.GALLERY_IMAGES = <?= json_encode($galleryImages) ?>;
         <!-- Area + Qty on same row -->
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
           <div class="form-group">
-            <label class="form-label">Area / Room</label>
+            <label class="form-label"><?= h(ui('form_area_room', 'Area / Room')) ?></label>
            <input type="text" name="selection_area" class="form-control"
-       placeholder="e.g. Living Room" list="roomAreaSuggestions" autocomplete="off"/>
+       placeholder="<?= h(ui('form_area_room_placeholder', 'e.g. Master Bedroom')) ?>" list="roomAreaSuggestions" autocomplete="off"/>
           </div>
           <div class="form-group">
-            <label class="form-label">Qty Required (sqft)</label>
+            <label class="form-label"><?= h(ui('form_qty_required', 'Qty Required (sqft)')) ?></label>
             <input type="number" name="quantity_required" class="form-control"
                    min="0" step="0.01" placeholder="0"/>
           </div>
         </div>
 
         <div class="form-group">
-          <label class="form-label">Notes</label>
+          <label class="form-label"><?= h(ui('form_notes', 'Notes')) ?></label>
           <textarea name="extra_notes" class="form-control" rows="2"
-                    placeholder="Special requirements, finish preferences…"></textarea>
+                    placeholder="<?= h(ui('form_notes_placeholder_product', 'Special requirements, finish preferences…')) ?>"></textarea>
         </div>
 
         <div style="display:flex;gap:10px;">
           <button type="submit" class="btn btn-gold btn-block">
-            <?= icon('check',15) ?>&nbsp; Save to Selection
+            <?= icon('check',15) ?>&nbsp; <?= h(ui('btn_save_to_selection', 'Save to Selection')) ?>
           </button>
           <button type="button" data-bs-dismiss="modal" class="btn btn-secondary">
-            Cancel
+            <?= h(ui('btn_cancel', 'Cancel')) ?>
           </button>
         </div>
       </form>
@@ -552,7 +552,11 @@ function closeAddToSelection() {
 
   function renderDrop(clients) {
     if (!clients.length) {
-      drop.innerHTML = '<div style="padding:12px 14px;font-size:13px;color:var(--text3);">No clients found. <a href=\"index.php?page=client_form\" style=\"color:var(--black);font-weight:600;\">Add one</a></div>';
+      drop.innerHTML = '<div style="padding:12px 14px;font-size:13px;color:var(--text3);">' +
+        <?= json_encode(h(ui('empty_no_clients_found', 'No clients found.'))) ?> +
+        ' <a href=\"index.php?page=client_form\" style=\"color:var(--black);font-weight:600;\">' +
+        <?= json_encode(h(ui('btn_add_one', 'Add one'))) ?> +
+        '</a></div>';
     } else {
       drop.innerHTML = clients.map(c =>
         '<div class="ats-drop-item" data-id="'+c.id+'" data-label="'+esc(c.client_name)+' ('+esc(c.client_mobile)+')" '+
@@ -652,11 +656,11 @@ function closeAddToSelection() {
     modal.innerHTML =
       '<div style="background:var(--white);border-radius:var(--radius-xl);max-width:380px;width:100%;padding:24px 22px;box-shadow:var(--shadow-xl);">' +
         '<div style="width:48px;height:48px;border-radius:50%;background:var(--gold-light);color:var(--gold-dark);display:flex;align-items:center;justify-content:center;margin-bottom:14px;font-size:20px;font-weight:700;">!</div>' +
-        '<p style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:8px;">Quantity Exceeds Availability</p>' +
-        '<p style="font-size:13px;color:var(--text3);line-height:1.6;margin-bottom:20px;">Selected quantity is lower than available quantity. Do you still want to add this product?</p>' +
+        '<p style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:8px;">' + <?= json_encode(h(ui('title_qty_exceeds_availability', 'Quantity Exceeds Availability'))) ?> + '</p>' +
+        '<p style="font-size:13px;color:var(--text3);line-height:1.6;margin-bottom:20px;">' + <?= json_encode(h(ui('msg_qty_exceeds_availability', 'Selected quantity is lower than available quantity. Do you still want to add this product?'))) ?> + '</p>' +
         '<div style="display:flex;gap:10px;">' +
-          '<button type="button" id="qtyExceedNo" class="btn btn-secondary" style="flex:1;">No</button>' +
-          '<button type="button" id="qtyExceedYes" class="btn btn-gold" style="flex:1;">Yes</button>' +
+          '<button type="button" id="qtyExceedNo" class="btn btn-secondary" style="flex:1;">' + <?= json_encode(h(ui('btn_no', 'No'))) ?> + '</button>' +
+          '<button type="button" id="qtyExceedYes" class="btn btn-gold" style="flex:1;">' + <?= json_encode(h(ui('btn_yes', 'Yes'))) ?> + '</button>' +
         '</div>' +
       '</div>';
     document.body.appendChild(modal);
