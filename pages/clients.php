@@ -42,7 +42,7 @@ if ($isAjax) {
     </div>
     <div class="page-header-right">
       <a href="index.php?page=client_form" class="btn btn-primary btn-sm">
-        <?= icon('plus', 14) ?>&nbsp; Add Client
+        <?= icon('plus', 14) ?>&nbsp; <?= h(ui('btn_add_client', 'Add Client')) ?>
       </a>
     </div>
   </div>
@@ -51,7 +51,7 @@ if ($isAjax) {
   <div class="catalog-search-wrap" style="margin-bottom:20px;">
     <span class="catalog-search-icon"><?= icon('search', 16) ?></span>
     <input type="search" id="clientSearch" class="catalog-search-input"
-           placeholder="Search by name, mobile or mason name…"
+           placeholder="<?= h(ui('search_clients_placeholder', 'Search by name, mobile or mason name…')) ?>"
            value="<?= h($search) ?>" autocomplete="off"/>
     <?php if ($search): ?>
     <span class="catalog-search-clear" id="clientSearchClear"><?= icon('close', 13) ?></span>
@@ -62,7 +62,7 @@ if ($isAjax) {
   <div id="clientCount" style="font-size:13px;color:var(--text3);margin-bottom:16px;display:flex;align-items:center;gap:8px;">
     <strong style="font-size:18px;color:var(--text);"><?= $total ?></strong> clients
     <?php if ($search): ?>
-    · <a href="index.php?page=clients" style="font-size:12px;font-weight:600;color:var(--text3);text-decoration:underline;">Clear</a>
+    · <a href="index.php?page=clients" style="font-size:12px;font-weight:600;color:var(--text3);text-decoration:underline;"><?= h(ui('btn_clear', 'Clear')) ?></a>
     <?php endif; ?>
   </div>
 
