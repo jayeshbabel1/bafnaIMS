@@ -75,6 +75,7 @@ function getClientById(int $id): ?array {
 }
 
 function createClient(int $userId, array $data): array {
+	 $db     = getDB();
     $name    = titleCase($data['client_name']   ?? '');
     $mobile  = sanitizeMobile($data['client_mobile']  ?? '');
     $mName   = titleCase($data['mansoner_name'] ?? '');
@@ -98,7 +99,7 @@ function createClient(int $userId, array $data): array {
 }
 
 function updateClient(int $id, int $userId, array $data): array {
-    $name    = titleCase($data['client_name']   ?? '');
+	$name    = titleCase($data['client_name']   ?? '');
     $mobile  = sanitizeMobile($data['client_mobile']  ?? '');
     $mName   = titleCase($data['mansoner_name'] ?? '');
     $mMobile = sanitizeMobile($data['mansoner_mobile'] ?? '');
