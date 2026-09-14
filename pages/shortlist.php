@@ -29,7 +29,7 @@ $items = $st->fetchAll();
     <p class="empty-title">Nothing saved yet</p>
     <p class="empty-sub">Tap the heart icon on any product to save it here for quick access.</p>
     <a href="index.php?page=catalog" class="btn btn-primary" style="margin-top:24px;text-decoration:none;">
-      <?= icon('grid',15) ?>&nbsp; Browse Catalog
+      <?= icon('grid',15) ?>&nbsp; <?= h(ui('btn_browse_catalog', 'Browse Catalog')) ?>
     </a>
   </div>
 
@@ -62,7 +62,7 @@ $items = $st->fetchAll();
           <input type="hidden" name="return_url" value="index.php?page=shortlist"/>
           <?= csrfField() ?>
           <button type="submit" class="btn btn-danger btn-sm btn-block">
-            <?= icon('trash',13) ?>&nbsp; Remove
+            <?= icon('trash',13) ?>&nbsp; <?= h(ui('btn_remove', 'Remove')) ?>
           </button>
         </form>
       </div>

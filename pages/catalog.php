@@ -463,20 +463,20 @@ function fv($v): string { return $v !== null ? h((string)$v) : ''; }
       <div class="filter-sidebar-content">
 
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
-          <p style="font-family:var(--font-display);font-size:15px;font-weight:700;">Filters</p>
+          <p style="font-family:var(--font-display);font-size:15px;font-weight:700;"><?= h(ui('filter_filters', 'Filters')) ?></p>
           <?php if ($hasFilter): ?>
           <a href="index.php?page=catalog" style="font-size:12px;font-weight:600;color:var(--text3);text-decoration:underline;" id="sidebarClearAllLink">
-            Clear all
+            <?= h(ui('filter_clear_all', 'Clear All')) ?>
           </a>
           <?php endif; ?>
         </div>
 
         <div class="filter-sidebar-section">
-          <p class="filter-sidebar-title">Stone Type</p>
+          <p class="filter-sidebar-title"><?= h(ui('filter_stone_type', 'Stone Type')) ?></p>
           <div class="filter-option-list" id="sidebarCatList">
             <button type="button" class="filter-chip<?= !$cat?' active':'' ?>"
                     data-filter="cat" data-value=""
-                    onclick="sidebarPendingChip(this,'cat')">All</button>
+                    onclick="sidebarPendingChip(this,'cat')"><?= h(ui('filter_all', 'All')) ?></button>
             <?php foreach ($categories as $c): ?>
             <button type="button" class="filter-chip<?= $cat===$c?' active':'' ?>"
                     data-filter="cat" data-value="<?= h($c) ?>"
@@ -486,11 +486,11 @@ function fv($v): string { return $v !== null ? h((string)$v) : ''; }
         </div>
 
         <div class="filter-sidebar-section">
-          <p class="filter-sidebar-title">Color</p>
+          <p class="filter-sidebar-title"><?= h(ui('filter_color', 'Color')) ?></p>
           <div class="filter-option-list" id="sidebarColorList">
             <button type="button" class="filter-chip<?= !$color?' active':'' ?>"
                     data-filter="color" data-value=""
-                    onclick="sidebarPendingChip(this,'color')">All</button>
+                    onclick="sidebarPendingChip(this,'color')"><?= h(ui('filter_all', 'All')) ?></button>
             <?php foreach ($colorSubs as $cs): ?>
             <button type="button" class="filter-chip<?= $color===$cs?' active':'' ?>"
                     data-filter="color" data-value="<?= h($cs) ?>"
@@ -503,16 +503,16 @@ function fv($v): string { return $v !== null ? h((string)$v) : ''; }
 
         <div class="filter-sidebar-section">
           <div class="filter-sidebar-title">
-            Available Quantity (sqft)
+            <?= h(ui('filter_available_sqft', 'Available Sqft')) ?>
           </div>
           <div class="range-filter">
             <div>
-              <p class="range-label">Min</p>
+              <p class="range-label"><?= h(ui('filter_min', 'Min')) ?></p>
               <input type="number" class="range-input" id="sidebarSqftMin"
                      min="0" step="1" placeholder="0" value="<?= fv($sqftMin) ?>"/>
             </div>
             <div>
-              <p class="range-label">Max</p>
+              <p class="range-label"><?= h(ui('filter_max', 'Max')) ?></p>
               <input type="number" class="range-input" id="sidebarSqftMax"
                      min="0" step="1" placeholder="∞" value="<?= fv($sqftMax) ?>"/>
             </div>
@@ -520,15 +520,15 @@ function fv($v): string { return $v !== null ? h((string)$v) : ''; }
         </div>
 
         <div class="filter-sidebar-section">
-          <div class="filter-sidebar-title">Useable Length (L)</div>
+          <div class="filter-sidebar-title"><?= h(ui('filter_useable_length', 'Useable Length (L)')) ?></div>
           <div class="range-filter">
             <div>
-              <p class="range-label">Min</p>
+              <p class="range-label"><?= h(ui('filter_min', 'Min')) ?></p>
               <input type="number" class="range-input" id="sidebarSlMin"
                      min="0" step="0.01" placeholder="0" value="<?= fv($slMin) ?>"/>
             </div>
             <div>
-              <p class="range-label">Max</p>
+              <p class="range-label"><?= h(ui('filter_max', 'Max')) ?></p>
               <input type="number" class="range-input" id="sidebarSlMax"
                      min="0" step="0.01" placeholder="∞" value="<?= fv($slMax) ?>"/>
             </div>
@@ -536,15 +536,15 @@ function fv($v): string { return $v !== null ? h((string)$v) : ''; }
         </div>
 
         <div class="filter-sidebar-section">
-          <div class="filter-sidebar-title">Useable Height (H)</div>
+          <div class="filter-sidebar-title"><?= h(ui('filter_useable_height', 'Useable Height (H)')) ?></div>
           <div class="range-filter">
             <div>
-              <p class="range-label">Min</p>
+              <p class="range-label"><?= h(ui('filter_min', 'Min')) ?></p>
               <input type="number" class="range-input" id="sidebarShMin"
                      min="0" step="0.01" placeholder="0" value="<?= fv($shMin) ?>"/>
             </div>
             <div>
-              <p class="range-label">Max</p>
+              <p class="range-label"><?= h(ui('filter_max', 'Max')) ?></p>
               <input type="number" class="range-input" id="sidebarShMax"
                      min="0" step="0.01" placeholder="∞" value="<?= fv($shMax) ?>"/>
             </div>
@@ -557,12 +557,12 @@ function fv($v): string { return $v !== null ? h((string)$v) : ''; }
         <button type="button" id="sidebarApplyBtn"
                 class="btn btn-primary btn-block sidebar-apply-btn">
           <span class="pending-dot"></span>
-          Apply Filters
+          <?= h(ui('filter_apply_filters', 'Apply Filters')) ?>
         </button>
         <a href="index.php?page=catalog"
            class="btn btn-secondary btn-block"
            style="text-align:center;">
-          Clear All
+          <?= h(ui('filter_clear_all', 'Clear All')) ?>
         </a>
       </div>
 
@@ -574,7 +574,7 @@ function fv($v): string { return $v !== null ? h((string)$v) : ''; }
      <div class="catalog-search-wrap" style="position:relative;">
         <span class="catalog-search-icon"><?= icon('search',16) ?></span>
         <input type="search" id="searchInput" class="catalog-search-input"
-               placeholder="Search by name or lot number…"
+               placeholder="<?= h(ui('search_catalog_placeholder', 'Search by name or lot number…')) ?>"
                value="<?= h($search) ?>" autocomplete="off"/>
         <?php if ($search): ?>
         <span class="catalog-search-clear" id="searchClear"><?= icon('close',13) ?></span>
@@ -585,30 +585,30 @@ function fv($v): string { return $v !== null ? h((string)$v) : ''; }
       <div class="catalog-controls">
         <div class="catalog-count">
           <strong id="totalCount"><?= $totalCount ?></strong>
-          <span>products</span>
+          <span><?= h(ui('label_products', 'products')) ?></span>
           <?php if ($hasFilter): ?>
           <span>·</span>
           <a href="index.php?page=catalog"
              style="font-size:12px;font-weight:600;color:var(--text3);text-decoration:underline;">
-            Clear all
+            <?= h(ui('filter_clear_all', 'Clear All')) ?>
           </a>
           <?php endif; ?>
         </div>
         <div class="catalog-controls-right">
           <button class="filter-toggle-btn<?= $hasFilter?' has-filter':'' ?>" id="filterToggleBtn">
-            <?= icon('filter',15) ?> Filters
+            <?= icon('filter',15) ?> <?= h(ui('filter_filters', 'Filters')) ?>
             <?php if ($hasFilter): ?><span class="filter-active-dot"></span><?php endif; ?>
           </button>
           <select id="sortSelect" class="sort-select">
-            <option value="latest"   <?= $sort==='latest'  ?'selected':'' ?>>Latest</option>
-            <option value="qty_desc" <?= $sort==='qty_desc'?'selected':'' ?>>Qty: High→Low</option>
-            <option value="qty_asc"  <?= $sort==='qty_asc' ?'selected':'' ?>>Qty: Low→High</option>
-            <option value="name_az"  <?= $sort==='name_az' ?'selected':'' ?>>Name A→Z</option>
+            <option value="latest"   <?= $sort==='latest'  ?'selected':'' ?>><?= h(ui('filter_sort_latest', 'Latest')) ?></option>
+            <option value="qty_desc" <?= $sort==='qty_desc'?'selected':'' ?>><?= h(ui('filter_sort_qty_desc', 'Qty: High→Low')) ?></option>
+            <option value="qty_asc"  <?= $sort==='qty_asc' ?'selected':'' ?>><?= h(ui('filter_sort_qty_asc', 'Qty: Low→High')) ?></option>
+            <option value="name_az"  <?= $sort==='name_az' ?'selected':'' ?>><?= h(ui('filter_sort_name_az', 'Name A→Z')) ?></option>
           </select>
           <div class="view-toggle">
-            <button class="view-btn" id="viewGrid" title="Grid"><?= icon('grid',15) ?></button>
-            <button class="view-btn" id="viewList" title="List"><?= icon('filter',15) ?></button>
-            <button class="view-btn" id="viewTable" title="Table"><?= icon('file',15) ?></button>
+            <button class="view-btn" id="viewGrid" title="<?= h(ui('filter_view_grid', 'Grid')) ?>"><?= icon('grid',15) ?></button>
+            <button class="view-btn" id="viewList" title="<?= h(ui('filter_view_list', 'List')) ?>"><?= icon('filter',15) ?></button>
+            <button class="view-btn" id="viewTable" title="<?= h(ui('filter_view_table', 'Table')) ?>"><?= icon('file',15) ?></button>
           </div>
         </div>
       </div>
@@ -642,16 +642,16 @@ function fv($v): string { return $v !== null ? h((string)$v) : ''; }
 <div class="filter-drawer" id="filterDrawer">
   <div class="filter-drawer-handle"></div>
   <div class="filter-drawer-header">
-    <p class="filter-drawer-title">Filters</p>
+    <p class="filter-drawer-title"><?= h(ui('filter_filters', 'Filters')) ?></p>
     <button onclick="closeFilterDrawer()" class="btn btn-ghost btn-icon"><?= icon('close',18) ?></button>
   </div>
   <div class="filter-drawer-body">
 
     <div class="filter-section">
-      <p class="filter-section-title">Stone Type</p>
+      <p class="filter-section-title"><?= h(ui('filter_stone_type', 'Stone Type')) ?></p>
       <div class="filter-option-list">
         <a href="index.php?page=catalog<?= $color?'&color='.urlencode($color):'' ?><?= $search?'&q='.urlencode($search):'' ?>"
-           class="filter-chip<?= !$cat?' active':'' ?>" onclick="closeFilterDrawer()">All</a>
+           class="filter-chip<?= !$cat?' active':'' ?>" onclick="closeFilterDrawer()"><?= h(ui('filter_all', 'All')) ?></a>
         <?php foreach ($categories as $c): ?>
         <a href="index.php?page=catalog&cat=<?= urlencode($c) ?><?= $color?'&color='.urlencode($color):'' ?><?= $search?'&q='.urlencode($search):'' ?>"
            class="filter-chip<?= $cat===$c?' active':'' ?>" onclick="closeFilterDrawer()"><?= h($c) ?></a>
@@ -660,10 +660,10 @@ function fv($v): string { return $v !== null ? h((string)$v) : ''; }
     </div>
 
     <div class="filter-section">
-      <p class="filter-section-title">Colour</p>
+      <p class="filter-section-title"><?= h(ui('filter_color', 'Color')) ?></p>
       <div class="filter-option-list">
         <a href="index.php?page=catalog<?= $cat?'&cat='.urlencode($cat):'' ?><?= $search?'&q='.urlencode($search):'' ?>"
-           class="filter-chip<?= !$color?' active':'' ?>" onclick="closeFilterDrawer()">All</a>
+           class="filter-chip<?= !$color?' active':'' ?>" onclick="closeFilterDrawer()"><?= h(ui('filter_all', 'All')) ?></a>
         <?php foreach ($colorSubs as $cs): ?>
         <a href="index.php?page=catalog<?= $cat?'&cat='.urlencode($cat):'' ?>&color=<?= urlencode($cs) ?><?= $search?'&q='.urlencode($search):'' ?>"
            class="filter-chip<?= $color===$cs?' active':'' ?>" onclick="closeFilterDrawer()">
@@ -674,15 +674,15 @@ function fv($v): string { return $v !== null ? h((string)$v) : ''; }
     </div>
 
     <div class="filter-section">
-      <p class="filter-section-title">Available Sqft</p>
+      <p class="filter-section-title"><?= h(ui('filter_available_sqft', 'Available Sqft')) ?></p>
       <div class="range-filter">
         <div>
-          <p class="range-label">Min</p>
+          <p class="range-label"><?= h(ui('filter_min', 'Min')) ?></p>
           <input type="number" class="range-input" id="drawerSqftMin"
                  min="0" step="1" placeholder="0" value="<?= fv($sqftMin) ?>"/>
         </div>
         <div>
-          <p class="range-label">Max</p>
+          <p class="range-label"><?= h(ui('filter_max', 'Max')) ?></p>
           <input type="number" class="range-input" id="drawerSqftMax"
                  min="0" step="1" placeholder="∞" value="<?= fv($sqftMax) ?>"/>
         </div>
@@ -690,15 +690,15 @@ function fv($v): string { return $v !== null ? h((string)$v) : ''; }
     </div>
 
     <div class="filter-section">
-      <p class="filter-section-title">Slab Length (L)</p>
+      <p class="filter-section-title"><?= h(ui('filter_useable_length', 'Useable Length (L)')) ?></p>
       <div class="range-filter">
         <div>
-          <p class="range-label">Min</p>
+          <p class="range-label"><?= h(ui('filter_min', 'Min')) ?></p>
           <input type="number" class="range-input" id="drawerSlMin"
                  min="0" step="0.01" placeholder="0" value="<?= fv($slMin) ?>"/>
         </div>
         <div>
-          <p class="range-label">Max</p>
+          <p class="range-label"><?= h(ui('filter_max', 'Max')) ?></p>
           <input type="number" class="range-input" id="drawerSlMax"
                  min="0" step="0.01" placeholder="∞" value="<?= fv($slMax) ?>"/>
         </div>
@@ -706,15 +706,15 @@ function fv($v): string { return $v !== null ? h((string)$v) : ''; }
     </div>
 
     <div class="filter-section">
-      <p class="filter-section-title">Slab Height (H)</p>
+      <p class="filter-section-title"><?= h(ui('filter_useable_height', 'Useable Height (H)')) ?></p>
       <div class="range-filter">
         <div>
-          <p class="range-label">Min</p>
+          <p class="range-label"><?= h(ui('filter_min', 'Min')) ?></p>
           <input type="number" class="range-input" id="drawerShMin"
                  min="0" step="0.01" placeholder="0" value="<?= fv($shMin) ?>"/>
         </div>
         <div>
-          <p class="range-label">Max</p>
+          <p class="range-label"><?= h(ui('filter_max', 'Max')) ?></p>
           <input type="number" class="range-input" id="drawerShMax"
                  min="0" step="0.01" placeholder="∞" value="<?= fv($shMax) ?>"/>
         </div>
@@ -723,8 +723,8 @@ function fv($v): string { return $v !== null ? h((string)$v) : ''; }
 
   </div><!-- /filter-drawer-body -->
   <div class="filter-drawer-footer">
-    <a href="index.php?page=catalog" class="btn btn-secondary btn-block">Clear All</a>
-    <button id="drawerApplyBtn" class="btn btn-primary btn-block">Apply Filters</button>
+    <a href="index.php?page=catalog" class="btn btn-secondary btn-block"><?= h(ui('filter_clear_all', 'Clear All')) ?></a>
+    <button id="drawerApplyBtn" class="btn btn-primary btn-block"><?= h(ui('filter_apply_filters', 'Apply Filters')) ?></button>
   </div>
 </div>
 

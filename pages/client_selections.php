@@ -140,10 +140,10 @@ if ($isAjax) {
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
         <a id="selCatalogDlBtn" href="#" style="display:none;text-decoration:none;" class="btn btn-secondary btn-sm">
-          <?= icon('download',13) ?>&nbsp; Download
+          <?= icon('download',13) ?>&nbsp; <?= h(ui('btn_download', 'Download')) ?>
         </a>
         <button type="button" id="selCatalogEmailBtn" style="display:none;" class="btn btn-secondary btn-sm">
-          <?= icon('mail',13) ?>&nbsp; Email
+          <?= icon('mail',13) ?>&nbsp; <?= h(ui('btn_email', 'Email')) ?>
         </button>
       </div>
     </div>
@@ -153,14 +153,14 @@ if ($isAjax) {
     <div class="catalog-search-wrap" style="flex:1;min-width:200px;margin-bottom:0;">
       <span class="catalog-search-icon"><?= icon('search', 16) ?></span>
       <input type="search" id="selSearch" class="catalog-search-input"
-             placeholder="Search product name or lot number…"
+             placeholder="<?= h(ui('search_selection_placeholder', 'Search product name or lot number…')) ?>"
              value="<?= h($search) ?>" autocomplete="off"/>
     </div>
     <a href="index.php?page=catalog" class="btn btn-primary btn-sm" style="flex-shrink:0;">
-      <?= icon('plus', 14) ?>&nbsp; Add Products
+      <?= icon('plus', 14) ?>&nbsp; <?= h(ui('btn_add_products', 'Add Products')) ?>
     </a>
     <button type="button" id="selGenPdfBtn" class="btn btn-secondary btn-sm" style="flex-shrink:0;color:var(--danger);border-color:var(--danger);">
-      <?= icon('pdf', 14) ?>&nbsp; Generate PDF
+      <?= icon('pdf', 14) ?>&nbsp; <?= h(ui('btn_generate_pdf', 'Generate PDF')) ?>
     </button>
   </div>
   
@@ -184,7 +184,7 @@ if ($isAjax) {
 <div id="editSelModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9000;align-items:center;justify-content:center;padding:16px;">
   <div style="background:var(--white);border-radius:var(--radius-xl);width:100%;max-width:480px;max-height:90vh;overflow-y:auto;box-shadow:var(--shadow-xl);">
     <div style="padding:20px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
-      <p style="font-size:16px;font-weight:700;">Edit Selection</p>
+      <p style="font-size:16px;font-weight:700;"><?= h(ui('title_edit_selection', 'Edit Selection')) ?></p>
       <button id="editSelClose" style="color:var(--text3);cursor:pointer;"><?= icon('close', 18) ?></button>
     </div>
     <div style="padding:22px;">
@@ -194,20 +194,20 @@ if ($isAjax) {
         <input type="hidden" name="client_id"    value="<?= $clientId ?>"/>
         <?= csrfField() ?>
         <div class="input-group">
-          <label class="input-label">Selection Area / Room</label>
-          <input type="text" name="selection_area" id="editSelArea" class="input-field" placeholder="e.g. Master Bedroom" list="roomAreaSuggestions" autocomplete="off"/>
+          <label class="input-label"><?= h(ui('form_selection_area_room', 'Selection Area / Room')) ?></label>
+          <input type="text" name="selection_area" id="editSelArea" class="input-field" placeholder="<?= h(ui('form_area_room_placeholder', 'e.g. Master Bedroom')) ?>" list="roomAreaSuggestions" autocomplete="off"/>
         </div>
         <div class="input-group">
-          <label class="input-label">Quantity Required (sqft)</label>
+          <label class="input-label"><?= h(ui('form_quantity_required', 'Quantity Required (sqft)')) ?></label>
           <input type="number" name="quantity_required" id="editSelQty" class="input-field" min="0" step="0.01" placeholder="0.00"/>
         </div>
         <div class="input-group">
-          <label class="input-label">Notes</label>
-          <textarea name="extra_notes" id="editSelNotes" class="input-field" rows="3" placeholder="Any special requirements…"></textarea>
+          <label class="input-label"><?= h(ui('form_notes', 'Notes')) ?></label>
+          <textarea name="extra_notes" id="editSelNotes" class="input-field" rows="3" placeholder="<?= h(ui('form_notes_placeholder', 'Any special requirements…')) ?>"></textarea>
         </div>
         <div style="display:flex;gap:10px;">
-          <button type="submit" class="btn btn-primary" style="flex:1;"><?= icon('check', 14) ?>&nbsp; Save</button>
-          <button type="button" id="editSelCancelBtn" class="btn btn-secondary">Cancel</button>
+          <button type="submit" class="btn btn-primary" style="flex:1;"><?= icon('check', 14) ?>&nbsp; <?= h(ui('btn_save', 'Save')) ?></button>
+          <button type="button" id="editSelCancelBtn" class="btn btn-secondary"><?= h(ui('btn_cancel', 'Cancel')) ?></button>
         </div>
       </form>
     </div>
@@ -218,36 +218,36 @@ if ($isAjax) {
 <div id="selEmailModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9100;align-items:center;justify-content:center;padding:16px;">
   <div style="background:var(--white);border-radius:var(--radius-xl);width:100%;max-width:480px;max-height:90vh;overflow-y:auto;box-shadow:var(--shadow-xl);">
     <div style="padding:18px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
-      <p style="font-size:16px;font-weight:700;">Email Selection PDF</p>
+      <p style="font-size:16px;font-weight:700;"><?= h(ui('title_email_selection_pdf', 'Email Selection PDF')) ?></p>
       <button type="button" id="selEmailClose" style="color:var(--text3);cursor:pointer;background:none;border:none;"><?= icon('close', 18) ?></button>
     </div>
     <div style="padding:20px;">
       <form id="selEmailForm">
         <div class="input-group">
-          <label class="input-label">To <span style="color:var(--danger);">*</span></label>
-          <input type="text" id="selEmailTo" class="input-field" placeholder="client@example.com" required/>
+          <label class="input-label"><?= h(ui('form_to', 'To')) ?> <span style="color:var(--danger);">*</span></label>
+          <input type="text" id="selEmailTo" class="input-field" placeholder="<?= h(ui('form_email_placeholder', 'client@example.com')) ?>" required/>
         </div>
         <div class="input-group">
-          <label class="input-label">CC</label>
-          <input type="text" id="selEmailCc" class="input-field" placeholder="optional, comma-separated"/>
+          <label class="input-label"><?= h(ui('form_cc', 'CC')) ?></label>
+          <input type="text" id="selEmailCc" class="input-field" placeholder="<?= h(ui('form_cc_bcc_placeholder', 'optional, comma-separated')) ?>"/>
         </div>
         <div class="input-group">
-          <label class="input-label">BCC</label>
-          <input type="text" id="selEmailBcc" class="input-field" placeholder="optional, comma-separated"/>
+          <label class="input-label"><?= h(ui('form_bcc', 'BCC')) ?></label>
+          <input type="text" id="selEmailBcc" class="input-field" placeholder="<?= h(ui('form_cc_bcc_placeholder', 'optional, comma-separated')) ?>"/>
         </div>
         <div class="input-group">
-          <label class="input-label">Subject</label>
+          <label class="input-label"><?= h(ui('form_subject', 'Subject')) ?></label>
           <input type="text" id="selEmailSubject" class="input-field"/>
         </div>
         <div class="input-group">
-          <label class="input-label">Message</label>
+          <label class="input-label"><?= h(ui('form_message', 'Message')) ?></label>
           <textarea id="selEmailMessage" class="input-field" rows="5"></textarea>
         </div>
         <div style="display:flex;gap:10px;">
           <button type="submit" class="btn btn-primary" style="flex:1;" id="selEmailSendBtn">
-            <?= icon('mail',15) ?>&nbsp; Send
+            <?= icon('mail',15) ?>&nbsp; <?= h(ui('btn_send', 'Send')) ?>
           </button>
-          <button type="button" id="selEmailCancel" class="btn btn-secondary">Cancel</button>
+          <button type="button" id="selEmailCancel" class="btn btn-secondary"><?= h(ui('btn_cancel', 'Cancel')) ?></button>
         </div>
         <p id="selEmailStatus" style="font-size:12px;margin-top:10px;"></p>
       </form>

@@ -38,9 +38,9 @@ $devices = getUserDevices($user['id']);
       <input type="hidden" name="return_url" value="index.php?page=devices"/>
       <?= csrfField() ?>
       <input type="text" name="device_name" class="input-field" style="flex:1;min-width:180px;"
-             placeholder="Device name (e.g. My Laptop)"/>
+             placeholder="<?= h(ui('form_device_name_placeholder', 'Device name (e.g. My Laptop)')) ?>"/>
       <button type="submit" class="btn btn-primary">
-        <?= icon('check',15) ?>&nbsp; Trust This Device
+        <?= icon('check',15) ?>&nbsp; <?= h(ui('btn_trust_this_device', 'Trust This Device')) ?>
       </button>
     </form>
   </div>
@@ -75,11 +75,11 @@ $devices = getUserDevices($user['id']);
       <div style="display:flex;gap:8px;flex-shrink:0;">
         <button type="button" class="btn btn-secondary btn-sm dev-rename-btn"
                 data-id="<?= (int)$d['id'] ?>" data-name="<?= h($d['device_name']) ?>">
-          <?= icon('edit', 13) ?>&nbsp; Rename
+          <?= icon('edit', 13) ?>&nbsp; <?= h(ui('btn_rename', 'Rename')) ?>
         </button>
         <button type="button" class="btn btn-danger btn-sm dev-forcelogout-btn"
                 data-id="<?= (int)$d['id'] ?>" data-name="<?= h($d['device_name']) ?>">
-          <?= icon('logout', 13) ?>&nbsp; Forced Logout
+          <?= icon('logout', 13) ?>&nbsp; <?= h(ui('btn_forced_logout', 'Forced Logout')) ?>
         </button>
         </form>
       </div>
@@ -106,8 +106,8 @@ $devices = getUserDevices($user['id']);
         "<span id="dflName1"></span>" will be removed from your trusted devices and signed out immediately.
       </p>
       <div style="display:flex;gap:10px;">
-        <button type="button" class="btn btn-secondary btn-block" id="dflCancel1">Cancel</button>
-        <button type="button" class="btn btn-danger btn-block" id="dflNext">Continue</button>
+        <button type="button" class="btn btn-secondary btn-block" id="dflCancel1"><?= h(ui('btn_cancel', 'Cancel')) ?></button>
+        <button type="button" class="btn btn-danger btn-block" id="dflNext"><?= h(ui('btn_continue', 'Continue')) ?></button>
       </div>
     </div>
 
@@ -126,8 +126,8 @@ $devices = getUserDevices($user['id']);
         <input type="hidden" name="return_url" value="index.php?page=devices"/>
         <?= csrfField() ?>
         <div style="display:flex;gap:10px;">
-          <button type="button" class="btn btn-secondary btn-block" id="dflCancel2">Cancel</button>
-          <button type="submit" class="btn btn-danger btn-block">Yes, Forced Logout</button>
+          <button type="button" class="btn btn-secondary btn-block" id="dflCancel2"><?= h(ui('btn_cancel', 'Cancel')) ?></button>
+          <button type="submit" class="btn btn-danger btn-block"><?= h(ui('btn_yes_forced_logout', 'Yes, Forced Logout')) ?></button>
         </div>
       </form>
     </div>
@@ -176,12 +176,12 @@ $devices = getUserDevices($user['id']);
       <input type="hidden" name="return_url" value="index.php?page=devices"/>
       <?= csrfField() ?>
       <div class="input-group">
-        <label class="input-label">Device Name</label>
+        <label class="input-label"><?= h(ui('form_device_name', 'Device Name')) ?></label>
         <input type="text" name="device_name" id="devRenameInput" class="input-field" required maxlength="150"/>
       </div>
       <div style="display:flex;gap:10px;margin-top:6px;">
-        <button type="submit" class="btn btn-primary btn-block">Save</button>
-        <button type="button" class="btn btn-secondary" id="devRenameCancel">Cancel</button>
+        <button type="submit" class="btn btn-primary btn-block"><?= h(ui('btn_save', 'Save')) ?></button>
+        <button type="button" class="btn btn-secondary" id="devRenameCancel"><?= h(ui('btn_cancel', 'Cancel')) ?></button>
       </div>
     </form>
   </div>
