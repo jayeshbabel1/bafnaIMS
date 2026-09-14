@@ -27,8 +27,8 @@ $g = fn($k) => h($c[$k] ?? '');
   <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;padding-top:20px;">
     <a href="index.php?page=clients" class="hero-icon-btn" style="flex-shrink:0;"><?= icon('back', 18) ?></a>
     <div>
-      <p class="page-eyebrow">Clients</p>
-      <h1 class="page-title" style="font-size:22px;"><?= $id ? 'Edit Client' : 'Add Client' ?></h1>
+      <p class="page-eyebrow"><?= h(ui('nav_clients', 'Clients')) ?></p>
+      <h1 class="page-title" style="font-size:22px;"><?= $id ? h(ui('heading_edit_client', 'Edit Client')) : h(ui('heading_add_client', 'Add Client')) ?></h1>
     </div>
   </div>
 

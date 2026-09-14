@@ -19,8 +19,8 @@ $devices = getUserDevices($user['id']);
 <div class="page-content">
   <div class="page-header">
     <div class="page-header-left">
-      <p class="page-eyebrow">Account Security</p>
-      <h1 class="page-title">Trusted Devices</h1>
+      <p class="page-eyebrow"><?= h(ui('eyebrow_account_security', 'Account Security')) ?></p>
+      <h1 class="page-title"><?= h(ui('heading_trusted_devices', 'Trusted Devices')) ?></h1>
     </div>
     <div class="page-header-right">
       <span class="badge badge-black"><?= count($devices) ?></span>

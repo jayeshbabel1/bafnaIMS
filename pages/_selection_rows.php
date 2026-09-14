@@ -6,13 +6,13 @@
 <?php if (empty($selections) && $currentPage === 1): ?>
 <div class="empty-state" style="padding-top:40px;">
   <div class="empty-icon"><?= icon('grid', 28) ?></div>
-  <p class="empty-title">No products selected</p>
+  <p class="empty-title"><?= h(ui('empty_no_selections', 'No products selected')) ?></p>
   <p class="empty-sub">
-    <?= $search ? 'No products match your search.' : 'Browse the catalog and click "Add to Selection" on any product.' ?>
+    <?= $search ? h(ui('msg_no_products_match_search', 'No products match your search.')) : h(ui('msg_browse_catalog_prompt', 'Browse the catalog and click "Add to Selection" on any product.')) ?>
   </p>
   <?php if (!$search): ?>
   <a href="index.php?page=catalog" class="btn btn-primary" style="margin-top:20px;text-decoration:none;">
-    <?= icon('grid', 14) ?>&nbsp; Browse Catalog
+    <?= icon('grid', 14) ?>&nbsp; <?= h(ui('btn_browse_catalog', 'Browse Catalog')) ?>
   </a>
   <?php endif; ?>
 </div>
@@ -25,15 +25,15 @@
     <thead>
       <tr>
         <th style="width:52px;"></th>
-        <th>Product</th>
-        <th>Thickness</th>
-        <th>Useable Size</th>
-        <th>Italian Size</th>
-        <th>Avail. Qty</th>
-        <th>Req. Qty</th>
-        <th>Area / Room</th>
-        <th>Notes</th>
-        <th style="width:80px;">Actions</th>
+        <th><?= h(ui('th_product', 'Product')) ?></th>
+        <th><?= h(ui('label_thickness', 'Thickness')) ?></th>
+        <th><?= h(ui('label_useable_size', 'Useable Size')) ?></th>
+        <th><?= h(ui('label_italian_size', 'Italian Size')) ?></th>
+        <th><?= h(ui('th_avail_qty', 'Avail. Qty')) ?></th>
+        <th><?= h(ui('th_req_qty', 'Req. Qty')) ?></th>
+        <th><?= h(ui('form_area_room', 'Area / Room')) ?></th>
+        <th><?= h(ui('form_notes', 'Notes')) ?></th>
+        <th style="width:80px;"><?= h(ui('th_actions', 'Actions')) ?></th>
       </tr>
     </thead>
     <tbody>
@@ -61,7 +61,7 @@
               <?= h($sel['product_name']) ?>
             </a>
             <?php if ($exceeds): ?>
-            <span class="sel-exceed-icon" title="You have selected lower quantity product than its available quantity.">!</span>
+            <span class="sel-exceed-icon" title="<?= h(ui('msg_qty_exceeds_tooltip', 'You have selected lower quantity product than its available quantity.')) ?>">!</span>
             <?php endif; ?>
           </div>
           <p style="font-size:11px;color:var(--text4);margin-top:2px;"><?= h($sel['quarry_number']) ?></p>
@@ -71,10 +71,10 @@
         <td style="font-size:12px;color:var(--text2);"><?= $slab ? h($slab) : '—' ?></td>
         <td style="font-size:12px;color:var(--text2);"><?= $cut ? h($cut) : '—' ?></td>
         <td style="font-size:13px;font-weight:600;color:var(--success);">
-          <?= number_format((float)$sel['quantity_available']) ?> <span style="font-size:10px;color:var(--text4);">sqft</span>
+          <?= number_format((float)$sel['quantity_available']) ?> <span style="font-size:10px;color:var(--text4);"><?= h(ui('unit_sqft', 'sqft')) ?></span>
         </td>
         <td style="font-size:13px;font-weight:600;">
-          <?= $sel['quantity_required'] > 0 ? number_format((float)$sel['quantity_required'], 0) . ' <span style="font-size:10px;color:var(--text4);">sqft</span>' : '—' ?>
+          <?= $sel['quantity_required'] > 0 ? number_format((float)$sel['quantity_required'], 0) . ' <span style="font-size:10px;color:var(--text4);">' . h(ui('unit_sqft', 'sqft')) . '</span>' : '—' ?>
         </td>
         <td style="font-size:12px;color:var(--text2);">
           <?= $sel['selection_area'] ? h($sel['selection_area']) : '<span style="color:var(--text4);">—</span>' ?>
@@ -89,13 +89,13 @@
                     data-area="<?= h($sel['selection_area'] ?? '') ?>"
                     data-qty="<?= h($sel['quantity_required'] ?? '') ?>"
                     data-notes="<?= h($sel['extra_notes'] ?? '') ?>"
-                    title="Edit">
+                    title="<?= h(ui('btn_edit', 'Edit')) ?>">
               <?= icon('edit', 13) ?>
             </button>
             <button class="btn btn-danger btn-sm btn-icon sel-delete-btn"
                     data-id="<?= $sel['id'] ?>"
                     data-name="<?= h($sel['product_name']) ?>"
-                    title="Remove">
+                    title="<?= h(ui('btn_remove', 'Remove')) ?>">
               <?= icon('trash', 13) ?>
             </button>
           </div>
@@ -129,10 +129,10 @@
             <?= h($sel['product_name']) ?>
           </a>
           <?php if ($exceedsM): ?>
-          <span class="sel-exceed-icon" title="You have selected lower quantity product than its available quantity.">!</span>
+          <span class="sel-exceed-icon" title="<?= h(ui('msg_qty_exceeds_tooltip', 'You have selected lower quantity product than its available quantity.')) ?>">!</span>
           <?php endif; ?>
         </div>
-        <p style="font-size:11px;color:var(--text4);">Lot <?= h($sel['quarry_number']) ?></p>
+        <p style="font-size:11px;color:var(--text4);"><?= h(ui('label_lot', 'Lot')) ?> <?= h($sel['quarry_number']) ?></p>
         <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:5px;">
           <?php if ($sel['thickness']): ?>
           <span class="badge badge-gray" style="font-size:10px;"><?= h($sel['thickness']) ?></span>
@@ -141,7 +141,7 @@
           <span class="badge badge-white" style="font-size:10px;"><?= h($slab) ?></span>
           <?php endif; ?>
           <?php if ($sel['quantity_required'] > 0): ?>
-          <span class="badge badge-amber" style="font-size:10px;"><?= number_format((float)$sel['quantity_required']) ?> sqft</span>
+          <span class="badge badge-amber" style="font-size:10px;"><?= number_format((float)$sel['quantity_required']) ?> <?= h(ui('unit_sqft', 'sqft')) ?></span>
           <?php endif; ?>
           <?php if ($sel['selection_area']): ?>
           <span class="badge" style="background:var(--success-bg);color:var(--success);font-size:10px;"><?= h($sel['selection_area']) ?></span>
@@ -158,7 +158,7 @@
               data-area="<?= h($sel['selection_area'] ?? '') ?>"
               data-qty="<?= h($sel['quantity_required'] ?? '') ?>"
               data-notes="<?= h($sel['extra_notes'] ?? '') ?>">
-        <?= icon('edit', 13) ?>&nbsp; Edit
+        <?= icon('edit', 13) ?>&nbsp; <?= h(ui('btn_edit', 'Edit')) ?>
       </button>
       <button class="btn btn-danger btn-sm sel-delete-btn"
               data-id="<?= $sel['id'] ?>"

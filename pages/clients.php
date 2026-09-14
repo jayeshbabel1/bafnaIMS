@@ -37,8 +37,8 @@ if ($isAjax) {
   <!-- Page header -->
   <div class="page-header">
     <div class="page-header-left">
-      <p class="page-eyebrow">My Contacts</p>
-      <h1 class="page-title">Clients</h1>
+      <p class="page-eyebrow"><?= h(ui('eyebrow_my_contacts', 'My Contacts')) ?></p>
+      <h1 class="page-title"><?= h(ui('nav_clients', 'Clients')) ?></h1>
     </div>
     <div class="page-header-right">
       <a href="index.php?page=client_form" class="btn btn-primary btn-sm">
