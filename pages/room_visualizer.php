@@ -47,7 +47,7 @@ $productPhotoUrl = ($ph && file_exists(PHOTOS_DIR.'/'.$ph['filename']))
 <div class="page-content">
   <div class="page-header">
     <div class="page-header-left">
-      <p class="page-eyebrow">Room Visualizer</p>
+      <p class="page-eyebrow"><?= h(ui('eyebrow_room_visualizer', 'Room Visualizer')) ?></p>
       <h1 class="page-title"><?= h($p['name']) ?></h1>
     </div>
     <a href="index.php?page=product&id=<?= $pid ?>" class="btn btn-secondary btn-sm">

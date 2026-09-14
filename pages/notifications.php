@@ -20,8 +20,8 @@ $db->prepare("DELETE FROM notifications WHERE created_at < ?")->execute([$cutoff
 <div class="page-content">
   <div class="page-header">
     <div class="page-header-left">
-      <p class="page-eyebrow">Updates</p>
-      <h1 class="page-title">Notifications</h1>
+      <p class="page-eyebrow"><?= h(ui('nav_updates', 'Updates')) ?></p>
+      <h1 class="page-title"><?= h(ui('heading_notifications', 'Notifications')) ?></h1>
     </div>
     <div class="page-header-right">
       <span class="badge badge-black"><?= count($notifs) ?></span>

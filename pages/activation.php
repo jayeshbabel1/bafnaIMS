@@ -13,15 +13,15 @@ $blockState = $_SESSION['license_block_state'] ?? $status['state'];
 unset($_SESSION['license_block_state']);
 
 $messages = [
-    'not_activated'   => 'This project requires a valid activation key before it can be used.',
-    'invalid'         => 'Invalid activation key. Please contact the administrator.',
-    'revoked'         => 'This license has been revoked. Please contact the administrator.',
-    'domain_mismatch' => 'This license is bound to a different domain. Please contact the administrator.',
+    'not_activated'   => ui('msg_license_not_activated', 'This project requires a valid activation key before it can be used.'),
+    'invalid'         => ui('msg_license_invalid', 'Invalid activation key. Please contact the administrator.'),
+    'revoked'         => ui('msg_license_revoked', 'This license has been revoked. Please contact the administrator.'),
+    'domain_mismatch' => ui('msg_license_domain_mismatch', 'This license is bound to a different domain. Please contact the administrator.'),
     'expired'         => $status['license']
-        ? 'Your license expired on ' . date('d/m/Y', strtotime($status['license']['expiry_date'])) . '. Please contact the administrator to renew your license.'
-        : 'Your license has expired. Please contact the administrator to renew your license.',
-    'lifetime' => 'Lifetime License Activated.',
-    'active'   => 'License is active.',
+        ? sprintf(ui('msg_license_expired_dated', 'Your license expired on %s. Please contact the administrator to renew your license.'), date('d/m/Y', strtotime($status['license']['expiry_date'])))
+        : ui('msg_license_expired_generic', 'Your license has expired. Please contact the administrator to renew your license.'),
+    'lifetime' => ui('msg_license_lifetime', 'Lifetime License Activated.'),
+    'active'   => ui('msg_license_active', 'License is active.'),
 ];
 $statusMessage = $messages[$blockState] ?? $messages['not_activated'];
 $isGood        = in_array($blockState, ['lifetime', 'active'], true);
@@ -55,7 +55,7 @@ $pageTitle = 'Product Activation — ' . APP_NAME;
     </div>
     <div class="auth-card">
       <span class="auth-card-accent"></span>
-      <p class="auth-card-title">Product Activation</p>
+      <p class="auth-card-title"><?= h(ui('title_product_activation', 'Product Activation')) ?></p>
       <p class="auth-card-sub"><?= h(APP_NAME) ?></p>
 
       <?php if ($err): ?>
@@ -67,23 +67,32 @@ $pageTitle = 'Product Activation — ' . APP_NAME;
       </div>
 
       <?php if ($isGood): ?>
-      <a href="index.php?page=catalog" class="btn btn-primary btn-block btn-lg" style="text-decoration:none;">Continue →</a>
+      <a href="index.php?page=catalog" class="btn btn-primary btn-block btn-lg" style="text-decoration:none;"><?= h(ui('btn_continue', 'Continue')) ?> →</a>
       <?php else: ?>
       <form method="POST" action="index.php?page=activation" novalidate>
         <input type="hidden" name="action" value="activate_license"/>
         <?= csrfField() ?>
         <div class="input-group">
-          <label class="input-label">Activation Key</label>
+          <label class="input-label"><?= h(ui('form_activation_key', 'Activation Key')) ?></label>
           <input type="text" name="activation_key" class="input-field"
                  placeholder="XXXXX-XXXXX-XXXXX-XXXXX" required autocomplete="off"
                  style="font-family:monospace;letter-spacing:1px;text-transform:uppercase;"/>
         </div>
-        <button type="submit" class="btn btn-primary btn-block btn-lg">Activate</button>
+        <button type="submit" class="btn btn-primary btn-block btn-lg"><?= h(ui('btn_activate', 'Activate')) ?></button>
       </form>
       <?php endif; ?>
 
+      <?php
+      $stateLabels = [
+          'active'          => ui('label_status_active', 'Active'),
+          'expired'         => ui('label_status_expired', 'Expired'),
+          'revoked'         => ui('label_status_revoked', 'Revoked'),
+          'domain_mismatch' => ui('label_status_domain_mismatch', 'Domain mismatch'),
+          'lifetime'        => ui('label_status_lifetime', 'Lifetime'),
+      ];
+      ?>
       <p class="auth-footer-text">
-        Status: <strong><?= $blockState === 'not_activated' ? 'Project is not activated.' : ucfirst(str_replace('_', ' ', $blockState)) ?></strong>
+        <?= h(ui('label_status_prefix', 'Status:')) ?> <strong><?= $blockState === 'not_activated' ? h(ui('msg_project_not_activated', 'Project is not activated.')) : h($stateLabels[$blockState] ?? ucfirst(str_replace('_', ' ', $blockState))) ?></strong>
       </p>
     </div>
   </div>

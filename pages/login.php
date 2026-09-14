@@ -31,8 +31,8 @@ $tagline = getSetting('company_tagline', 'Premium Stone Catalog Platform');
 
     <div class="auth-card">
       <span class="auth-card-accent"></span>
-      <p class="auth-card-title">Welcome back</p>
-      <p class="auth-card-sub">Sign in to access the inventory.</p>
+      <p class="auth-card-title"><?= h(ui('title_welcome_back', 'Welcome back')) ?></p>
+      <p class="auth-card-sub"><?= h(ui('subtitle_signin_inventory', 'Sign in to access the inventory.')) ?></p>
 
       <?php if ($err): ?>
       <div class="alert alert-error"><?= h($err) ?></div>
@@ -42,13 +42,13 @@ $tagline = getSetting('company_tagline', 'Premium Stone Catalog Platform');
         <input type="hidden" name="action" value="login"/>
          <?= csrfField() ?>
         <div class="input-group">
-          <label class="input-label">Email Address</label>
+          <label class="input-label"><?= h(ui('form_email_address', 'Email Address')) ?></label>
           <input type="email" name="email" class="input-field"
                  value="<?= h($_POST['email'] ?? '') ?>"
                  autocomplete="email" required/>
         </div>
         <div class="input-group" style="margin-bottom:10px;">
-          <label class="input-label">Password</label>
+          <label class="input-label"><?= h(ui('form_password', 'Password')) ?></label>
           <div class="password-wrap">
             <input type="password" name="password" id="loginPwd" class="input-field"
                    autocomplete="current-password" required/>
@@ -56,14 +56,14 @@ $tagline = getSetting('company_tagline', 'Premium Stone Catalog Platform');
           </div>
         </div>
         <div class="auth-forgot">
-          <a href="index.php?page=forgot_password">Forgot password?</a>
+          <a href="index.php?page=forgot_password"><?= h(ui('link_forgot_password', 'Forgot password?')) ?></a>
         </div>
-        <button type="submit" class="btn btn-primary btn-block btn-lg">Sign In</button>
+        <button type="submit" class="btn btn-primary btn-block btn-lg"><?= h(ui('btn_sign_in', 'Sign In')) ?></button>
       </form>
 
-      <div class="gold-divider">OR</div>
+      <div class="gold-divider"><?= h(ui('label_or', 'OR')) ?></div>
       <p class="auth-footer-text">
-        New user? <a href="index.php?page=register" class="auth-link">Create an account</a>
+        <?= h(ui('text_new_user', 'New user?')) ?> <a href="index.php?page=register" class="auth-link"><?= h(ui('link_create_account', 'Create an account')) ?></a>
       </p>
     </div>
 

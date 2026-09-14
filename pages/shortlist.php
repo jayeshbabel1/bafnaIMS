@@ -15,8 +15,8 @@ $items = $st->fetchAll();
 <div class="page-content">
   <div class="page-header">
     <div class="page-header-left">
-      <p class="page-eyebrow">My Collection</p>
-      <h1 class="page-title">Shortlist</h1>
+      <p class="page-eyebrow"><?= h(ui('eyebrow_my_collection', 'My Collection')) ?></p>
+      <h1 class="page-title"><?= h(ui('nav_shortlist', 'Shortlist')) ?></h1>
     </div>
     <div class="page-header-right">
       <span class="badge badge-black"><?= count($items) ?></span>

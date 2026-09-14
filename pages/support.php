@@ -20,8 +20,8 @@ $waLink    = 'https://wa.me/91' . preg_replace('/[^0-9]/', '', $cpWA);
 <div class="page-content">
   <div class="page-header">
     <div class="page-header-left">
-      <p class="page-eyebrow">Help</p>
-      <h1 class="page-title">Support</h1>
+      <p class="page-eyebrow"><?= h(ui('eyebrow_help', 'Help')) ?></p>
+      <h1 class="page-title"><?= h(ui('nav_support', 'Support')) ?></h1>
     </div>
   </div>
  

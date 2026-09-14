@@ -79,17 +79,17 @@ if ($isAjax) {
   <div style="display:flex;align-items:center;gap:12px;padding-top:20px;margin-bottom:20px;">
     <a href="index.php?page=clients" class="hero-icon-btn" style="flex-shrink:0;"><?= icon('back', 18) ?></a>
     <div style="flex:1;min-width:0;">
-      <p class="page-eyebrow">Client Selections</p>
+      <p class="page-eyebrow"><?= h(ui('eyebrow_client_selections', 'Client Selections')) ?></p>
       <h1 class="page-title" style="font-size:22px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
         <?= h($client['client_name']) ?>
       </h1>
     </div>
     <button type="button" class="btn btn-secondary btn-sm"
             onclick="openSelectionHistory(<?= $clientId ?>, 'index.php?page=client_selections')">
-      <?= icon('file', 13) ?>&nbsp;History
+      <?= icon('file', 13) ?>&nbsp;<?= h(ui('btn_history', 'History')) ?>
     </button>
     <a href="index.php?page=client_form&id=<?= $clientId ?>"
-       class="btn btn-secondary btn-sm"><?= icon('edit', 13) ?>&nbsp;Edit</a>
+       class="btn btn-secondary btn-sm"><?= icon('edit', 13) ?>&nbsp;<?= h(ui('btn_edit', 'Edit')) ?></a>
   </div>
 
   <!-- Client info card -->

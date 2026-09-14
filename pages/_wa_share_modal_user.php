@@ -13,7 +13,7 @@
         <div style="width:36px;height:36px;border-radius:10px;background:#e8faf0;color:#25D366;display:flex;align-items:center;justify-content:center;">
           <?= icon('whatsapp', 18) ?>
         </div>
-        <p style="font-size:14px;font-weight:700;color:var(--text);">Share Product PDF</p>
+        <p style="font-size:14px;font-weight:700;color:var(--text);"><?= h(ui('title_share_product_pdf', 'Share Product PDF')) ?></p>
       </div>
       <button onclick="closeWaPdfShare()" type="button" style="color:var(--text3);cursor:pointer;padding:4px;background:none;border:none;">
         <?= icon('close', 18) ?>
@@ -22,7 +22,7 @@
     <div style="padding:20px;">
 
       <div id="waPdfStep1">
-        <label class="input-label">Recipient Mobile Number</label>
+        <label class="input-label"><?= h(ui('form_recipient_mobile', 'Recipient Mobile Number')) ?></label>
         <div style="display:flex;border:1.5px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:6px;" id="waPdfInputWrap">
           <select id="waPdfCountryCode" style="border:none;outline:none;background:var(--gray-50);padding:0 8px;font-size:13px;font-weight:600;border-right:1px solid var(--border);font-family:inherit;flex-shrink:0;">
             <option value="91">🇮🇳 +91</option>
@@ -31,34 +31,34 @@
             <option value="971">🇦🇪 +971</option>
             <option value="61">🇦🇺 +61</option>
           </select>
-          <input type="tel" id="waPdfMobileInput" placeholder="Mobile number" class="input-field" style="border:none;flex:1;min-height:44px;"/>
+          <input type="tel" id="waPdfMobileInput" placeholder="<?= h(ui('form_mobile_number_placeholder', 'Mobile number')) ?>" class="input-field" style="border:none;flex:1;min-height:44px;"/>
         </div>
-        <p id="waPdfMobileError" style="display:none;font-size:11px;color:var(--danger);margin-bottom:12px;">Please enter a valid mobile number.</p>
+        <p id="waPdfMobileError" style="display:none;font-size:11px;color:var(--danger);margin-bottom:12px;"><?= h(ui('error_invalid_mobile', 'Please enter a valid mobile number.')) ?></p>
         <button type="button" onclick="doWaPdfShare()" class="btn btn-block" style="background:#25D366;color:#fff;">
-          <?= icon('whatsapp',15) ?>&nbsp; Generate &amp; Share
+          <?= icon('whatsapp',15) ?>&nbsp; <?= h(ui('btn_generate_share', 'Generate &amp; Share')) ?>
         </button>
       </div>
 
       <div id="waPdfStep2" style="display:none;text-align:center;padding:20px 0;">
         <div class="loader-spinner" style="margin:0 auto 14px;"></div>
-        <p style="font-size:13px;color:var(--text3);">Generating PDF…</p>
+        <p style="font-size:13px;color:var(--text3);"><?= h(ui('msg_generating_pdf', 'Generating PDF…')) ?></p>
       </div>
 
       <div id="waPdfStep3" style="display:none;text-align:center;padding:6px 0;">
         <div style="width:52px;height:52px;border-radius:50%;background:#e8faf0;color:#25D366;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;">
           <?= icon('check',22) ?>
         </div>
-        <p style="font-weight:700;color:var(--text);margin-bottom:4px;">WhatsApp Opened!</p>
-        <p style="font-size:12px;color:var(--text3);margin-bottom:16px;">Send the message to complete sharing.</p>
+        <p style="font-weight:700;color:var(--text);margin-bottom:4px;"><?= h(ui('title_whatsapp_opened', 'WhatsApp Opened!')) ?></p>
+        <p style="font-size:12px;color:var(--text3);margin-bottom:16px;"><?= h(ui('msg_send_to_complete', 'Send the message to complete sharing.')) ?></p>
         <a id="waPdfDlLink" href="#" target="_blank" download class="btn btn-secondary btn-sm">
-          <?= icon('download',13) ?>&nbsp; Download PDF
+          <?= icon('download',13) ?>&nbsp; <?= h(ui('btn_download_pdf', 'Download PDF')) ?>
         </a>
       </div>
 
       <div id="waPdfStep4" style="display:none;text-align:center;padding:6px 0;">
-        <p style="font-weight:700;color:var(--danger);margin-bottom:6px;">Generation Failed</p>
+        <p style="font-weight:700;color:var(--danger);margin-bottom:6px;"><?= h(ui('title_generation_failed', 'Generation Failed')) ?></p>
         <p id="waPdfErrMsg" style="font-size:12px;color:var(--text3);margin-bottom:14px;"></p>
-        <button type="button" onclick="waPdfGoStep(1)" class="btn btn-secondary btn-sm">Try Again</button>
+        <button type="button" onclick="waPdfGoStep(1)" class="btn btn-secondary btn-sm"><?= h(ui('btn_try_again', 'Try Again')) ?></button>
       </div>
 
     </div>
@@ -111,9 +111,9 @@
       .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
       .then(function (data) {
         if (!data.success) throw new Error(data.error || 'PDF generation failed.');
-        var msg = '*' + _name + ' — Product Details PDF*\n\n' + data.url +
-          '\n\n_Tap the link above to view or download the full product PDF._' +
-          '\n\nRegards,\n' + <?= json_encode(APP_NAME) ?>;
+        var msg = '*' + _name + ' — ' + <?= json_encode(h(ui('msg_wa_pdf_title', 'Product Details PDF'))) ?> + '*\n\n' + data.url +
+          '\n\n_' + <?= json_encode(h(ui('msg_wa_pdf_instructions', 'Tap the link above to view or download the full product PDF.'))) ?> + '_' +
+          '\n\n' + <?= json_encode(h(ui('label_regards', 'Regards,'))) ?> + '\n' + <?= json_encode(APP_NAME) ?>;
         window.open('https://wa.me/' + fullNumber + '?text=' + encodeURIComponent(msg), '_blank', 'noopener,noreferrer');
         document.getElementById('waPdfDlLink').href = data.url;
         document.getElementById('waPdfDlLink').download = data.filename || 'product.pdf';

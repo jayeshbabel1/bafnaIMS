@@ -20,13 +20,13 @@ if (!isset($clients)) {
 <?php if (empty($clients) && $currentPage === 1): ?>
 <div class="empty-state" style="padding-top:50px;">
   <div class="empty-icon"><?= icon('users', 28) ?></div>
-  <p class="empty-title">No clients yet</p>
+  <p class="empty-title"><?= h(ui('empty_no_clients', 'No clients yet')) ?></p>
   <p class="empty-sub">
-    <?= $search ? 'No clients match your search.' : 'Add your first client to start managing product selections.' ?>
+    <?= $search ? h(ui('msg_no_clients_match_search', 'No clients match your search.')) : h(ui('msg_add_first_client_prompt', 'Add your first client to start managing product selections.')) ?>
   </p>
   <?php if (!$search): ?>
   <a href="index.php?page=client_form" class="btn btn-primary" style="margin-top:20px;text-decoration:none;">
-    <?= icon('plus', 14) ?>&nbsp; Add First Client
+    <?= icon('plus', 14) ?>&nbsp; <?= h(ui('btn_add_first_client', 'Add First Client')) ?>
   </a>
   <?php endif; ?>
 </div>
@@ -55,13 +55,13 @@ if (!isset($clients)) {
 </p>
 <?php endif; ?>
       </div>
-      <span class="badge badge-black" style="flex-shrink:0;"><?= $c['selection_count'] ?> items</span>
+      <span class="badge badge-black" style="flex-shrink:0;"><?= $c['selection_count'] ?> <?= h(ui('unit_items', 'items')) ?></span>
     </div>
 
     <!-- Mason -->
     <?php if ($c['mansoner_name']): ?>
     <div class="client-card-mason">
-      <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--text4);">Mason</span>
+      <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--text4);"><?= h(ui('label_mason', 'Mason')) ?></span>
       <span style="font-size:12px;color:var(--text2);font-weight:500;"><?= h($c['mansoner_name']) ?></span>
       <?php if ($c['mansoner_mobile']): ?>
       <a href="tel:<?= h($c['mansoner_mobile']) ?>" style="font-size:12px;color:var(--text3);"><?= h($c['mansoner_mobile']) ?></a>
@@ -81,15 +81,15 @@ if (!isset($clients)) {
     <div class="client-card-actions">
       <a href="index.php?page=client_selections&client_id=<?= $c['id'] ?>"
          class="btn btn-primary btn-sm" style="flex:1;justify-content:center;">
-        <?= icon('grid', 13) ?>&nbsp; Selections
+        <?= icon('grid', 13) ?>&nbsp; <?= h(ui('btn_selections', 'Selections')) ?>
       </a>
       <a href="index.php?page=client_form&id=<?= $c['id'] ?>"
-         class="btn btn-secondary btn-sm btn-icon" title="Edit">
+         class="btn btn-secondary btn-sm btn-icon" title="<?= h(ui('btn_edit', 'Edit')) ?>">
         <?= icon('edit', 14) ?>
       </a>
       <button class="btn btn-danger btn-sm btn-icon client-delete-btn"
               data-id="<?= $c['id'] ?>" data-name="<?= h($c['client_name']) ?>"
-              title="Delete">
+              title="<?= h(ui('title_delete', 'Delete')) ?>">
         <?= icon('trash', 14) ?>
       </button>
     </div>
@@ -102,7 +102,7 @@ if (!isset($clients)) {
  <div class="pagination" id="paginationWrap"></div>
  <?php if ($totalPages > 1): ?>
 <p style="text-align:center;font-size:12px;color:var(--text4);margin-top:10px;margin-bottom:20px;">
-   Showing <?= (($currentPage - 1) * $perPage) + 1 ?>–<?= min($currentPage * $perPage, $total) ?> of <?= $total ?>
+   <?= sprintf(h(ui('msg_showing_range', 'Showing %1$d–%2$d of %3$d')), (($currentPage - 1) * $perPage) + 1, min($currentPage * $perPage, $total), $total) ?>
  </p>
  <?php endif; ?>
 
@@ -114,15 +114,15 @@ if (!isset($clients)) {
     <div style="width:52px;height:52px;border-radius:50%;background:var(--danger-bg);color:var(--danger);display:flex;align-items:center;justify-content:center;margin-bottom:16px;">
       <?= icon('trash', 22) ?>
     </div>
-    <p style="font-size:17px;font-weight:700;color:var(--text);margin-bottom:8px;">Delete Client?</p>
-    <p style="font-size:13px;color:var(--text3);line-height:1.6;margin-bottom:22px;" id="deleteClientMsg">This will also delete all product selections for this client.</p>
+    <p style="font-size:17px;font-weight:700;color:var(--text);margin-bottom:8px;"><?= h(ui('title_delete_client', 'Delete Client?')) ?></p>
+    <p style="font-size:13px;color:var(--text3);line-height:1.6;margin-bottom:22px;" id="deleteClientMsg"><?= h(ui('msg_delete_client_confirm', 'This will also delete all product selections for this client.')) ?></p>
     <div style="display:flex;gap:10px;">
-      <button id="deleteClientCancel" class="btn btn-secondary btn-block">Cancel</button>
+      <button id="deleteClientCancel" class="btn btn-secondary btn-block"><?= h(ui('btn_cancel', 'Cancel')) ?></button>
       <form method="POST" action="index.php" style="flex:1">
         <input type="hidden" name="action"    value="delete_client"/>
         <input type="hidden" name="client_id" id="deleteClientId" value=""/>
         <?= csrfField() ?>
-        <button type="submit" class="btn btn-danger btn-block">Delete</button>
+        <button type="submit" class="btn btn-danger btn-block"><?= h(ui('title_delete', 'Delete')) ?></button>
       </form>
     </div>
   </div>
@@ -139,7 +139,7 @@ if (!isset($clients)) {
     btn.addEventListener('click', () => {
       const name = btn.dataset.name;
       inputEl.value = btn.dataset.id;
-      msgEl.textContent = 'Delete "' + name + '"? This will also remove all their product selections.';
+      msgEl.textContent = <?= json_encode(h(ui('msg_delete_confirm_prefix', 'Delete'))) ?> + ' "' + name + '"? ' + <?= json_encode(h(ui('msg_delete_confirm_suffix', 'This will also remove all their product selections.'))) ?>;
       modal.style.display = 'flex';
     });
   });

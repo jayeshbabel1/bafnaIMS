@@ -10,7 +10,7 @@
     <?php else: ?>
       <img src="https://i0.wp.com/www.bafnamarble.com/wp-content/uploads/2023/11/cropped-logo-01.png?fit=317%2C250&ssl=1" alt="<?= h(APP_NAME) ?>"/>
     <?php endif; ?>
-    <p class="auth-left-panel-title">Secure Account<br>Recovery</p>
+    <p class="auth-left-panel-title"><?= h(ui('title_secure_account_recovery', 'Secure Account Recovery')) ?></p>
     <div class="auth-left-panel-accent"></div>
   </div>
 
@@ -30,18 +30,18 @@
       <?php if ($sent): ?>
       <div style="text-align:center;padding:8px 0 16px;">
         <div class="auth-success-icon" style="margin:0 auto 16px;"><?= icon('check',28) ?></div>
-        <p class="auth-card-title">Email Sent!</p>
+        <p class="auth-card-title"><?= h(ui('title_email_sent', 'Email Sent!')) ?></p>
         <p style="font-size:13px;color:#888;line-height:1.6;margin:10px 0 24px;">
-          If that email is registered, a reset link has been sent. Check your inbox. Link expires in 1 hour.
+          <?= h(ui('msg_reset_link_sent', 'If that email is registered, a reset link has been sent. Check your inbox. Link expires in 1 hour.')) ?>
         </p>
         <a href="index.php?page=login" class="btn btn-primary btn-block btn-lg" style="text-decoration:none;">
-          <?= icon('back',15) ?>&nbsp; Back to Login
+          <?= icon('back',15) ?>&nbsp; <?= h(ui('btn_back_to_login', 'Back to Login')) ?>
         </a>
       </div>
 
       <?php else: ?>
-      <p class="auth-card-title">Forgot Password?</p>
-      <p class="auth-card-sub">Enter your email and we'll send a reset link.</p>
+      <p class="auth-card-title"><?= h(ui('title_forgot_password', 'Forgot Password?')) ?></p>
+      <p class="auth-card-sub"><?= h(ui('subtitle_forgot_password', 'Enter your email and we\'ll send a reset link.')) ?></p>
 
       <?php if ($inlineError ?? null): ?>
       <div class="alert alert-error"><?= h($inlineError) ?></div>
@@ -51,18 +51,18 @@
         <input type="hidden" name="action" value="forgot_password"/>
          <?= csrfField() ?>
         <div class="input-group">
-          <label class="input-label">Email Address</label>
+          <label class="input-label"><?= h(ui('form_email_address', 'Email Address')) ?></label>
           <input type="email" name="email" class="input-field"
-                 placeholder="you@studio.com" required autocomplete="email"/>
+                 placeholder="<?= h(ui('form_studio_email_placeholder', 'you@studio.com')) ?>" required autocomplete="email"/>
         </div>
         <button type="submit" class="btn btn-primary btn-block btn-lg">
-          <?= icon('mail',16) ?>&nbsp; Send Reset Link
+          <?= icon('mail',16) ?>&nbsp; <?= h(ui('btn_send_reset_link', 'Send Reset Link')) ?>
         </button>
       </form>
       <?php endif; ?>
 
       <p class="auth-footer-text">
-        <a href="index.php?page=login" class="auth-link">← Back to Login</a>
+        <a href="index.php?page=login" class="auth-link">← <?= h(ui('btn_back_to_login', 'Back to Login')) ?></a>
       </p>
     </div>
 
