@@ -10,7 +10,7 @@ if (file_exists($_envFile)) {
 }
 
 define('APP_NAME',    'Bafna Marble');
-define('APP_VERSION', '3.1.1');
+define('APP_VERSION', '3.1.2');
 if (!defined('BASE_PATH')) define('BASE_PATH',   dirname(__DIR__));
 define('BASE_URL',    (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS']==='on' ? 'https' : 'http').'://'.($_SERVER['HTTP_HOST'] ?? 'localhost'));
 
