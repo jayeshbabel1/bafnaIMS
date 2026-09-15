@@ -10,6 +10,9 @@ if (file_exists($_envFile)) {
 }
 
 define('APP_NAME',    'Bafna Marble');
+// Last-resort fallback only — appVersion() (includes/version.php) reads the
+// deploy-time-baked VERSION file first. Bump this occasionally so it doesn't
+// drift too far from reality, but it's not the source of truth anymore.
 define('APP_VERSION', '3.1.1');
 if (!defined('BASE_PATH')) define('BASE_PATH',   dirname(__DIR__));
 define('BASE_URL',    (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS']==='on' ? 'https' : 'http').'://'.($_SERVER['HTTP_HOST'] ?? 'localhost'));
