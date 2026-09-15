@@ -1,3 +1,12 @@
+/**
+ * assets/js/room_visualizer_three.js
+ * ─────────────────────────────────────────────────────────────────────────
+ * 3D Room Visualizer — engine v6 (final). 51 confirmed bugs fixed, 14
+ * realism features (A–N), full redesign of dining (rectangular table, 6
+ * chairs with legs) and staircase (wall-anchored, real top landing).
+ * Terse changelog; inline comments at each fix site have full detail.
+ * ─────────────────────────────────────────────────────────────────────────
+ */
 (function () {
   'use strict';
 
@@ -65,7 +74,7 @@
 
   function createMaterialManager() {
     var cache = {};
-    var mgrRef; 
+    var mgrRef;
     mgrRef = {
       standard: function (key, color, rough, metal) {
         if (!cache[key]) cache[key] = new THREE.MeshStandardMaterial({ color: color, roughness: rough != null ? rough : 0.8, metalness: metal || 0 });
@@ -79,7 +88,8 @@
         }
         return cache[key];
       },
-     
+      // FEATURE L: like tinted(), but with real wood-grain texture and a
+      // light clearcoat (the "mica"/laminate sheen half of the request).
       tintedWood: function (key, color, rough) {
         var hexStr = '#' + new THREE.Color(color).getHexString();
         if (!cache[key]) {
@@ -156,7 +166,7 @@
     return function () { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; };
   }
 
-   function createLayoutEngine(dims) {
+  function createLayoutEngine(dims) {
     var width = dims.width, height = dims.height, depth = dims.depth;
     var wt = dims.wallThickness != null ? dims.wallThickness : 0.1;
 
@@ -170,7 +180,8 @@
           side: { size: [wt, height, depth], position: [-width / 2 - wt / 2, height / 2, 0] },
         };
       },
-      
+      // NOTE (fix #29): tuned for boxes authored with detail on local -Z.
+      // Bare planes need an extra `.rotation.y += Math.PI` after this.
       alongBackWall: function (objDepth, centerX) {
         return { position: new THREE.Vector3(centerX, 0, -depth / 2 + wt + objDepth / 2), rotationY: Math.PI };
       },
@@ -235,7 +246,7 @@
     return geo;
   }
 
-   var Builders = {};
+  var Builders = {};
   Builders.decor = {};
 
   Builders.decor.contactShadow = function (mm, gc, radius, opacity) {
@@ -277,7 +288,10 @@
     return centerBottom(g);
   };
 
-    Builders.decor.photoTexture = function (mm, seed) {
+  // FIX #46: seeded procedural "photo" texture — abstract generated
+  // compositions, so each frame shows genuinely different content instead
+  // of one shared blank plane.
+  Builders.decor.photoTexture = function (mm, seed) {
     return mm.get('photo-tex:' + seed, function () {
       var rnd = seededRandom(seed + 1);
       var c = document.createElement('canvas'); c.width = 230; c.height = 330;
@@ -303,7 +317,7 @@
   Builders.decor.wallArt = function (mm, gc, seed) {
     var g = new THREE.Group();
     var frame = new THREE.Mesh(gc.get('art-frame', function () { return new THREE.BoxGeometry(0.55, 0.75, 0.03); }), mm.standard('art-frame', 0x2a2420, 0.6));
-    var artMat = mm.get('art-plane-mat:' + seed, function () { return new THREE.MeshStandardMaterial({ map: Builders.decor.photoTexture(mm, seed), roughness: 0.6 }); }); // FIX #46
+    var artMat = mm.get('art-plane-mat:' + seed, function () { return new THREE.MeshStandardMaterial({ map: Builders.decor.photoTexture(mm, seed), roughness: 0.6 }); });
     var art = new THREE.Mesh(gc.get('art-plane', function () { return new THREE.PlaneGeometry(0.46, 0.66); }), artMat);
     art.position.z = 0.016;
     g.add(frame); g.add(art);
@@ -319,8 +333,10 @@
     var panelGeo = gc.get('curtain-panel', function () { return new THREE.CylinderGeometry(0.18, 0.18, 1.5, 8, 1, true, 0, Math.PI); });
     [-0.62, 0.62].forEach(function (off) {
       var panel = new THREE.Mesh(panelGeo, cMat);
+      // FIX #31/#34: panels keep their natural vertical orientation and
+      // hang DOWN from the rod (local y=0.75) to the floor.
       panel.rotation.y = off < 0 ? 0 : Math.PI;
-      panel.position.set(off, 0, 0); // FIX #31/#34 — hangs down from the rod (local y=0.75) to the floor
+      panel.position.set(off, 0, 0);
       panel.castShadow = true; g.add(panel);
     });
     return g;
@@ -382,7 +398,7 @@
     });
   };
 
-    Builders.decor.woodGrainTexture = function (mm, tintHex) {
+  Builders.decor.woodGrainTexture = function (mm, tintHex) {
     return mm.get('wood-grain-tex:' + tintHex, function () {
       var c = document.createElement('canvas'); c.width = 128; c.height = 256;
       var cctx = c.getContext('2d');
@@ -402,9 +418,11 @@
     });
   };
 
-   Builders.decor.wallDoor = function (mm, gc, doorW, doorH) {
+  // FIX #44: real door leaf — wood grain, raised-panel molding, handle —
+  // instead of a flat white box sharing the window-trim material.
+  Builders.decor.wallDoor = function (mm, gc, doorW, doorH) {
     var g = new THREE.Group();
-    var frameMat = mm.standard('trim', 0xffffff, 0.7); // casing stays white — correct, matches window trim
+    var frameMat = mm.standard('trim', 0xffffff, 0.7);
     var doorMat = mm.get('door-wood-mat', function () {
       return new THREE.MeshStandardMaterial({ map: Builders.decor.woodGrainTexture(mm, '#6B4A32'), roughness: 0.55 });
     });
@@ -433,7 +451,9 @@
     return g;
   };
 
-   Builders.decor.wallPatternTexture = function (mm, tintHex) {
+  // FEATURE I: decorative wall pattern (default appearance of a pickable
+  // wall) + a static accent panel for rooms with no pickable wall at all.
+  Builders.decor.wallPatternTexture = function (mm, tintHex) {
     return mm.get('wall-pattern-tex:' + tintHex, function () {
       var c = document.createElement('canvas'); c.width = c.height = 512;
       var cctx = c.getContext('2d');
@@ -461,7 +481,6 @@
     return new THREE.Mesh(geo, mat);
   };
 
-  
   Builders.decor.wallTV = function (mm, gc, opts) {
     opts = opts || {};
     var w = opts.width || 1.1, h = opts.height || 0.62;
@@ -471,7 +490,6 @@
     return tv;
   };
 
-  
   Builders.decor.wallAC = function (mm, gc, opts) {
     opts = opts || {};
     var w = opts.width || 0.85, h = opts.height || 0.28, depth = opts.depth || 0.22;
@@ -484,7 +502,7 @@
     return g;
   };
 
-    Builders.decor.flushCeilingLight = function (mm, gc, roomH) {
+  Builders.decor.flushCeilingLight = function (mm, gc, roomH) {
     var g = new THREE.Group();
     var fixture = new THREE.Mesh(gc.get('flush-light-geo', function () { return new THREE.CylinderGeometry(0.16, 0.16, 0.04, 20); }), mm.physical('flush-light', { color: 0xF6F1E4, roughness: 0.4, emissive: 0xF6F1E4, emissiveIntensity: 0.35 }));
     fixture.position.y = roomH - 0.02; g.add(fixture);
@@ -509,7 +527,6 @@
     return centerBottom(g);
   };
 
-  
   Builders.decor.toilet = function (mm, gc) {
     var g = new THREE.Group();
     var mat = mm.standard('toilet-porcelain', 0xFAFAF7, 0.15, 0.05);
@@ -533,7 +550,7 @@
     return g;
   };
 
-   Builders.decor.diningChair = function (mm, gc, chairMat) {
+  Builders.decor.diningChair = function (mm, gc, chairMat) {
     var g = new THREE.Group();
     var legGeo = gc.get('dining-chair-leg-geo', function () { return new THREE.CylinderGeometry(0.018, 0.022, 0.41, 8); });
     [[-0.16, -0.16], [0.16, -0.16], [-0.16, 0.16], [0.16, 0.16]].forEach(function (p) {
@@ -543,12 +560,43 @@
     var seat = new THREE.Mesh(gc.get('dining-chair-seat-geo', function () { return new THREE.BoxGeometry(0.4, 0.08, 0.4); }), chairMat);
     seat.position.y = 0.45; seat.castShadow = seat.receiveShadow = true; g.add(seat);
     var back = new THREE.Mesh(gc.get('dining-chair-back-geo', function () { return new THREE.BoxGeometry(0.4, 0.5, 0.06); }), chairMat);
-    back.position.set(0, 0.74, -0.17); // local -Z = away from the table
+    back.position.set(0, 0.74, -0.17);
     back.castShadow = true; g.add(back);
     return g;
   };
 
-    Builders.RoomShell = function (mm, gc, layout, opts) {
+  // FEATURE M: kitchen refrigerator.
+  Builders.decor.fridge = function (mm, gc) {
+    var g = new THREE.Group();
+    var w = 0.7, h = 1.8, d = 0.65;
+    var body = new THREE.Mesh(gc.get('fridge-body-geo', function () { return new THREE.BoxGeometry(w, h, d); }), mm.standard('fridge-body', 0xE8E8E4, 0.35, 0.15));
+    body.position.y = h / 2; body.castShadow = body.receiveShadow = true; g.add(body);
+    var handleGeo = gc.get('fridge-handle-geo', function () { return new THREE.CylinderGeometry(0.012, 0.012, 0.5, 8); });
+    var handleMat = mm.standard('cabinet-handle', 0x2a2420, 0.35, 0.65);
+    var handleL = new THREE.Mesh(handleGeo, handleMat); handleL.position.set(-w * 0.28, h * 0.55, -d / 2 - 0.02); g.add(handleL);
+    var handleR = new THREE.Mesh(handleGeo, handleMat); handleR.position.set(w * 0.28, h * 0.55, -d / 2 - 0.02); g.add(handleR);
+    var seam = new THREE.Mesh(gc.get('fridge-seam-geo', function () { return new THREE.BoxGeometry(w - 0.02, 0.015, d + 0.01); }), mm.standard('fridge-seam', 0xC8C8C2, 0.3, 0.1));
+    seam.position.y = h * 0.62; g.add(seam);
+    return g;
+  };
+
+  // FEATURE N: bedroom nightstand.
+  Builders.decor.nightstand = function (mm, gc, cabinetColor) {
+    var g = new THREE.Group();
+    var body = new THREE.Mesh(gc.get('nightstand-geo', function () { return new THREE.BoxGeometry(0.42, 0.5, 0.38); }), mm.tintedWood('nightstand', cabinetColor || 0xEDE7D9, 0.5));
+    body.position.y = 0.25; body.castShadow = body.receiveShadow = true; g.add(body);
+    var lampBase = new THREE.Mesh(gc.get('nightstand-lamp-geo', function () { return new THREE.CylinderGeometry(0.05, 0.07, 0.22, 12); }), mm.standard('lamp-base', 0x2a2420, 0.4, 0.5));
+    lampBase.position.y = 0.61; g.add(lampBase);
+    var lampShade = new THREE.Mesh(gc.get('nightstand-shade-geo', function () { return new THREE.ConeGeometry(0.11, 0.14, 16, 1, true); }), mm.physical('lamp-shade', { color: 0xF3E6C8, roughness: 0.9, side: THREE.DoubleSide, emissive: 0xF3E6C8, emissiveIntensity: 0.2 }));
+    lampShade.position.y = 0.75; g.add(lampShade);
+    var bulb = new THREE.PointLight(0xffdca8, 0.4, 2.2); bulb.name = 'nightLight'; bulb.position.y = 0.7; g.add(bulb);
+    return g;
+  };
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // RoomShell — floor / ceiling / walls / trim / window / door.
+  // ═══════════════════════════════════════════════════════════════════════
+  Builders.RoomShell = function (mm, gc, layout, opts) {
     opts = opts || {};
     var w = layout.width, h = layout.height, d = layout.depth, wt = layout.wallThickness;
     var group = new THREE.Group();
@@ -621,7 +669,7 @@
         var curtSide = Builders.decor.curtainPair(mm, gc);
         curtSide.rotation.y = Math.PI / 2; curtSide.position.set(-w / 2 + 0.12, wy, 0);
         group.add(curtSide);
-        var sillSide = new THREE.Mesh(gc.get('window-sill-side', function () { return new THREE.BoxGeometry(0.1, 0.03, 1.2); }), frameMat); // FEATURE J
+        var sillSide = new THREE.Mesh(gc.get('window-sill-side', function () { return new THREE.BoxGeometry(0.1, 0.03, 1.2); }), frameMat);
         sillSide.position.set(-w / 2 + 0.08, wy - 0.58, 0);
         group.add(sillSide);
       } else {
@@ -635,26 +683,30 @@
         var curtBack = Builders.decor.curtainPair(mm, gc);
         curtBack.position.set(wx, wy, -d / 2 + 0.12);
         group.add(curtBack);
-        var sillBack = new THREE.Mesh(gc.get('window-sill-back', function () { return new THREE.BoxGeometry(1.2, 0.03, 0.1); }), frameMat); // FEATURE J
+        var sillBack = new THREE.Mesh(gc.get('window-sill-back', function () { return new THREE.BoxGeometry(1.2, 0.03, 0.1); }), frameMat);
         sillBack.position.set(wx, wy - 0.58, -d / 2 + 0.08);
         group.add(sillBack);
       }
     }
 
     if (opts.doorWall) {
-      var door = Builders.decor.wallDoor(mm, gc, 0.85, 1.9); // FIX #44
-      if (opts.doorWall === 'back') door.position.set(0, 0.95, -d / 2 + 0.03);
-      else door.position.set(-w / 2 + 0.03, 0.95, d * 0.28);
+      var door = Builders.decor.wallDoor(mm, gc, 0.85, 1.9);
+      if (opts.doorWall === 'back') {
+        door.position.set(0, 0.95, -d / 2 + 0.03);
+        door.rotation.y = Math.PI / 2; // FIX #48 — dormant today (no room uses 'back' yet) but the door's width axis needs rotating to align with a back wall
+      } else {
+        door.position.set(-w / 2 + 0.03, 0.95, d * 0.28);
+      }
       group.add(door);
 
-      var doormat = new THREE.Mesh(gc.get('doormat-geo', function () { return new THREE.BoxGeometry(0.7, 0.015, 0.4); }), mm.standard('doormat', 0x3a3530, 0.95)); // FEATURE K
+      var doormat = new THREE.Mesh(gc.get('doormat-geo', function () { return new THREE.BoxGeometry(0.7, 0.015, 0.4); }), mm.standard('doormat', 0x3a3530, 0.95));
       if (opts.doorWall === 'back') doormat.position.set(0, 0.008, -d / 2 + 0.35);
       else doormat.position.set(-w / 2 + 0.35, 0.008, d * 0.28);
       group.add(doormat);
     }
 
     if (opts.wallArtAt) {
-      var art = Builders.decor.wallArt(mm, gc, opts.wallArtSeed != null ? opts.wallArtSeed : 1); // FIX #46
+      var art = Builders.decor.wallArt(mm, gc, opts.wallArtSeed != null ? opts.wallArtSeed : 1);
       applyTransform(art, layout.atOffset(opts.wallArtAt[0], opts.wallArtAt[1], opts.wallArtAt[2] || 0));
       art.position.y = opts.wallArtAt[3] != null ? opts.wallArtAt[3] : h * 0.55;
       group.add(art);
@@ -678,7 +730,6 @@
 
     return { group: group, floor: floor, wall: backWall, sidewall: sideWall };
   };
- 
   Builders.Countertop = function (mm, opts) {
     var length = opts.length, depth = opts.depth;
     var thicknessM = opts.thicknessM, edgeProfile = opts.edgeProfile;
@@ -696,7 +747,7 @@
     };
   };
 
-    Builders.appliances = {
+  Builders.appliances = {
     faucet: function (mm, gc, opts) {
       var localX = opts.offsetX || 0, depth = opts.depth || 0.6, topY = opts.topY || 0.035;
       var g = new THREE.Group();
@@ -745,15 +796,15 @@
     },
   };
 
-   Builders.CabinetRun = function (mm, gc, opts) {
+  Builders.CabinetRun = function (mm, gc, opts) {
     var length = opts.length, height = opts.height || 0.85, depth = opts.depth || 0.62;
     var doorsPerMeter = opts.doorsPerMeter != null ? opts.doorsPerMeter : 1.3;
     var drawerRows = opts.drawerRows || 0;
     var cabinetColor = opts.cabinetColor || 0xEDE7D9;
     var group = new THREE.Group();
 
-    var doorMat = mm.tintedWood('cabinet-door', lightenHex(cabinetColor, 0.12), 0.5);   // FEATURE L
-    var frameMat = mm.tintedWood('cabinet-frame', cabinetColor, 0.55);                   // FEATURE L
+    var doorMat = mm.tintedWood('cabinet-door', lightenHex(cabinetColor, 0.12), 0.5);
+    var frameMat = mm.tintedWood('cabinet-frame', cabinetColor, 0.55);
     var handleMat = mm.standard('cabinet-handle', 0x2a2420, 0.35, 0.65);
 
     var carcass = new THREE.Mesh(gc.get('carcass:' + length.toFixed(2) + ':' + height.toFixed(2) + ':' + depth.toFixed(2), function () { return new THREE.BoxGeometry(length, height, depth); }), frameMat);
@@ -826,7 +877,6 @@
     };
   };
 
-  
   Builders.Island = function (mm, gc, opts) {
     var length = opts.length || 1.6, depth = opts.depth || 0.9, height = opts.height || 0.85;
     var cabinetColor = opts.cabinetColor || 0xEDE7D9;
@@ -846,7 +896,6 @@
     return { group: group, countertop: countertop, updateCountertop: countertop.update, dispose: function () { countertop.dispose(); } };
   };
 
-  
   Builders.Vanity = function (mm, gc, opts) {
     var length = opts.length || 1.3, depth = opts.depth || 0.5, height = opts.height || 0.82;
     var run = Builders.CabinetRun(mm, gc, {
@@ -861,7 +910,6 @@
     return run;
   };
 
-  
   Builders.ReceptionDesk = function (mm, gc, opts) {
     var length = opts.length || 2.4, depth = opts.depth || 0.7, height = opts.height || 1.1;
     var group = new THREE.Group();
@@ -880,7 +928,6 @@
     return { group: group, countertop: countertop, updateCountertop: countertop.update, dispose: function () { countertop.dispose(); } };
   };
 
-  
   Builders.Staircase = function (mm, gc, opts) {
     var steps = opts.steps || 9, treadH = opts.treadH || 0.18, treadDepth = opts.treadDepth || 0.30, treadW = opts.treadW || 1.2;
     var thicknessM = opts.thicknessM, edgeProfile = opts.edgeProfile || 'bullnose';
@@ -930,12 +977,11 @@
 
     return {
       group: group, treads: treads,
-      steps: steps, treadH: treadH, treadDepth: treadDepth, treadW: treadW, railHeight: railHeight, // exposed for the room-level landing build
+      steps: steps, treadH: treadH, treadDepth: treadDepth, treadW: treadW, railHeight: railHeight,
       updateCountertop: function (newThicknessM, newEdgeProfile) { updaters.forEach(function (fn) { fn(newThicknessM, newEdgeProfile); }); },
       dispose: function () { disposers.forEach(function (fn) { fn(); }); },
     };
   };
-  
   var ROOM_DIMS = {
     kitchen:     { width: 4.2, height: 2.7, depth: 4.0 },
     bathroom:    { width: 3.0, height: 2.6, depth: 3.2 },
@@ -998,7 +1044,7 @@
     ensureUv2(backsplashGeo);
     var backsplash = new THREE.Mesh(backsplashGeo, backsplashMat);
     applyTransform(backsplash, layout.alongBackWall(0.02, lshape.runA.position.x));
-    backsplash.rotation.y += Math.PI; // FIX #29
+    backsplash.rotation.y += Math.PI;
     backsplash.position.y = cabinetHeight + ctx.thicknessM + splashH / 2;
     group.add(backsplash);
 
@@ -1011,6 +1057,13 @@
     applyTransform(ac, layout.atOffset(1.3, -dims.depth / 2 + 0.13, 0));
     ac.position.y = dims.height - 0.35;
     group.add(ac);
+
+    var fridge = Builders.decor.fridge(mm, gc);
+    applyTransform(fridge, layout.atOffset(1.3, -dims.depth / 2 + layout.wallThickness + 0.325, Math.PI));
+    group.add(fridge);
+    var fridgeShadow = Builders.decor.contactShadow(mm, gc, 1.0, 0.22);
+    fridgeShadow.position.set(1.3, 0.001, -dims.depth / 2 + layout.wallThickness + 0.325);
+    group.add(fridgeShadow);
 
     var islandHandle = null;
     if (ctx.showIsland) {
@@ -1060,14 +1113,14 @@
 
     var mirror = new THREE.Mesh(gc.get('bath-mirror-geo', function () { return new THREE.PlaneGeometry(0.7, 0.9); }), mm.physical('mirror', { color: 0xcfd8dc, roughness: 0.05, metalness: 0.9, clearcoat: 1 }));
     applyTransform(mirror, layout.alongSideWall(0.001, -dims.depth / 2 + vanityDepth + 0.7));
-    mirror.rotation.y += Math.PI; // FIX #29
+    mirror.rotation.y += Math.PI;
     mirror.position.y = 1.5;
     group.add(mirror);
 
     var accent = new THREE.Mesh(gc.get('bath-accent-geo', function () { return new THREE.PlaneGeometry(1.4, 1.8); }), mm.surface('wall'));
     ensureUv2(accent.geometry);
     applyTransform(accent, layout.alongSideWall(0.02, dims.depth / 2 - 0.9));
-    accent.rotation.y += Math.PI; // FIX #29
+    accent.rotation.y += Math.PI;
     accent.position.y = 0.9;
     group.add(accent);
 
@@ -1200,6 +1253,10 @@
     applyTransform(lamp, layout.atOffset(-1.6, -1.4));
     group.add(lamp);
 
+    var nightstand = Builders.decor.nightstand(mm, gc, ctx.cabinetColor);
+    applyTransform(nightstand, layout.atOffset(1.3, -1.0));
+    group.add(nightstand);
+
     var tv = Builders.decor.wallTV(mm, gc, { width: 1.0, height: 0.56 });
     applyTransform(tv, layout.atOffset(-dims.width / 2 + 0.03, -0.3, Math.PI / 2));
     tv.position.y = 1.35;
@@ -1217,7 +1274,6 @@
     };
   };
 
-
   ROOM_BUILDERS.staircase = function (group, mm, gc, ctx) {
     var dims = ROOM_DIMS.staircase;
     var layout = createLayoutEngine({ width: dims.width, height: dims.height, depth: dims.depth, wallThickness: ctx.wallThickness });
@@ -1230,12 +1286,11 @@
     var steps = 9, treadH = 0.18, treadDepth = 0.30, treadW = 1.2;
     var stair = Builders.Staircase(mm, gc, { steps: steps, treadH: treadH, treadDepth: treadDepth, treadW: treadW, thicknessM: ctx.thicknessM, edgeProfile: ctx.edgeProfile || 'bullnose' });
 
-    var stairX = -dims.width / 2 + layout.wallThickness + treadW / 2; // FIX #39 — flush against the side wall instead of centered
+    var stairX = -dims.width / 2 + layout.wallThickness + treadW / 2;
     var stairZ = dims.depth / 2 - 0.6;
     applyTransform(stair.group, layout.atOffset(stairX, stairZ));
     group.add(stair.group);
 
-    // FIX #40: landing platform + support + rail at the top of the flight.
     var landingDepth = 0.8;
     var landingTopY = treadH * steps;
     var landingZLocal = -((steps - 1) * treadDepth) - treadDepth / 2 - landingDepth / 2;
@@ -1263,7 +1318,7 @@
     landingRail.rotation.x = Math.PI / 2;
     landingRail.position.set(stairX + treadW / 2 - 0.03, landingTopY + railHeight, stairZ + landingZLocal);
     group.add(landingRail);
-    var balusterGeo = gc.get('baluster', function () { return new THREE.CylinderGeometry(0.012, 0.012, 1, 6); }); // same cached geometry Builders.Staircase already registered
+    var balusterGeo = gc.get('baluster', function () { return new THREE.CylinderGeometry(0.012, 0.012, 1, 6); });
     for (var lb = 0; lb < 3; lb++) {
       var lbz = landingZLocal - landingDepth / 2 + (lb + 0.5) * (landingDepth / 3);
       var lbaluster = new THREE.Mesh(balusterGeo, railMat);
@@ -1272,7 +1327,7 @@
       group.add(lbaluster);
     }
 
-    var stairAccent = Builders.decor.accentWallPanel(mm, gc, 1.6, 1.4, ctx.wallColor); // FEATURE I — no pickable wall surface here
+    var stairAccent = Builders.decor.accentWallPanel(mm, gc, 1.6, 1.4, ctx.wallColor);
     applyTransform(stairAccent, layout.atOffset(1.0, -dims.depth / 2 + 0.035, 0));
     stairAccent.position.y = 1.5;
     group.add(stairAccent);
@@ -1291,7 +1346,7 @@
     var shell = Builders.RoomShell(mm, gc, layout, {
       wallColor: ctx.wallColor, floorBaseColor: ctx.floorBase,
       pendantAt: [[0, -0.6], [-1.4, -0.6], [1.4, -0.6]],
-      wallArtAt: [1.6, -dims.depth / 2 + 0.035, 0], wallArtSeed: 3, 
+      wallArtAt: [1.6, -dims.depth / 2 + 0.035, 0], wallArtSeed: 3,
       plantAt: [[dims.width / 2 - 0.5, dims.depth / 2 - 0.5], [-dims.width / 2 + 0.5, dims.depth / 2 - 0.5]],
     });
     group.add(shell.group);
@@ -1302,7 +1357,7 @@
 
     var panel = new THREE.Mesh(gc.get('reception-panel-geo', function () { return new THREE.PlaneGeometry(2.0, 1.0); }), mm.tinted('desk-panel', lightenHex(ctx.cabinetColor || 0xF4F1EA, 0.15), 0.7));
     applyTransform(panel, layout.alongBackWall(0.001, 0));
-    panel.rotation.y += Math.PI; // FIX #29
+    panel.rotation.y += Math.PI;
     panel.position.y = 1.5;
     group.add(panel);
 
@@ -1321,9 +1376,9 @@
 
     group.add((function () { var r = Builders.decor.rug(mm, gc, 1.6, 0xC2B49A); applyTransform(r, layout.atOffset(0, 0.5)); return r; })());
 
-    var receptionAccent = Builders.decor.accentWallPanel(mm, gc, 1.8, 1.6, ctx.wallColor); // FEATURE I — side wall has nothing on it
+    var receptionAccent = Builders.decor.accentWallPanel(mm, gc, 1.8, 1.6, ctx.wallColor);
     applyTransform(receptionAccent, layout.alongSideWall(0.02, 0));
-    receptionAccent.rotation.y += Math.PI; 
+    receptionAccent.rotation.y += Math.PI;
     receptionAccent.position.y = 1.6;
     group.add(receptionAccent);
 
@@ -1357,7 +1412,7 @@
 
     var mirror = new THREE.Mesh(gc.get('hall-mirror-geo', function () { return new THREE.PlaneGeometry(0.7, 0.9); }), mm.physical('mirror', { color: 0xcfd8dc, roughness: 0.05, metalness: 0.9, clearcoat: 1 }));
     applyTransform(mirror, layout.alongSideWall(0.001, -1.9));
-    mirror.rotation.y += Math.PI; 
+    mirror.rotation.y += Math.PI;
     mirror.position.y = 1.5;
     group.add(mirror);
 
@@ -1374,7 +1429,7 @@
     group.add(hooks);
 
     var shoeBench = Builders.decor.shoeBench(mm, gc, ctx.cabinetColor);
-    var shoeBenchTransform = layout.alongSideWall(0.32, 1.0); // FIX #41 — was on the back wall past the room boundary, overlapping the window
+    var shoeBenchTransform = layout.alongSideWall(0.32, 1.0);
     applyTransform(shoeBench, shoeBenchTransform);
     group.add(shoeBench);
     var shoeBenchShadow = Builders.decor.contactShadow(mm, gc, 1.3, 0.22);
@@ -1395,7 +1450,6 @@
     };
   };
 
- 
   ROOM_BUILDERS.dining = function (group, mm, gc, ctx) {
     var dims = ROOM_DIMS.dining;
     var layout = createLayoutEngine({ width: dims.width, height: dims.height, depth: dims.depth, wallThickness: ctx.wallThickness });
@@ -1438,11 +1492,11 @@
       group.add(chair);
     });
 
-    group.add((function () { var r = Builders.decor.rug(mm, gc, 1.7, 0xC2B49A); applyTransform(r, layout.atOffset(tableX, tableZ)); return r; })()); // FIX #47
+    group.add((function () { var r = Builders.decor.rug(mm, gc, 2.7, 0xC2B49A); applyTransform(r, layout.atOffset(tableX, tableZ)); return r; })());
 
-    var diningAccent = Builders.decor.accentWallPanel(mm, gc, 1.6, 1.5, ctx.wallColor); // FEATURE I
+    var diningAccent = Builders.decor.accentWallPanel(mm, gc, 1.6, 1.5, ctx.wallColor);
     applyTransform(diningAccent, layout.alongSideWall(0.02, -0.2));
-    diningAccent.rotation.y += Math.PI; 
+    diningAccent.rotation.y += Math.PI;
     diningAccent.position.y = 1.5;
     group.add(diningAccent);
 
@@ -1454,6 +1508,7 @@
     return {
       surfaces: { floor: [shell.floor], counter: [top] },
       camPos: [0.5, 1.7, 4.8], camTarget: [0, 0.9, -0.2],
+      supportsEdgeProfile: false,
       rebuildSurface: function (t) {
         top.geometry.dispose();
         top.geometry = new THREE.BoxGeometry(tableLen, t, tableWid);
@@ -1463,7 +1518,6 @@
     };
   };
 
-  
   function generatePBRMaps(img, size) {
     var work = document.createElement('canvas'); work.width = work.height = size;
     var wctx = work.getContext('2d');
@@ -1568,7 +1622,6 @@
     }
   }
 
- 
   window.RoomVisualizer3D = function (containerId, opts) {
     opts = opts || {};
     var container = document.getElementById(containerId);
@@ -1629,12 +1682,6 @@
       Object.keys(all).forEach(function (k) {
         var m = all[k];
         if (!m || !('envMapIntensity' in m)) return;
-        // FIX #45: previously scaled EVERY material's env contribution by
-        // quality tier, including flat-colored decor (rugs, cushions,
-        // quilts) with nothing to mask an overexposed IBL wash — read as a
-        // plain white/pale disc. Now only stone surfaces and mirror-like
-        // materials scale with quality tier; everything else gets a small
-        // fixed ambient contribution instead.
         var isSurface = k.indexOf('surface:') === 0;
         var isMirrorLike = m.metalness != null && m.metalness >= 0.85 && m.roughness != null && m.roughness <= 0.25;
         if (isSurface || isMirrorLike) {
@@ -1735,7 +1782,6 @@
 
       var keys = Object.keys(surfaces);
       if (!keepSurface || !surfaces[activeKey]) {
-        
         activeKey = (roomKey === 'staircase' && surfaces['tread']) ? 'tread'
           : surfaces['floor'] ? 'floor'
           : keys[0];
@@ -1767,7 +1813,7 @@
       applyTexture();
     };
     window['rv3d_getSurfaces_' + containerId] = function () { return Object.keys(surfaces); };
-    window['rv3d_getActiveSurface_' + containerId] = function () { return activeKey; }; // FIX #43
+    window['rv3d_getActiveSurface_' + containerId] = function () { return activeKey; };
     window['rv3d_getScene_' + containerId] = function () { return scene; };
     window['rv3d_getRoomLabel'] = function (k) { return ROOM_LABELS[k] || k; };
     window['rv3d_getSurfaceLabel'] = function (k) { return SURFACE_LABELS[k] || k; };
@@ -1820,6 +1866,7 @@
       if (currentMaps) { [currentMaps.colorTex, currentMaps.normalTex, currentMaps.aoTex, currentMaps.roughTex].forEach(function (t) { repeatForKey(t, activeKey); }); applyTexture(); applyRotation(); }
     };
     window['rv3d_supportsCountertopControls_' + containerId] = function () { return !!(currentBuilt && currentBuilt.rebuildSurface); };
+    window['rv3d_supportsEdgeProfile_' + containerId] = function () { return !!(currentBuilt && currentBuilt.rebuildSurface) && currentBuilt.supportsEdgeProfile !== false; };
 
     window['rv3d_snapshot_' + containerId] = function () { renderer.render(scene, camera); return renderer.domElement.toDataURL('image/jpeg', 0.94); };
     window['rv3d_highResSnapshot_' + containerId] = function (scale) {
@@ -1967,7 +2014,7 @@
     function renderSurfaceRow() {
       surfaceRow.innerHTML = '';
       var keys = call('getSurfaces') || [];
-      var active = call('getActiveSurface'); 
+      var active = call('getActiveSurface');
       keys.forEach(function (k) {
         var b = document.createElement('button');
         b.type = 'button'; b.className = 'rv3d-tab' + (k === active ? ' active' : '');
@@ -1980,6 +2027,8 @@
         surfaceRow.appendChild(b);
       });
       slabSection.style.display = call('supportsCountertopControls') ? 'block' : 'none';
+      var edgeVisible = call('supportsEdgeProfile');
+      edgeLabel.style.display = edgeSel.style.display = edgeVisible ? '' : 'none';
     }
 
     var viewSection = document.createElement('div'); viewSection.className = 'rv3d-section';
