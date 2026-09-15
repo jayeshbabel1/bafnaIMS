@@ -1430,7 +1430,7 @@ if ($action === 'delete_user') {
     $db = getDB();
     try {
         $db->beginTransaction();
-        // Delete selections → clients → shortlist → inquiries → user
+        // Delete selections → clients → shortlist → user
         $db->prepare("DELETE cs FROM client_selections cs
                       JOIN clients c ON cs.client_id=c.id WHERE c.user_id=?")->execute([$uid]);
         $db->prepare("DELETE FROM clients WHERE user_id=?")->execute([$uid]);
@@ -2963,7 +2963,7 @@ function syncDnaReports(): array {
 }
 
 
-$pages = ['dashboard','products','product_edit','colors','users','inquiries','sync',
+$pages = ['dashboard','products','product_edit','colors','users','sync',
               'notifications','logo','user_clients','smtp',
               'admin_clients','admin_client_form','admin_client_selections',             'roles','admin_accounts','room_templates','license','product_view_settings','devices','product_categories','translations','catalog_pdf_settings','catalog_pdf_history', 'catalog_pdf_wizard','catalog_pdf_templates','marketing_contacts','marketing_groups','marketing_settings_whatsapp','marketing_settings_email','marketing_templates','marketing_campaigns','marketing_campaign_wizard','marketing_analytics','marketing_contact_profile','marketing_automations','marketing_automation_builder','marketing_queue_health'];
 
@@ -2993,7 +2993,6 @@ $file = __DIR__ . '/views/' . $page . '.php';
         'room_templates'         => 'settings.room_templates',
         'roles'                  => 'roles.view',
         'admin_accounts'         => 'admins.view',
-        'inquiries'              => 'users.view',
         'license'                => 'license.manage',
         'product_view_settings'  => 'settings.product_views',
         'devices'                => 'devices.view',

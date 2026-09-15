@@ -90,24 +90,6 @@ function markNotificationRead(int $id): void {
     } catch (Throwable $e) {}
 }
 
-// ── Auto-archive stale inquiries (cron-safe, idempotent) ─────────────────────
-function autoArchiveInquiries(): int {
-    try {
-        $cutoff = time() - (25 * 86400);
-        $st = getDB()->prepare("
-            UPDATE inquiries
-            SET    status = 'closed'
-            WHERE  status IN ('pending','replied')
-              AND  created_at < ?
-        ");
-        $st->execute([$cutoff]);
-        return $st->rowCount();
-    } catch (Throwable $e) {
-        error_log('autoArchiveInquiries: ' . $e->getMessage());
-        return 0;
-    }
-}
-
 // ── Purge old notifications (call from cron or admin action) ─────────────────
 function purgeOldNotifications(): int {
     try {

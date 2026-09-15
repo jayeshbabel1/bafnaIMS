@@ -108,7 +108,7 @@ if ($driver === 'cloudinary') {
     if (!function_exists('cloudinaryConfigured')) {
         rvCheck($results, 'fail', "includes/cloudinary.php has not been created/included — cloudinaryConfigured() is undefined.");
     } else {
-        require_once __DIR__ . '/../../includes/cloudinary.php';
+        require_once __DIR__ . '/../includes/cloudinary.php';
         if (cloudinaryConfigured()) {
             rvCheck($results, 'ok', "Cloudinary credentials are present in .env (CLOUDINARY_CLOUD_NAME / API_KEY / API_SECRET).");
             // Live connectivity check
