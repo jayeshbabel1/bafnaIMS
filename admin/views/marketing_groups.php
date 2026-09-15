@@ -39,7 +39,7 @@ $allTags = getAllMarketingTags();
     <p style="font-size:12px;color:var(--admin-text3,var(--text3));margin-bottom:12px;"><?= $g['contact_count'] ?> contact(s)</p>
     <div style="display:flex;gap:8px;">
       <a href="index.php?page=marketing_contacts&group_id=<?= $g['id'] ?>" class="btn-admin-secondary btn-admin-sm"><?= icon('eye',13) ?> View Contacts</a>
-      <button type="button" class="btn-admin-secondary btn-admin-sm" onclick='mktgOpenEdit(<?= json_encode($g) ?>)'><?= icon('edit',13) ?></button>
+      <button type="button" class="btn-admin-secondary btn-admin-sm" onclick='mktgOpenEdit(<?= h(json_encode($g)) ?>)'><?= icon('edit',13) ?></button>
       <form method="POST" action="index.php" style="display:inline;">
         <input type="hidden" name="action" value="marketing_delete_group"/>
         <input type="hidden" name="group_id" value="<?= $g['id'] ?>"/>

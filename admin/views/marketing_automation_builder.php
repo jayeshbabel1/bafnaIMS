@@ -99,7 +99,7 @@ $emailTemplates = getMarketingTemplates(['channel' => 'email', 'limit' => 200])[
       <div style="display:flex;gap:4px;">
         <form method="POST" action="index.php"><input type="hidden" name="action" value="marketing_automation_move_step"/><input type="hidden" name="step_id" value="<?= $s['id'] ?>"/><input type="hidden" name="direction" value="up"/><input type="hidden" name="automation_id" value="<?= $automation['id'] ?>"/><?= csrfField() ?><button type="submit" class="btn-admin-secondary btn-admin-sm" <?= $i===0?'disabled':'' ?>>↑</button></form>
         <form method="POST" action="index.php"><input type="hidden" name="action" value="marketing_automation_move_step"/><input type="hidden" name="step_id" value="<?= $s['id'] ?>"/><input type="hidden" name="direction" value="down"/><input type="hidden" name="automation_id" value="<?= $automation['id'] ?>"/><?= csrfField() ?><button type="submit" class="btn-admin-secondary btn-admin-sm" <?= $i===count($automation['steps'])-1?'disabled':'' ?>>↓</button></form>
-        <button type="button" class="btn-admin-secondary btn-admin-sm" onclick='mktoEditStep(<?= json_encode($s) ?>)'><?= icon('edit',12) ?></button>
+        <button type="button" class="btn-admin-secondary btn-admin-sm" onclick='mktoEditStep(<?= h(json_encode($s)) ?>)'><?= icon('edit',12) ?></button>
         <form method="POST" action="index.php"><input type="hidden" name="action" value="marketing_automation_delete_step"/><input type="hidden" name="step_id" value="<?= $s['id'] ?>"/><input type="hidden" name="automation_id" value="<?= $automation['id'] ?>"/><?= csrfField() ?><button type="submit" class="btn-admin-danger btn-admin-sm"><?= icon('trash',12) ?></button></form>
       </div>
     </div>
