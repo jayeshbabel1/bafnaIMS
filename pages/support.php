@@ -131,7 +131,7 @@ $waLink    = 'https://wa.me/91' . preg_replace('/[^0-9]/', '', $cpWA);
     </div>
  
     <p style="text-align:center;font-size:12px;color:var(--text4);margin-top:28px;padding-bottom:16px;">
-      <?= h($cpName) ?> &nbsp;·&nbsp; v<?= APP_VERSION ?>
+      <?= h($cpName) ?> &nbsp;·&nbsp; v<?= appVersion() ?>
     </p>
  
   </div>

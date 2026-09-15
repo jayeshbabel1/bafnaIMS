@@ -6,6 +6,7 @@
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/helpers.php';
+require_once __DIR__ . '/../includes/version.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/device_auth.php';
 require_once __DIR__ . '/../includes/license.php';

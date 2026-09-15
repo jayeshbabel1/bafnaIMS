@@ -176,7 +176,7 @@ $slC = $slSt->fetch()['c'];
         </button>
       </form>
       <p style="text-align:center;font-size:11px;color:var(--text4);margin-top:16px;">
-        <?= APP_NAME ?> v<?= APP_VERSION ?> &nbsp;·&nbsp; © <?= date('Y') ?> <?= h($cpName) ?>
+        <?= APP_NAME ?> v<?= appVersion() ?> &nbsp;·&nbsp; © <?= date('Y') ?> <?= h($cpName) ?>
       </p>
     </div>
 
