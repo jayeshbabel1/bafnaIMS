@@ -100,20 +100,6 @@ function getDB(): PDO {
         FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
-    // Inquiries
-    $db->exec("CREATE TABLE IF NOT EXISTS inquiries (
-        id           INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-        user_id      INT UNSIGNED NOT NULL,
-        product_id   INT UNSIGNED NOT NULL,
-        message      TEXT,
-        qty_required VARCHAR(50),
-        status       VARCHAR(20) NOT NULL DEFAULT 'pending',
-        admin_reply  TEXT,
-        created_at   INT UNSIGNED NOT NULL DEFAULT (UNIX_TIMESTAMP()),
-        FOREIGN KEY (user_id)    REFERENCES users(id) ON DELETE CASCADE,
-        FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-
     // Settings
     $db->exec("CREATE TABLE IF NOT EXISTS settings (
         `key`   VARCHAR(100) PRIMARY KEY,

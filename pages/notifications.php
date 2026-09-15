@@ -54,7 +54,6 @@ $db->prepare("DELETE FROM notifications WHERE created_at < ?")->execute([$cutoff
 
       $typeConf = [
         'product' => ['bg'=>'var(--gray-100)', 'color'=>'var(--text3)',    'icon'=>'grid'],
-        'inquiry' => ['bg'=>'var(--gold-light)','color'=>'var(--gold-dark)','icon'=>'msg'],
         'user'    => ['bg'=>'var(--success-bg)','color'=>'var(--success)',  'icon'=>'users'],
         'info'    => ['bg'=>'var(--gray-100)',  'color'=>'var(--text3)',    'icon'=>'info'],
       ];

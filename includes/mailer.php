@@ -237,7 +237,7 @@ function sendApprovalEmail(string $to, string $name): array {
   Your request to access the <strong>Bafna Marble Catalog Platform</strong> has been <strong style="color:#1a6b3a;">approved</strong> by our team.
 </p>
 <p style="color:#555;font-size:14px;line-height:1.7;margin:0 0 28px;">
-  You can now log in to browse our exclusive stone and marble inventory, save shortlists, and send inquiries directly to our team.
+  You can now log in to browse our exclusive stone and marble inventory and save shortlists.
 </p>
 <div style="text-align:center;margin:0 0 28px;">
   <a href="{$loginUrl}" style="display:inline-block;background:#0a0a0a;color:#fff;text-decoration:none;padding:14px 36px;border-radius:8px;font-size:15px;font-weight:600;letter-spacing:.3px;">

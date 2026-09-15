@@ -45,7 +45,6 @@ $db->prepare("DELETE FROM notifications WHERE created_at < ?")->execute([$cutoff
   <?php foreach ($notifications as $n):
     $typeConf = [
       'product' => ['bg' => 'var(--accent-light)', 'color' => 'var(--accent)', 'icon' => 'grid'],
-      'inquiry' => ['bg' => 'var(--gold-bg)',      'color' => 'var(--gold)',   'icon' => 'msg'],
       'user'    => ['bg' => 'var(--success-bg)',   'color' => 'var(--success)','icon' => 'users'],
       'info'    => ['bg' => 'var(--surface2)',     'color' => 'var(--text3)',  'icon' => 'info'],
     ];

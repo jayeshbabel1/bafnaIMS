@@ -89,16 +89,6 @@ function closeMobileMenu() {
   document.body.style.overflow = '';
 }
 
-/*  Quick chip for inquiry form  */
-function addChip(btn, text) {
-  const ta = document.getElementById('inqMessage');
-  if (!ta) return;
-  const sep = ta.value && !ta.value.endsWith(' ') && !ta.value.endsWith('\n') ? '. ' : '';
-  ta.value += sep + text;
-  ta.focus();
-  btn.classList.add('used');
-}
-
 /*  FAQ accordion  */
 function toggleFaq(i) {
   const a    = document.getElementById('faqA' + i);
