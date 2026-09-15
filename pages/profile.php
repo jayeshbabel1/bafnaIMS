@@ -5,6 +5,7 @@ $user      = currentUser();
 $initials  = getInitials($user['name'] ?? 'U');
 $err       = $inlineError ?? null;
 $uRole     = ROLES[$user['role'] ?? ''] ?? ($user['role'] ?? 'Trade Professional');
+$cpName    = getSetting('company_name', APP_NAME);
 
 $db   = getDB();
 $slSt = $db->prepare("SELECT COUNT(*) as c FROM shortlist WHERE user_id=?");
@@ -175,7 +176,7 @@ $slC = $slSt->fetch()['c'];
         </button>
       </form>
       <p style="text-align:center;font-size:11px;color:var(--text4);margin-top:16px;">
-        <?= APP_NAME ?> v<?= APP_VERSION ?> &nbsp;·&nbsp; © <?= date('Y') ?> Bafna Marbles Pvt. Ltd.
+        <?= APP_NAME ?> v<?= APP_VERSION ?> &nbsp;·&nbsp; © <?= date('Y') ?> <?= h($cpName) ?>
       </p>
     </div>
 
