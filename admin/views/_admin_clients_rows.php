@@ -34,11 +34,16 @@
     <?php endif; ?>
   </td>
   <td>
+    <?php $isWalkin = empty($c['user_id']); ?>
     <div class="ac-owner-chip">
-      <div class="ac-owner-avatar"><?= h($initials) ?></div>
+      <div class="ac-owner-avatar"<?= $isWalkin ? ' style="background:var(--gold,#B8975A);"' : '' ?>><?= $isWalkin ? 'W' : h($initials) ?></div>
       <div>
         <div style="font-weight:600;color:var(--admin-text,var(--text));font-size:12px;"><?= h($c['owner_name']) ?></div>
-        <?php if ($c['owner_firm']): ?><div style="font-size:10px;"><?= h($c['owner_firm']) ?></div><?php endif; ?>
+        <?php if ($isWalkin && !empty($c['referrer_type'])): ?>
+        <div style="font-size:10px;">via <?= h(ROLES[$c['referrer_type']] ?? $c['referrer_type']) ?></div>
+        <?php elseif ($c['owner_firm']): ?>
+        <div style="font-size:10px;"><?= h($c['owner_firm']) ?></div>
+        <?php endif; ?>
       </div>
     </div>
   </td>
