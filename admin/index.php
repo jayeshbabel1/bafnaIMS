@@ -934,7 +934,11 @@ if ($action === 'admin_create_client') {
     $userId = (int)($_POST['user_id'] ?? 0);
     $result = adminCreateClient($userId, $_POST);
     if ($result['success']) {
-        flash('toast', 'Client created successfully.');
+        $msg = 'Client created successfully.';
+        if (!empty($result['duplicate_count'])) {
+            $msg .= ' Note: ' . (int)$result['duplicate_count'] . ' other client(s) already use this mobile number.';
+        }
+        flash('toast', $msg);
         redirect('index.php?page=admin_client_selections&client_id=' . $result['id']);
     }
     $inlineError = $result['error'];
@@ -950,7 +954,11 @@ if ($action === 'admin_update_client') {
     $userId   = (int)($_POST['user_id']   ?? 0);
     $result   = adminUpdateClient($clientId, $userId, $_POST);
     if ($result['success']) {
-        flash('toast', 'Client updated successfully.');
+        $msg = 'Client updated successfully.';
+        if (!empty($result['duplicate_count'])) {
+            $msg .= ' Note: ' . (int)$result['duplicate_count'] . ' other client(s) share this mobile number.';
+        }
+        flash('toast', $msg);
         redirect('index.php?page=admin_client_form&id=' . $clientId);
     }
     $inlineError = $result['error'];

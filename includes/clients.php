@@ -395,33 +395,151 @@ function getAllUsersForDropdown(): array {
     return $st->fetchAll();
 }
  
-// ── Admin: list ALL clients across all users (with owner info + search) ────
+// ── Walk-in clients (no owning user) ─────────────────────────────────────────
+// A client normally belongs to a registered user (architect, designer, builder,
+// contractor…). A showroom walk-in has no such user, so clients.user_id and
+// client_selections.user_id are nullable and clients.client_source says which
+// kind of client it is. Existing rows stay 'referred' (column default).
+const CLIENT_SOURCE_WALKIN   = 'walkin';
+const CLIENT_SOURCE_REFERRED = 'referred';
+const CLIENT_WALKIN_LABEL    = 'Showroom (Walk-in)';
+
+/**
+ * Idempotent schema upgrade (same idiom as the other ensureX*() helpers).
+ * Reads the live definition first, so it is safe on dev and production.
+ */
+function ensureClientWalkinColumns(): void {
+    static $done = false;
+    if ($done) return;
+    $done = true;
+    try {
+        $db   = getDB();
+        $rows = $db->query("SELECT TABLE_NAME, COLUMN_NAME, IS_NULLABLE
+                            FROM information_schema.COLUMNS
+                            WHERE TABLE_SCHEMA = DATABASE()
+                              AND TABLE_NAME IN ('clients','client_selections')")->fetchAll();
+        $have = [];
+        foreach ($rows as $r) $have[$r['TABLE_NAME'] . '.' . $r['COLUMN_NAME']] = $r['IS_NULLABLE'];
+
+        foreach (['clients', 'client_selections'] as $t) {
+            if (($have["$t.user_id"] ?? 'YES') === 'NO') _clientsMakeUserIdNullable($db, $t);
+        }
+        if (!isset($have['clients.client_source'])) {
+            $db->exec("ALTER TABLE clients ADD COLUMN client_source VARCHAR(10) NOT NULL DEFAULT 'referred' AFTER user_id");
+            $db->exec("ALTER TABLE clients ADD KEY idx_clients_source (client_source)");
+        }
+        if (!isset($have['clients.referrer_type'])) {
+            $db->exec("ALTER TABLE clients ADD COLUMN referrer_type VARCHAR(50) NULL AFTER client_source");
+        }
+        if (!isset($have['clients.created_by_admin_id'])) {
+            $db->exec("ALTER TABLE clients ADD COLUMN created_by_admin_id INT UNSIGNED NULL AFTER referrer_type");
+        }
+    } catch (Throwable $e) {
+        error_log('ensureClientWalkinColumns: ' . $e->getMessage());
+    }
+}
+
+function _clientsMakeUserIdNullable(PDO $db, string $table): void {
+    if (!in_array($table, ['clients', 'client_selections'], true)) return; // whitelist — never interpolate arbitrary names
+    $sql = "ALTER TABLE `{$table}` MODIFY `user_id` INT UNSIGNED NULL";
+    try {
+        $db->exec($sql);
+    } catch (Throwable $e) {
+        error_log("_clientsMakeUserIdNullable({$table}) first attempt failed: " . $e->getMessage());
+        try {
+            $db->exec('SET foreign_key_checks=0');
+            $db->exec($sql);
+        } catch (Throwable $e2) {
+            error_log("_clientsMakeUserIdNullable({$table}) retry failed: " . $e2->getMessage());
+        } finally {
+            $db->exec('SET foreign_key_checks=1');
+        }
+    }
+}
+
+/**
+ * Resolves who owns a client from the form input.
+ * Returns ['user_id'=>?int, 'source'=>string, 'referrer_type'=>?string] or ['error'=>string].
+ */
+function _adminResolveClientOwner(int $userId, array $data): array {
+    if (($data['client_source'] ?? CLIENT_SOURCE_REFERRED) === CLIENT_SOURCE_WALKIN) {
+        $rt = trim((string)($data['referrer_type'] ?? ''));
+        return [
+            'user_id'       => null,
+            'source'        => CLIENT_SOURCE_WALKIN,
+            'referrer_type' => ($rt !== '' && array_key_exists($rt, ROLES)) ? $rt : null,
+        ];
+    }
+    if (!$userId) return ['error' => 'Please select a user.'];
+    $uchk = getDB()->prepare("SELECT id FROM users WHERE id=?");
+    $uchk->execute([$userId]);
+    if (!$uchk->fetch()) return ['error' => 'Selected user not found.'];
+    return ['user_id' => $userId, 'source' => CLIENT_SOURCE_REFERRED, 'referrer_type' => null];
+}
+
+/** Shared validation/sanitising for admin create + update. Returns ['fields'=>[…]] or ['error'=>string]. */
+function _adminClientFields(array $data): array {
+    $f = [
+        'name'    => titleCase($data['client_name']   ?? ''),
+        'mobile'  => sanitizeMobile($data['client_mobile']  ?? ''),
+        'mName'   => titleCase($data['mansoner_name'] ?? ''),
+        'mMobile' => sanitizeMobile($data['mansoner_mobile'] ?? ''),
+        'addr'    => mb_substr(trim($data['site_address'] ?? ''), 0, 500),
+        'email'   => sanitizeClientEmail($data['email'] ?? ''),
+        'city'    => titleCase(sanitizeClientCity($data['city'] ?? '')),
+    ];
+    if (!$f['name'])                   return ['error' => 'Client name is required.'];
+    if (!$f['mobile'])                 return ['error' => 'Client mobile is required.'];
+    if (!validateMobile($f['mobile'])) return ['error' => 'Enter a valid 10-digit client mobile number.'];
+    if ($f['mMobile'] && !validateMobile($f['mMobile'])) return ['error' => 'Enter a valid 10-digit mason mobile number.'];
+    if (!validateClientEmail($f['email'])) return ['error' => 'Please enter a valid email address.'];
+    return ['fields' => $f];
+}
+
+/** Other clients sharing this mobile (any owner) — used for a non-blocking duplicate warning. */
+function findClientsByMobile(string $mobile, int $excludeId = 0): array {
+    $st = getDB()->prepare("SELECT c.id, c.client_name, COALESCE(u.name, '" . CLIENT_WALKIN_LABEL . "') AS owner_name
+                            FROM clients c LEFT JOIN users u ON u.id = c.user_id
+                            WHERE c.client_mobile = ? AND c.id <> ?
+                            LIMIT 5");
+    $st->execute([sanitizeMobile($mobile), $excludeId]);
+    return $st->fetchAll();
+}
+
+// ── Admin: list ALL clients across all owners (with owner info + search) ────
+// opts: search, limit, offset, owner_type ('walkin' | 'referred' | '')
 function adminListAllClients(array $opts = []): array {
+    ensureClientWalkinColumns();
     $db     = getDB();
     $search = trim($opts['search'] ?? '');
     $limit  = (int)($opts['limit']  ?? 10);
     $offset = (int)($opts['offset'] ?? 0);
- 
+
     $where  = "WHERE 1=1";
     $params = [];
- 
+
     if ($search !== '') {
-    $where   .= " AND (c.client_name LIKE ? OR c.client_mobile LIKE ? OR c.mansoner_name LIKE ? OR c.email LIKE ? OR c.city LIKE ? OR u.name LIKE ? OR u.firm LIKE ?)";
-    $like     = "%{$search}%";
-    $params   = [$like, $like, $like, $like, $like, $like, $like];
-}
- 
-    $countSt = $db->prepare("SELECT COUNT(*) FROM clients c JOIN users u ON u.id = c.user_id $where");
+        $where   .= " AND (c.client_name LIKE ? OR c.client_mobile LIKE ? OR c.mansoner_name LIKE ? OR c.email LIKE ? OR c.city LIKE ? OR u.name LIKE ? OR u.firm LIKE ?)";
+        $like     = "%{$search}%";
+        $params   = [$like, $like, $like, $like, $like, $like, $like];
+    }
+    if (($opts['owner_type'] ?? '') === CLIENT_SOURCE_WALKIN) {
+        $where .= " AND c.user_id IS NULL";
+    } elseif (($opts['owner_type'] ?? '') === CLIENT_SOURCE_REFERRED) {
+        $where .= " AND c.user_id IS NOT NULL";
+    }
+
+    $countSt = $db->prepare("SELECT COUNT(*) FROM clients c LEFT JOIN users u ON u.id = c.user_id $where");
     $countSt->execute($params);
     $total = (int)$countSt->fetchColumn();
- 
+
     $sql = "SELECT c.*,
-                u.name AS owner_name,
+                COALESCE(u.name, '" . CLIENT_WALKIN_LABEL . "') AS owner_name,
                 u.firm AS owner_firm,
                 u.email AS owner_email,
                 (SELECT COUNT(*) FROM client_selections cs WHERE cs.client_id = c.id) AS selection_count
             FROM clients c
-            JOIN users u ON u.id = c.user_id
+            LEFT JOIN users u ON u.id = c.user_id
             $where
             ORDER BY c.created_at DESC
             LIMIT ? OFFSET ?";
@@ -429,80 +547,84 @@ function adminListAllClients(array $opts = []): array {
     $params[] = $offset;
     $st = $db->prepare($sql);
     $st->execute($params);
- 
+
     return ['rows' => $st->fetchAll(), 'total' => $total];
 }
- 
-// ── Admin: get a single client by id (any owner) + owner info ───────────────
+
+// ── Admin: get a single client by id (any owner, incl. walk-in) + owner info ─
 function adminGetClientWithOwner(int $clientId): ?array {
-    $st = getDB()->prepare("SELECT c.*, u.name AS owner_name, u.firm AS owner_firm, u.email AS owner_email
-                             FROM clients c JOIN users u ON u.id = c.user_id
-                             WHERE c.id = ?");
+    ensureClientWalkinColumns();
+    $st = getDB()->prepare("SELECT c.*, COALESCE(u.name, '" . CLIENT_WALKIN_LABEL . "') AS owner_name,
+                                   u.firm AS owner_firm, u.email AS owner_email
+                            FROM clients c LEFT JOIN users u ON u.id = c.user_id
+                            WHERE c.id = ?");
     $st->execute([$clientId]);
     return $st->fetch() ?: null;
 }
- 
-// ── Admin: create a client for a chosen user ────────────────────────────────
+
+// ── Admin: create a client — for a chosen user, or as a showroom walk-in ────
+// Walk-in: pass $data['client_source'] = 'walkin' (and optionally 'referrer_type'); $userId is ignored.
+// Returns duplicate_count (same mobile elsewhere) so the caller can warn without blocking.
 function adminCreateClient(int $userId, array $data): array {
-    if (!$userId) return ['success' => false, 'error' => 'Please select a user.'];
- 
-    $uchk = getDB()->prepare("SELECT id FROM users WHERE id=?");
-    $uchk->execute([$userId]);
-    if (!$uchk->fetch()) return ['success' => false, 'error' => 'Selected user not found.'];
- 
-    $name    = titleCase($data['client_name']   ?? '');
-    $mobile  = sanitizeMobile($data['client_mobile']  ?? '');
-    $mName   = titleCase($data['mansoner_name'] ?? '');
-    $mMobile = sanitizeMobile($data['mansoner_mobile'] ?? '');
-    $addr    = mb_substr(trim($data['site_address'] ?? ''), 0, 500);
-    $email   = sanitizeClientEmail($data['email'] ?? '');
-    $city    = titleCase(sanitizeClientCity($data['city'] ?? ''));
-  
-    if (!$name)                   return ['success' => false, 'error' => 'Client name is required.'];
-    if (!$mobile)                 return ['success' => false, 'error' => 'Client mobile is required.'];
-    if (!validateMobile($mobile)) return ['success' => false, 'error' => 'Enter a valid 10-digit client mobile number.'];
-    if ($mMobile && !validateMobile($mMobile)) return ['success' => false, 'error' => 'Enter a valid 10-digit mason mobile number.'];
-    if (!validateClientEmail($email)) return ['success' => false, 'error' => 'Please enter a valid email address.'];
-  
+    ensureClientWalkinColumns();
+    $owner = _adminResolveClientOwner($userId, $data);
+    if (isset($owner['error'])) return ['success' => false, 'error' => $owner['error']];
+    $v = _adminClientFields($data);
+    if (isset($v['error'])) return ['success' => false, 'error' => $v['error']];
+    $f = $v['fields'];
+
     $db = getDB();
-    $db->prepare("INSERT INTO clients (user_id, client_name, client_mobile, email, city, mansoner_name, mansoner_mobile, site_address, created_at, updated_at)
-                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
-       ->execute([$userId, $name, $mobile, $email ?: null, $city ?: null, $mName, $mMobile, $addr, time(), time()]);
- 
-    return ['success' => true, 'id' => (int)$db->lastInsertId()];
+    try {
+        $db->prepare("INSERT INTO clients (user_id, client_source, referrer_type, created_by_admin_id, client_name, client_mobile, email, city, mansoner_name, mansoner_mobile, site_address, created_at, updated_at)
+                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+           ->execute([
+               $owner['user_id'], $owner['source'], $owner['referrer_type'], $_SESSION['admin_id'] ?? null,
+               $f['name'], $f['mobile'], $f['email'] ?: null, $f['city'] ?: null,
+               $f['mName'], $f['mMobile'], $f['addr'], time(), time(),
+           ]);
+    } catch (Throwable $e) {
+        error_log('adminCreateClient: ' . $e->getMessage());
+        return ['success' => false, 'error' => 'Could not save client. Please try again or contact support.'];
+    }
+    $id = (int)$db->lastInsertId();
+
+    return ['success' => true, 'id' => $id, 'duplicate_count' => count(findClientsByMobile($f['mobile'], $id))];
 }
- 
-// ── Admin: update a client (and optionally reassign owner) ──────────────────
+
+// ── Admin: update a client (and optionally reassign owner / walk-in ⇄ referred) ─
 function adminUpdateClient(int $clientId, int $userId, array $data): array {
-    if (!$userId) return ['success' => false, 'error' => 'Please select a user.'];
-
-    $uchk = getDB()->prepare("SELECT id FROM users WHERE id=?");
-    $uchk->execute([$userId]);
-    if (!$uchk->fetch()) return ['success' => false, 'error' => 'Selected user not found.'];
-
-    $name    = titleCase($data['client_name']   ?? '');
-    $mobile  = sanitizeMobile($data['client_mobile']  ?? '');
-    $mName   = titleCase($data['mansoner_name'] ?? '');
-    $mMobile = sanitizeMobile($data['mansoner_mobile'] ?? '');
-    $addr    = mb_substr(trim($data['site_address'] ?? ''), 0, 500);
-    $email   = sanitizeClientEmail($data['email'] ?? '');
-    $city    = titleCase(sanitizeClientCity($data['city'] ?? ''));
-
-    if (!$name)                   return ['success' => false, 'error' => 'Client name is required.'];
-    if (!$mobile)                 return ['success' => false, 'error' => 'Client mobile is required.'];
-    if (!validateMobile($mobile)) return ['success' => false, 'error' => 'Enter a valid 10-digit client mobile number.'];
-    if ($mMobile && !validateMobile($mMobile)) return ['success' => false, 'error' => 'Enter a valid 10-digit mason mobile number.'];
-    if (!validateClientEmail($email)) return ['success' => false, 'error' => 'Please enter a valid email address.'];
+    ensureClientWalkinColumns();
+    $owner = _adminResolveClientOwner($userId, $data);
+    if (isset($owner['error'])) return ['success' => false, 'error' => $owner['error']];
+    $v = _adminClientFields($data);
+    if (isset($v['error'])) return ['success' => false, 'error' => $v['error']];
+    $f = $v['fields'];
 
     $db = getDB();
-    $db->prepare("UPDATE clients
-                  SET user_id=?, client_name=?, client_mobile=?, email=?, city=?, mansoner_name=?, mansoner_mobile=?, site_address=?, updated_at=?
-                  WHERE id=?")
-       ->execute([$userId, $name, $mobile, $email ?: null, $city ?: null, $mName, $mMobile, $addr, time(), $clientId]);
+    $db->beginTransaction();
+    try {
+        $db->prepare("UPDATE clients
+                      SET user_id=?, client_source=?, referrer_type=?, client_name=?, client_mobile=?, email=?, city=?, mansoner_name=?, mansoner_mobile=?, site_address=?, updated_at=?
+                      WHERE id=?")
+           ->execute([
+               $owner['user_id'], $owner['source'], $owner['referrer_type'],
+               $f['name'], $f['mobile'], $f['email'] ?: null, $f['city'] ?: null,
+               $f['mName'], $f['mMobile'], $f['addr'], time(), $clientId,
+           ]);
+        // Selections carry their own user_id (the user panel filters on it), so they must follow the
+        // client's owner — otherwise a reassigned client's selections stay hidden/visible to the wrong user.
+        $db->prepare("UPDATE client_selections SET user_id=? WHERE client_id=?")
+           ->execute([$owner['user_id'], $clientId]);
+        $db->commit();
+    } catch (Throwable $e) {
+        $db->rollBack();
+        error_log('adminUpdateClient: ' . $e->getMessage());
+        return ['success' => false, 'error' => 'Could not update client. Please try again or contact support.'];
+    }
 
-    return ['success' => true];
+    return ['success' => true, 'duplicate_count' => count(findClientsByMobile($f['mobile'], $clientId))];
 }
- 
+
 // ── Admin: delete a client (any owner) — cascades selections + their history ─
 function adminDeleteClient(int $clientId): bool {
     $db = getDB();
@@ -521,6 +643,7 @@ function adminDeleteClient(int $clientId): bool {
 // of requiring a separately-passed $userId, and is callable from the admin
 // product-picker without a logged-in "user" session.
 function adminCreateSelectionForClient(int $clientId, int $productId, array $data): array {
+    ensureClientWalkinColumns();
   
    if (licenseCapExceeded('client_selections')) {
         return ['success' => false, 'error' => licenseCapExceededMessage('client_selections')];

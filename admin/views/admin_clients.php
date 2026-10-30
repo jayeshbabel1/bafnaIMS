@@ -4,6 +4,9 @@
  * with search, pagination, and links to add/edit/manage selections.
  */
 
+// Owner-type filter: '' = all, 'walkin' = showroom walk-ins, 'referred' = clients owned by a user
+$ownerType = in_array($_GET['owner_type'] ?? '', ['walkin', 'referred'], true) ? $_GET['owner_type'] : '';
+
 // ── AJAX handler (search + pagination) ──────────────────────────────────────
 if (!empty($_GET['ajax_clients'])) {
     $search      = trim($_GET['q'] ?? '');
@@ -11,9 +14,10 @@ if (!empty($_GET['ajax_clients'])) {
     $currentPage = max(1, (int)($_GET['p'] ?? 1));
 
     $result = adminListAllClients([
-        'search' => $search,
-        'limit'  => $perPage,
-        'offset' => ($currentPage - 1) * $perPage,
+        'search'     => $search,
+        'owner_type' => $ownerType,
+        'limit'      => $perPage,
+        'offset'     => ($currentPage - 1) * $perPage,
     ]);
     $clients    = $result['rows'];
     $total      = $result['total'];
@@ -38,9 +42,10 @@ $currentPage = max(1, (int)($_GET['p'] ?? 1));
 $search      = trim($_GET['q'] ?? '');
 
 $result = adminListAllClients([
-    'search' => $search,
-    'limit'  => $perPage,
-    'offset' => ($currentPage - 1) * $perPage,
+    'search'     => $search,
+    'owner_type' => $ownerType,
+    'limit'      => $perPage,
+    'offset'     => ($currentPage - 1) * $perPage,
 ]);
 $clients    = $result['rows'];
 $total      = $result['total'];
@@ -85,6 +90,11 @@ $totalPages = max(1, (int)ceil($total / $perPage));
   <option value="1">Email Available</option>
   <option value="0">Email Not Available</option>
 </select>
+  <select id="acOwnerFilter" class="admin-input" style="max-width:170px;">
+    <option value="">All Clients</option>
+    <option value="walkin"<?= $ownerType === 'walkin' ? ' selected' : '' ?>>Walk-in only</option>
+    <option value="referred"<?= $ownerType === 'referred' ? ' selected' : '' ?>>Referred by user</option>
+  </select>
   <div id="acCountEl" style="font-size:12px;color:var(--admin-text3,var(--text3));white-space:nowrap;margin-left:auto;">
     <?= $total ?> client<?= $total !== 1 ? 's' : '' ?>
   </div>
@@ -146,7 +156,7 @@ $totalPages = max(1, (int)ceil($total / $perPage));
   var clearBtn= document.getElementById('acSearchClear');
   var loader  = document.getElementById('adminClientsLoader');
 
-  var state = { q: '', page: <?= $currentPage ?> };
+  var state = { q: '', owner_type: <?= json_encode($ownerType) ?>, page: <?= $currentPage ?> };
   var timer = null;
   var totalPages = <?= (int)$totalPages ?>;
   var pager = null;
@@ -156,6 +166,7 @@ $totalPages = max(1, (int)ceil($total / $perPage));
     if (tbody)  tbody.style.opacity  = '0.4';
     var params = new URLSearchParams({ page: 'admin_clients', ajax_clients: '1', p: state.page });
     if (state.q) params.set('q', state.q);
+    if (state.owner_type) params.set('owner_type', state.owner_type);
 
     fetch('index.php?' + params)
       .then(function (r) { return r.json(); })
@@ -202,6 +213,10 @@ $totalPages = max(1, (int)ceil($total / $perPage));
       searchEl.focus();
     });
   }
+
+  document.getElementById('acOwnerFilter')?.addEventListener('change', function () {
+    state.owner_type = this.value; state.page = 1; load();
+  });
 
   document.getElementById('acDeleteCancel')?.addEventListener('click', function () {
     document.getElementById('acDeleteModal').style.display = 'none';
