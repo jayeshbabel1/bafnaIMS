@@ -528,6 +528,8 @@ function adminListAllClients(array $opts = []): array {
     } elseif (($opts['owner_type'] ?? '') === CLIENT_SOURCE_REFERRED) {
         $where .= " AND c.user_id IS NOT NULL";
     }
+    // city / has_email — applyClientFilters() already existed but was never called from here
+    $where = applyClientFilters($where, $params, $opts);
 
     $countSt = $db->prepare("SELECT COUNT(*) FROM clients c LEFT JOIN users u ON u.id = c.user_id $where");
     $countSt->execute($params);

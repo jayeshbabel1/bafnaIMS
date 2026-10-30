@@ -6,6 +6,9 @@
 
 // Owner-type filter: '' = all, 'walkin' = showroom walk-ins, 'referred' = clients owned by a user
 $ownerType = in_array($_GET['owner_type'] ?? '', ['walkin', 'referred'], true) ? $_GET['owner_type'] : '';
+// City / email-availability filters ('' = no filter; has_email: '1' = has email, '0' = none)
+$filterCity     = trim((string)($_GET['city'] ?? ''));
+$filterHasEmail = in_array($_GET['has_email'] ?? '', ['0', '1'], true) ? $_GET['has_email'] : '';
 
 // ── AJAX handler (search + pagination) ──────────────────────────────────────
 if (!empty($_GET['ajax_clients'])) {
@@ -16,6 +19,8 @@ if (!empty($_GET['ajax_clients'])) {
     $result = adminListAllClients([
         'search'     => $search,
         'owner_type' => $ownerType,
+        'city'       => $filterCity,
+        'has_email'  => $filterHasEmail,
         'limit'      => $perPage,
         'offset'     => ($currentPage - 1) * $perPage,
     ]);
@@ -44,6 +49,8 @@ $search      = trim($_GET['q'] ?? '');
 $result = adminListAllClients([
     'search'     => $search,
     'owner_type' => $ownerType,
+    'city'       => $filterCity,
+    'has_email'  => $filterHasEmail,
     'limit'      => $perPage,
     'offset'     => ($currentPage - 1) * $perPage,
 ]);
@@ -82,13 +89,13 @@ $totalPages = max(1, (int)ceil($total / $perPage));
   <select id="acCityFilter" class="admin-input" style="max-width:160px;">
   <option value="">All Cities</option>
   <?php foreach (getDistinctClientCities() as $c): ?>
-  <option value="<?= h($c) ?>"><?= h($c) ?></option>
+  <option value="<?= h($c) ?>"<?= $filterCity === $c ? ' selected' : '' ?>><?= h($c) ?></option>
   <?php endforeach; ?>
 </select>
 <select id="acEmailFilter" class="admin-input" style="max-width:160px;">
   <option value="">Email: All</option>
-  <option value="1">Email Available</option>
-  <option value="0">Email Not Available</option>
+  <option value="1"<?= $filterHasEmail === '1' ? ' selected' : '' ?>>Email Available</option>
+  <option value="0"<?= $filterHasEmail === '0' ? ' selected' : '' ?>>Email Not Available</option>
 </select>
   <select id="acOwnerFilter" class="admin-input" style="max-width:170px;">
     <option value="">All Clients</option>
@@ -156,7 +163,7 @@ $totalPages = max(1, (int)ceil($total / $perPage));
   var clearBtn= document.getElementById('acSearchClear');
   var loader  = document.getElementById('adminClientsLoader');
 
-  var state = { q: '', owner_type: <?= json_encode($ownerType) ?>, page: <?= $currentPage ?> };
+  var state = { q: '', owner_type: <?= json_encode($ownerType) ?>, city: <?= json_encode($filterCity) ?>, has_email: <?= json_encode($filterHasEmail) ?>, page: <?= $currentPage ?> };
   var timer = null;
   var totalPages = <?= (int)$totalPages ?>;
   var pager = null;
@@ -167,6 +174,8 @@ $totalPages = max(1, (int)ceil($total / $perPage));
     var params = new URLSearchParams({ page: 'admin_clients', ajax_clients: '1', p: state.page });
     if (state.q) params.set('q', state.q);
     if (state.owner_type) params.set('owner_type', state.owner_type);
+    if (state.city) params.set('city', state.city);
+    if (state.has_email !== '') params.set('has_email', state.has_email);
 
     fetch('index.php?' + params)
       .then(function (r) { return r.json(); })
@@ -216,6 +225,12 @@ $totalPages = max(1, (int)ceil($total / $perPage));
 
   document.getElementById('acOwnerFilter')?.addEventListener('change', function () {
     state.owner_type = this.value; state.page = 1; load();
+  });
+  document.getElementById('acCityFilter')?.addEventListener('change', function () {
+    state.city = this.value; state.page = 1; load();
+  });
+  document.getElementById('acEmailFilter')?.addEventListener('change', function () {
+    state.has_email = this.value; state.page = 1; load();
   });
 
   document.getElementById('acDeleteCancel')?.addEventListener('click', function () {
