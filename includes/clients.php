@@ -428,11 +428,14 @@ function ensureClientWalkinColumns(): void {
             $db->exec("ALTER TABLE clients ADD COLUMN client_source VARCHAR(10) NOT NULL DEFAULT 'referred' AFTER user_id");
             $db->exec("ALTER TABLE clients ADD KEY idx_clients_source (client_source)");
         }
-        if (!isset($have['clients.referrer_type'])) {
-            $db->exec("ALTER TABLE clients ADD COLUMN referrer_type VARCHAR(50) NULL AFTER client_source");
+        if (!isset($have['clients.referrer_name'])) {
+            $db->exec("ALTER TABLE clients ADD COLUMN referrer_name VARCHAR(200) NULL AFTER client_source");
+        }
+        if (!isset($have['clients.referrer_mobile'])) {
+            $db->exec("ALTER TABLE clients ADD COLUMN referrer_mobile VARCHAR(20) NULL AFTER referrer_name");
         }
         if (!isset($have['clients.created_by_admin_id'])) {
-            $db->exec("ALTER TABLE clients ADD COLUMN created_by_admin_id INT UNSIGNED NULL AFTER referrer_type");
+            $db->exec("ALTER TABLE clients ADD COLUMN created_by_admin_id INT UNSIGNED NULL AFTER referrer_mobile");
         }
     } catch (Throwable $e) {
         error_log('ensureClientWalkinColumns: ' . $e->getMessage());
@@ -459,22 +462,29 @@ function _clientsMakeUserIdNullable(PDO $db, string $table): void {
 
 /**
  * Resolves who owns a client from the form input.
- * Returns ['user_id'=>?int, 'source'=>string, 'referrer_type'=>?string] or ['error'=>string].
+ * Returns ['user_id'=>?int, 'source'=>string, 'referrer_name'=>?string, 'referrer_mobile'=>?string] or ['error'=>string].
+ * Walk-ins may optionally record the architect who sent them (name + mobile) even though that
+ * architect has no account; referred clients are owned by a user so these stay null.
  */
 function _adminResolveClientOwner(int $userId, array $data): array {
     if (($data['client_source'] ?? CLIENT_SOURCE_REFERRED) === CLIENT_SOURCE_WALKIN) {
-        $rt = trim((string)($data['referrer_type'] ?? ''));
+        $rName   = mb_substr(titleCase((string)($data['referrer_name'] ?? '')), 0, 200);
+        $rMobile = sanitizeMobile((string)($data['referrer_mobile'] ?? ''));
+        if ($rMobile !== '' && !validateMobile($rMobile)) {
+            return ['error' => 'Enter a valid 10-digit architect mobile number.'];
+        }
         return [
-            'user_id'       => null,
-            'source'        => CLIENT_SOURCE_WALKIN,
-            'referrer_type' => ($rt !== '' && array_key_exists($rt, ROLES)) ? $rt : null,
+            'user_id'         => null,
+            'source'          => CLIENT_SOURCE_WALKIN,
+            'referrer_name'   => $rName   !== '' ? $rName   : null,
+            'referrer_mobile' => $rMobile !== '' ? $rMobile : null,
         ];
     }
     if (!$userId) return ['error' => 'Please select a user.'];
     $uchk = getDB()->prepare("SELECT id FROM users WHERE id=?");
     $uchk->execute([$userId]);
     if (!$uchk->fetch()) return ['error' => 'Selected user not found.'];
-    return ['user_id' => $userId, 'source' => CLIENT_SOURCE_REFERRED, 'referrer_type' => null];
+    return ['user_id' => $userId, 'source' => CLIENT_SOURCE_REFERRED, 'referrer_name' => null, 'referrer_mobile' => null];
 }
 
 /** Shared validation/sanitising for admin create + update. Returns ['fields'=>[…]] or ['error'=>string]. */
@@ -519,9 +529,9 @@ function adminListAllClients(array $opts = []): array {
     $params = [];
 
     if ($search !== '') {
-        $where   .= " AND (c.client_name LIKE ? OR c.client_mobile LIKE ? OR c.mansoner_name LIKE ? OR c.email LIKE ? OR c.city LIKE ? OR u.name LIKE ? OR u.firm LIKE ?)";
+        $where   .= " AND (c.client_name LIKE ? OR c.client_mobile LIKE ? OR c.mansoner_name LIKE ? OR c.email LIKE ? OR c.city LIKE ? OR u.name LIKE ? OR u.firm LIKE ? OR c.referrer_name LIKE ? OR c.referrer_mobile LIKE ?)";
         $like     = "%{$search}%";
-        $params   = [$like, $like, $like, $like, $like, $like, $like];
+        $params   = array_fill(0, 9, $like);
     }
     if (($opts['owner_type'] ?? '') === CLIENT_SOURCE_WALKIN) {
         $where .= " AND c.user_id IS NULL";
@@ -565,7 +575,7 @@ function adminGetClientWithOwner(int $clientId): ?array {
 }
 
 // ── Admin: create a client — for a chosen user, or as a showroom walk-in ────
-// Walk-in: pass $data['client_source'] = 'walkin' (and optionally 'referrer_type'); $userId is ignored.
+// Walk-in: pass $data['client_source'] = 'walkin' (and optionally 'referrer_name' + 'referrer_mobile'); $userId is ignored.
 // Returns duplicate_count (same mobile elsewhere) so the caller can warn without blocking.
 function adminCreateClient(int $userId, array $data): array {
     ensureClientWalkinColumns();
@@ -577,10 +587,10 @@ function adminCreateClient(int $userId, array $data): array {
 
     $db = getDB();
     try {
-        $db->prepare("INSERT INTO clients (user_id, client_source, referrer_type, created_by_admin_id, client_name, client_mobile, email, city, mansoner_name, mansoner_mobile, site_address, created_at, updated_at)
-                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+        $db->prepare("INSERT INTO clients (user_id, client_source, referrer_name, referrer_mobile, created_by_admin_id, client_name, client_mobile, email, city, mansoner_name, mansoner_mobile, site_address, created_at, updated_at)
+                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
            ->execute([
-               $owner['user_id'], $owner['source'], $owner['referrer_type'], $_SESSION['admin_id'] ?? null,
+               $owner['user_id'], $owner['source'], $owner['referrer_name'], $owner['referrer_mobile'], $_SESSION['admin_id'] ?? null,
                $f['name'], $f['mobile'], $f['email'] ?: null, $f['city'] ?: null,
                $f['mName'], $f['mMobile'], $f['addr'], time(), time(),
            ]);
@@ -606,10 +616,10 @@ function adminUpdateClient(int $clientId, int $userId, array $data): array {
     $db->beginTransaction();
     try {
         $db->prepare("UPDATE clients
-                      SET user_id=?, client_source=?, referrer_type=?, client_name=?, client_mobile=?, email=?, city=?, mansoner_name=?, mansoner_mobile=?, site_address=?, updated_at=?
+                      SET user_id=?, client_source=?, referrer_name=?, referrer_mobile=?, client_name=?, client_mobile=?, email=?, city=?, mansoner_name=?, mansoner_mobile=?, site_address=?, updated_at=?
                       WHERE id=?")
            ->execute([
-               $owner['user_id'], $owner['source'], $owner['referrer_type'],
+               $owner['user_id'], $owner['source'], $owner['referrer_name'], $owner['referrer_mobile'],
                $f['name'], $f['mobile'], $f['email'] ?: null, $f['city'] ?: null,
                $f['mName'], $f['mMobile'], $f['addr'], time(), $clientId,
            ]);

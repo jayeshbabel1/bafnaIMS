@@ -23,7 +23,8 @@ $selectedUserId = (int)($c['user_id'] ?? 0);
 // New clients default to walk-in (the showroom case); existing rows keep their stored type.
 $srcRaw           = $_POST['client_source'] ?? ($c['client_source'] ?? ($id ? 'referred' : 'walkin'));
 $srcWalkin        = ($srcRaw === 'walkin');
-$selectedReferrer = (string)($_POST['referrer_type'] ?? ($c['referrer_type'] ?? ''));
+$refName          = (string)($_POST['referrer_name']   ?? ($c['referrer_name']   ?? ''));
+$refMobile        = (string)($_POST['referrer_mobile'] ?? ($c['referrer_mobile'] ?? ''));
 ?>
 
 <style>
@@ -65,17 +66,26 @@ $selectedReferrer = (string)($_POST['referrer_type'] ?? ($c['referrer_type'] ?? 
         </label>
       </div>
 
-      <!-- Walk-in: optional referrer category -->
+      <!-- Walk-in: optional architect details (architect has no account in the system) -->
       <div id="acfWalkinPanel" style="<?= $srcWalkin ? '' : 'display:none;' ?>">
-        <label class="admin-label">Came via (optional)</label>
-        <select name="referrer_type" class="admin-input admin-select">
-          <option value="">— Came directly —</option>
-          <?php foreach (ROLES as $rk => $rl): ?>
-          <option value="<?= h($rk) ?>" <?= $selectedReferrer === $rk ? 'selected' : '' ?>><?= h($rl) ?></option>
-          <?php endforeach; ?>
-        </select>
-        <p style="font-size:11px;color:var(--admin-text3,var(--text3));margin-top:6px;">
-          <?= icon('info', 11) ?> Use this if a professional sent them but has no account here. This client is managed by showroom staff and does not appear on any user's panel.
+        <div class="acf-grid">
+          <div>
+            <label class="admin-label">Architect Name <span style="font-weight:400;text-transform:none;">(optional)</span></label>
+            <input type="text" name="referrer_name" class="admin-input" maxlength="200"
+                   placeholder="e.g. Ar. Mehta" value="<?= h($refName) ?>"/>
+          </div>
+          <div>
+            <label class="admin-label">Architect Mobile No. <span style="font-weight:400;text-transform:none;">(optional)</span></label>
+            <div style="display:flex;border:1.5px solid var(--admin-input-border,var(--border));border-radius:var(--admin-input-radius,8px);overflow:hidden;background:var(--admin-input-bg,#fff);">
+              <span style="padding:9px 10px;background:var(--surface2);border-right:1px solid var(--border);font-size:13px;color:var(--text2);flex-shrink:0;">+91</span>
+              <input type="tel" name="referrer_mobile" id="acfRefMobile" class="admin-input"
+                     placeholder="98765 43210" maxlength="10" value="<?= h($refMobile) ?>"
+                     style="border:none;border-radius:0;"/>
+            </div>
+          </div>
+        </div>
+        <p style="font-size:11px;color:var(--admin-text3,var(--text3));margin-top:8px;">
+          <?= icon('info', 11) ?> Leave blank if the customer came directly. This client is managed by showroom staff and does not appear on any user's panel.
         </p>
       </div>
 
@@ -210,6 +220,12 @@ document.getElementById('adminClientForm').addEventListener('submit', function (
   if (clientMob.length !== 10 || !/^[6-9]/.test(clientMob)) {
     e.preventDefault();
     alert('Please enter a valid 10-digit client mobile number.');
+    return;
+  }
+  var refMob = document.getElementById('acfRefMobile').value.replace(/\D/g, '');
+  if (srcEl && srcEl.value === 'walkin' && refMob && (refMob.length !== 10 || !/^[6-9]/.test(refMob))) {
+    e.preventDefault();
+    alert('Please enter a valid 10-digit architect mobile number.');
     return;
   }
   var masonMob = document.getElementById('acfMasonMobile').value.replace(/\D/g, '');
